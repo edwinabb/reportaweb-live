@@ -163,7 +163,7 @@ async function auditServiciosTipoPrecios(adminClient: any, tenantId: string): Pr
 
   // Common service types
   const commonServicios = ['Por hora', 'Por día', 'Por mes', 'Fijo', 'Variable']
-  const existingNames = (servicios || []).map(s => s.nombre.toLowerCase())
+  const existingNames = (servicios || []).map((s: { nombre: string }) => s.nombre.toLowerCase())
 
   commonServicios.forEach(servicio => {
     if (!existingNames.includes(servicio.toLowerCase())) {
