@@ -231,7 +231,7 @@ async function auditPersonalCargos(adminClient: any, tenantId: string): Promise<
   const missingItems: string[] = []
 
   const commonCargos = ['Operario', 'Supervisor', 'Chofer', 'Técnico', 'Ayudante']
-  const existingNames = (cargos || []).map(c => c.nombre.toLowerCase())
+  const existingNames = (cargos || []).map((c: { nombre: string }) => c.nombre.toLowerCase())
 
   commonCargos.forEach(cargo => {
     if (!existingNames.includes(cargo.toLowerCase())) {
@@ -239,7 +239,7 @@ async function auditPersonalCargos(adminClient: any, tenantId: string): Promise<
     }
   })
 
-  const inactive = (cargos || []).filter(c => !c.is_active).length
+  const inactive = (cargos || []).filter((c: { is_active: boolean }) => !c.is_active).length
 
   return {
     tableName: 'personal_cargos',
@@ -266,7 +266,7 @@ async function auditContactosArea(adminClient: any, tenantId: string): Promise<C
   const missingItems: string[] = []
 
   const commonAreas = ['Ventas', 'Operaciones', 'Administración', 'Finanzas']
-  const existingNames = (areas || []).map(a => a.nombre.toLowerCase())
+  const existingNames = (areas || []).map((a: { nombre: string }) => a.nombre.toLowerCase())
 
   commonAreas.forEach(area => {
     if (!existingNames.includes(area.toLowerCase())) {
@@ -274,7 +274,7 @@ async function auditContactosArea(adminClient: any, tenantId: string): Promise<C
     }
   })
 
-  const inactive = (areas || []).filter(a => !a.is_active).length
+  const inactive = (areas || []).filter((a: { is_active: boolean }) => !a.is_active).length
 
   return {
     tableName: 'contactos_area',
@@ -301,7 +301,7 @@ async function auditSitiosTipo(adminClient: any, tenantId: string): Promise<Cata
   const missingItems: string[] = []
 
   const commonTipos = ['Oficina', 'Almacén', 'Obra', 'Taller']
-  const existingNames = (tipos || []).map(t => t.nombre.toLowerCase())
+  const existingNames = (tipos || []).map((t: { nombre: string }) => t.nombre.toLowerCase())
 
   commonTipos.forEach(tipo => {
     if (!existingNames.includes(tipo.toLowerCase())) {
@@ -309,7 +309,7 @@ async function auditSitiosTipo(adminClient: any, tenantId: string): Promise<Cata
     }
   })
 
-  const inactive = (tipos || []).filter(t => !t.is_active).length
+  const inactive = (tipos || []).filter((t: { is_active: boolean }) => !t.is_active).length
 
   return {
     tableName: 'sitios_tipo',
@@ -337,7 +337,7 @@ async function auditPaises(adminClient: any): Promise<CatalogAudit> {
 
   // Check for key countries
   const keyCountries = ['PE', 'CO', 'CL', 'AR', 'MX']
-  const existingCodes = (paises || []).map(p => p.id)
+  const existingCodes = (paises || []).map((p: { id: string }) => p.id)
 
   keyCountries.forEach(code => {
     if (!existingCodes.includes(code)) {
@@ -420,11 +420,11 @@ export async function getCatalogSummary(tableName: string): Promise<{
     return { tableName, activeCount: 0, inactiveCount: 0, items: [] }
   }
 
-  const activeCount = (items || []).filter(i => i.is_active).length
-  const inactiveCount = (items || []).filter(i => !i.is_active).length
+  const activeCount = (items || []).filter((i: { is_active: boolean }) => i.is_active).length
+  const inactiveCount = (items || []).filter((i: { is_active: boolean }) => !i.is_active).length
   const activeItems = (items || [])
-    .filter(i => i.is_active)
-    .map(i => ({ id: i.id, nombre: i.nombre }))
+    .filter((i: { is_active: boolean }) => i.is_active)
+    .map((i: { id: string; nombre: string }) => ({ id: i.id, nombre: i.nombre }))
 
   return {
     tableName,
