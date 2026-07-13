@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="REPORTA — La app que usan los operarios en campo para registrar sus horas. El cliente firma en el momento. Tú cobras todo." />
+  <title>REPORTA — Cobra todo lo que tu maquinaria trabajó</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              orange:  '#E85D04',
+              orangeD: '#C44D03',
+              orangeL: '#FF7520',
+              dark:    '#0F172A',
+              darkM:   '#1E293B',
+              darkL:   '#334155',
+              gray:    '#F1F5F9',
+              grayM:   '#94A3B8',
+              text:    '#1E293B',
+            },
+          },
+        },
+      },
+    }
+  </script>
+
+  <style>
+    /* ── Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1E293B; background: #fff; }
+
+    /* ── Navbar ──────────────────────────── */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #navbar.scrolled {
+      background: rgba(15,23,42,0.97);
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── Hero gradient ───────────────────── */
+    .hero-bg {
+      background: linear-gradient(160deg, #0F172A 0%, #1a2744 55%, #0F172A 100%);
+    }
+    .hero-grid {
+      background-image:
+        linear-gradient(rgba(232,93,4,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,93,4,0.08) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
+    /* ── Orange glow ─────────────────────── */
+    .glow-orange {
+      box-shadow: 0 0 40px rgba(232,93,4,0.3), 0 4px 16px rgba(232,93,4,0.2);
+    }
+    .btn-primary {
+      background: #E85D04;
+      color: #fff;
+      font-weight: 700;
+      border-radius: 8px;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      background: #C44D03;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(232,93,4,0.4);
+    }
+    .btn-outline {
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-radius: 8px;
+      font-weight: 600;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-outline:hover {
+      border-color: #E85D04;
+      background: rgba(232,93,4,0.1);
+    }
+
+    /* ── Badge ───────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(232,93,4,0.15);
+      border: 1px solid rgba(232,93,4,0.4);
+      color: #FF7520;
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 13px; font-weight: 600;
+    }
+
+    /* ── Pain cards ──────────────────────── */
+    .pain-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .pain-card:hover {
+      border-color: #E85D04;
+      box-shadow: 0 8px 32px rgba(232,93,4,0.1);
+    }
+
+    /* ── Step connector ──────────────────── */
+    .step-line {
+      position: absolute;
+      top: 36px; left: calc(50% + 40px);
+      width: calc(100% - 80px);
+      height: 2px;
+      background: linear-gradient(90deg, #E85D04, rgba(232,93,4,0.2));
+    }
+
+    /* ── Differentiator section ──────────── */
+    .diff-bg {
+      background: linear-gradient(135deg, #0F172A 0%, #1a2744 100%);
+    }
+
+    /* ── Benefit card ────────────────────── */
+    .benefit-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 24px 20px;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .benefit-card:hover {
+      box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+      transform: translateY(-3px);
+    }
+
+    /* ── Accordion ───────────────────────── */
+    .faq-item { border-bottom: 1px solid #e2e8f0; }
+    .faq-btn {
+      width: 100%; text-align: left; display: flex; justify-content: space-between;
+      align-items: center; padding: 22px 0;
+      font-weight: 700; font-size: 17px; color: #1E293B;
+      background: none; border: none; cursor: pointer;
+      transition: color 0.2s;
+    }
+    .faq-btn:hover { color: #E85D04; }
+    .faq-btn .icon { transition: transform 0.3s; flex-shrink: 0; }
+    .faq-btn.open .icon { transform: rotate(45deg); }
+    .faq-answer {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      color: #475569; line-height: 1.7; font-size: 16px;
+    }
+    .faq-answer.open { max-height: 400px; padding-bottom: 20px; }
+
+    /* ── CTA final ───────────────────────── */
+    .cta-bg {
+      background: linear-gradient(135deg, #E85D04 0%, #C44D03 100%);
+    }
+
+    /* ── Form ────────────────────────────── */
+    .form-input {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid #CBD5E1;
+      border-radius: 8px; font-size: 15px;
+      font-family: inherit; color: #1E293B;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      border-color: #E85D04;
+      box-shadow: 0 0 0 3px rgba(232,93,4,0.15);
+    }
+    .form-label {
+      display: block; font-size: 14px; font-weight: 600;
+      color: #475569; margin-bottom: 6px;
+    }
+
+    /* ── WhatsApp float ──────────────────── */
+    #wa-float {
+      position: fixed; bottom: 28px; right: 28px; z-index: 200;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: #25D366;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(37,211,102,0.45);
+      cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #wa-float:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 28px rgba(37,211,102,0.55);
+    }
+    #wa-tooltip {
+      position: fixed; bottom: 96px; right: 28px; z-index: 200;
+      background: #1E293B; color: #fff;
+      padding: 10px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; white-space: nowrap;
+      opacity: 0; pointer-events: none; transform: translateY(6px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #wa-float:hover ~ #wa-tooltip,
+    #wa-tooltip:hover { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    /* ── Mobile menu ─────────────────────── */
+    #mobile-menu {
+      display: none;
+      position: fixed; top: 64px; left: 0; right: 0; z-index: 99;
+      background: #0F172A;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 20px;
+    }
+    #mobile-menu.open { display: block; }
+    .mobile-link {
+      display: block; padding: 14px 0;
+      color: rgba(255,255,255,0.85); font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .mobile-link:hover { color: #FF7520; }
+
+    /* ── Metric cards ────────────────────── */
+    .metric-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px; padding: 28px 24px; text-align: center;
+    }
+
+    /* ── Testimonial ─────────────────────── */
+    .testimonial {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px; padding: 32px 28px;
+    }
+
+    /* ── Section label ───────────────────── */
+    .section-label {
+      display: inline-block;
+      background: rgba(232,93,4,0.1);
+      color: #E85D04;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+
+    /* ── Scroll reveal ───────────────────── */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* ── Responsive utilities ────────────── */
+    @media (max-width: 768px) {
+      .step-line { display: none; }
+    }
+
+    /* ── Success state ───────────────────── */
+    #form-success { display: none; }
+    #form-success.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════════ -->
+<nav id="navbar" class="py-3 px-4 md:px-8">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+
+    <!-- Logo -->
+    <a href="#hero" class="flex items-center gap-2 text-white font-black text-xl tracking-tight">
+      <span class="text-brand-orange text-2xl">▶</span>
+      REPORTA
+    </a>
+
+    <!-- Desktop links -->
+    <div class="hidden md:flex items-center gap-8 text-sm font-semibold text-white/70">
+      <a href="#problema" class="hover:text-white transition-colors">El problema</a>
+      <a href="#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
+      <a href="#beneficios" class="hover:text-white transition-colors">Beneficios</a>
+      <a href="#prueba-social" class="hover:text-white transition-colors">Empresas</a>
+      <a href="#faq" class="hover:text-white transition-colors">Preguntas</a>
+    </div>
+
+    <!-- Desktop CTA -->
+    <div class="hidden md:flex items-center gap-3">
+      <a href="#cta-final" class="btn-primary px-5 py-2.5 text-sm">
+        Quiero verlo en acción
+      </a>
+    </div>
+
+    <!-- Hamburger -->
+    <button id="hamburger" class="md:hidden text-white p-2" aria-label="Menú">
+      <svg id="ham-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile menu -->
+<div id="mobile-menu">
+  <a href="#problema" class="mobile-link">El problema</a>
+  <a href="#como-funciona" class="mobile-link">Cómo funciona</a>
+  <a href="#beneficios" class="mobile-link">Beneficios</a>
+  <a href="#prueba-social" class="mobile-link">Empresas</a>
+  <a href="#faq" class="mobile-link">Preguntas</a>
+  <a href="#cta-final" class="btn-primary block text-center mt-6 px-5 py-3 text-base">
+    Quiero verlo en acción
+  </a>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════ -->
+<header id="hero" class="hero-bg hero-grid min-h-screen flex items-center pt-24 pb-16 relative overflow-hidden">
+
+  <!-- Decorative glow -->
+  <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-brand-orange opacity-[0.06] rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="max-w-6xl mx-auto px-4 md:px-8 w-full">
+    <div class="grid lg:grid-cols-[1fr_1.2fr] gap-12 lg:gap-16 items-center">
+
+      <!-- Left: copy -->
+      <div>
+        <!-- Badge -->
+        <div class="badge mb-6">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Funciona sin internet · Firma digital · Peru
+        </div>
+
+        <!-- H1 -->
+        <h1 class="text-4xl md:text-5xl lg:text-[54px] font-black text-white leading-[1.1] mb-6">
+          Cobra todo lo que<br />
+          <span class="text-brand-orange">tu maquinaria trabajó</span><br />
+          — sin papeles perdidos,<br />
+          sin clientes que no recuerdan.
+        </h1>
+
+        <!-- Subheadline -->
+        <p class="text-lg md:text-xl text-white/75 leading-relaxed mb-8 max-w-xl">
+          REPORTA es la app que usan los operarios en campo para registrar sus horas — con o sin internet. El cliente firma en el momento. Y tú valorizas todo en segundos, sin tocar un Excel.
+        </p>
+
+        <!-- Resumen fuerte -->
+        <div class="inline-block bg-brand-orange/15 border border-brand-orange/30 rounded-xl px-5 py-3 mb-8">
+          <p class="text-brand-orangeL font-bold text-lg">
+            "Tu operario registra, el cliente firma, tú cobras todo."
+          </p>
+        </div>
+
+        <!-- CTAs -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#cta-final" class="btn-primary px-7 py-4 text-base text-center glow-orange">
+            Quiero ver cómo funciona para mi empresa
+          </a>
+          <a href="#como-funciona" class="btn-outline px-7 py-4 text-base text-center">
+            Ver cómo funciona
+            <span class="ml-2 text-brand-orange">→</span>
+          </a>
+        </div>
+
+        <!-- Garantia micro -->
+        <p class="text-white/45 text-sm mt-5">Sin compromiso. Sin tarjeta. Una llamada de 20 minutos.</p>
+      </div>
+
+      <!-- Right: Hero image -->
+      <div class="flex justify-center lg:justify-end">
+        <div class="relative w-full max-w-xl lg:max-w-2xl">
+          <!-- Glow behind image -->
+          <div class="absolute inset-0 -z-10 blur-3xl bg-brand-orange/15 rounded-full scale-90"></div>
+          <!-- Image -->
+          <img
+            src="assets/hero.png"
+            alt="Plataforma REPORTA — gestión digital de maquinaria pesada"
+            class="w-full h-auto rounded-2xl shadow-2xl ring-1 ring-white/10"
+            style="filter: drop-shadow(0 0 40px rgba(232,93,4,0.18));"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<!-- ═══════════════════════════════════════════════
+     LOGOS / CREDIBILIDAD
+═══════════════════════════════════════════════ -->
+<section class="py-10 bg-brand-gray border-y border-gray-200">
+  <div class="max-w-5xl mx-auto px-4 md:px-8 text-center">
+    <p class="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-6">Usado por empresas de maquinaria en todo el Perú</p>
+    <div class="flex flex-wrap justify-center gap-8 md:gap-16 items-center">
+      <!-- Placeholders empresa -->
+      <div class="text-gray-300 font-black text-lg tracking-tight">CISE</div>
+      <div class="text-gray-300 font-black text-lg tracking-tight">GRÚAS SAC</div>
+      <div class="text-gray-300 font-black text-lg tracking-tight">CONSTRUCCIÓN ANDES</div>
+      <div class="text-gray-300 font-black text-lg tracking-tight">MAQUITEC PERÚ</div>
+      <div class="text-gray-300 font-black text-lg tracking-tight">EXCAV & CIA</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     EL PROBLEMA — 3 preguntas duras
+═══════════════════════════════════════════════ -->
+<section id="problema" class="py-20 md:py-28 bg-white">
+  <div class="max-w-5xl mx-auto px-4 md:px-8">
+    <div class="text-center mb-14 reveal">
+      <div class="section-label">El problema</div>
+      <h2 class="text-3xl md:text-4xl font-black text-brand-dark leading-tight">
+        Cada mes, miles de soles se quedan<br class="hidden md:block" />
+        en el camino. No porque no trabajaste.
+      </h2>
+      <p class="text-gray-500 mt-4 text-lg max-w-2xl mx-auto">
+        Sino porque el reporte se perdió, el cliente no recuerda, el Excel tiene un error, o simplemente no tuviste tiempo de cuadrar todo.
+      </p>
+    </div>
+
+    <!-- 3 preguntas duras -->
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="pain-card reveal">
+        <div class="text-3xl mb-4">📋</div>
+        <h3 class="font-black text-lg text-brand-dark mb-3">¿Cuántos reportes se perdieron el mes pasado?</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">El operario trabaja 10 horas bajo el sol. Llena el parte en papel. Lo dobla, lo mete al bolsillo. Llega la tarde, se moja, se borra. O simplemente... desaparece. Esa semana ya no existe en papel.</p>
+      </div>
+      <div class="pain-card reveal" style="transition-delay:0.1s">
+        <div class="text-3xl mb-4">🤝</div>
+        <h3 class="font-black text-lg text-brand-dark mb-3">¿Cuánto dejaste de cobrar porque el cliente "no recuerda"?</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">Llamas al residente de obra para validar las horas. Te dice que le parece mucho, que recuerda menos, que necesita revisar. El que tiene el papel gana la discusión — y si el papel es tuyo, en Word o Excel, sigues perdiendo.</p>
+      </div>
+      <div class="pain-card reveal" style="transition-delay:0.2s">
+        <div class="text-3xl mb-4">⏰</div>
+        <h3 class="font-black text-lg text-brand-dark mb-3">¿Cuántas horas del domingo gastas para un número que igual tiene errores?</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">Juntas los partes de la semana. Los que llegan tarde, los incompletos, los que tienen tachones. Abres el Excel, ingresas dato por dato. Son las 11 de la noche y todavía no tienes la valorización lista.</p>
+      </div>
+    </div>
+
+    <!-- Dolor 4 -->
+    <div class="mt-6 pain-card reveal" style="border-color:#fca5a5; background:#fff5f5;">
+      <div class="flex flex-col md:flex-row gap-6 items-start">
+        <div class="text-4xl">⚠️</div>
+        <div>
+          <h3 class="font-black text-lg text-brand-dark mb-2">Tienes maquinaria subcontratada y no controlas lo que te reportan</h3>
+          <p class="text-gray-500 leading-relaxed">Contrataste una excavadora de un tercero para cubrir una obra. Le pagas según las horas que él reporta. El problema: no tienes forma de verificarlo. Si te manda de más, pagas de más. Sin trazabilidad, cualquier número puede ser el correcto — o ninguno.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     CÓMO FUNCIONA — 3 pasos
+═══════════════════════════════════════════════ -->
+<section id="como-funciona" class="py-20 md:py-28 bg-brand-gray">
+  <div class="max-w-5xl mx-auto px-4 md:px-8">
+    <div class="text-center mb-16 reveal">
+      <div class="section-label">Así funciona REPORTA</div>
+      <h2 class="text-3xl md:text-4xl font-black text-brand-dark">
+        3 pasos. Sin capacitación.<br class="hidden md:block" /> Sin cambiar cómo trabajas.
+      </h2>
+    </div>
+
+    <div class="relative grid md:grid-cols-3 gap-6 md:gap-8">
+
+      <!-- Connector lines (desktop only) -->
+      <div class="hidden md:block absolute top-[36px] left-[calc(16.66%+16px)] right-[calc(16.66%+16px)] h-0.5" style="background: linear-gradient(90deg, #E85D04 0%, rgba(232,93,4,0.2) 100%); z-index:0;"></div>
+
+      <!-- Paso 1 -->
+      <div class="relative z-10 text-center reveal">
+        <div class="w-[72px] h-[72px] rounded-full bg-brand-orange flex items-center justify-center mx-auto mb-6 shadow-lg" style="box-shadow:0 0 0 6px rgba(232,93,4,0.15);">
+          <!-- Icono celular -->
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+        </div>
+        <div class="inline-block bg-brand-dark text-white text-xs font-black px-3 py-1 rounded-full mb-3">PASO 1</div>
+        <h3 class="font-black text-xl text-brand-dark mb-3">El operario registra en campo</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">Con o sin internet. La app guarda todo en el celular aunque no haya una sola barra de señal. Cuando vuelve la cobertura, sube solo. Cero excusas, cero datos perdidos.</p>
+      </div>
+
+      <!-- Paso 2 -->
+      <div class="relative z-10 text-center reveal" style="transition-delay:0.15s">
+        <div class="w-[72px] h-[72px] rounded-full bg-brand-orange flex items-center justify-center mx-auto mb-6 shadow-lg" style="box-shadow:0 0 0 6px rgba(232,93,4,0.15);">
+          <!-- Icono firma -->
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17L7 13L11 17L17 7"/>
+            <path d="M3 21h18"/>
+          </svg>
+        </div>
+        <div class="inline-block bg-brand-dark text-white text-xs font-black px-3 py-1 rounded-full mb-3">PASO 2</div>
+        <h3 class="font-black text-xl text-brand-dark mb-3">El cliente firma en el momento</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">El operario muestra la pantalla al residente. El cliente revisa y firma con el dedo. Fecha, hora y ubicación quedan registradas. No hay discusión posible después.</p>
+      </div>
+
+      <!-- Paso 3 -->
+      <div class="relative z-10 text-center reveal" style="transition-delay:0.3s">
+        <div class="w-[72px] h-[72px] rounded-full bg-brand-orange flex items-center justify-center mx-auto mb-6 shadow-lg" style="box-shadow:0 0 0 6px rgba(232,93,4,0.15);">
+          <!-- Icono calculo -->
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <line x1="8" y1="6" x2="16" y2="6"/>
+            <line x1="8" y1="10" x2="16" y2="10"/>
+            <line x1="8" y1="14" x2="12" y2="14"/>
+          </svg>
+        </div>
+        <div class="inline-block bg-brand-dark text-white text-xs font-black px-3 py-1 rounded-full mb-3">PASO 3</div>
+        <h3 class="font-black text-xl text-brand-dark mb-3">Tú valorizas con un clic</h3>
+        <p class="text-gray-500 leading-relaxed text-sm">Seleccionas los reportes aprobados del mes. REPORTA calcula horas, tarifas, maquinaria propia y de terceros. De 3 horas de domingo a 2 minutos.</p>
+      </div>
+    </div>
+
+    <!-- Resumen visual -->
+    <div class="mt-14 bg-brand-dark rounded-2xl p-6 md:p-8 reveal">
+      <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 text-center">
+        <div>
+          <div class="text-brand-orange font-black text-3xl">3 hrs</div>
+          <div class="text-white/50 text-sm mt-1">cuadrando Excel los domingos</div>
+        </div>
+        <div class="text-brand-orange font-black text-3xl hidden md:block">→</div>
+        <div class="text-brand-orange/40 text-2xl md:hidden">↓</div>
+        <div>
+          <div class="text-green-400 font-black text-3xl">2 min</div>
+          <div class="text-white/50 text-sm mt-1">con REPORTA</div>
+        </div>
+        <div class="hidden md:block w-px h-10 bg-white/10"></div>
+        <div>
+          <div class="text-white/50 text-sm">Horas disputadas</div>
+          <div class="text-green-400 font-black text-3xl mt-1">0</div>
+          <div class="text-white/50 text-sm">con firma en tiempo real</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     DIFERENCIADOR — La firma que lo cambia todo
+═══════════════════════════════════════════════ -->
+<section class="py-20 md:py-28 diff-bg overflow-hidden relative">
+  <div class="absolute inset-0 hero-grid opacity-30"></div>
+  <div class="absolute top-1/2 right-0 w-80 h-80 bg-brand-orange/10 rounded-full blur-3xl -translate-y-1/2"></div>
+
+  <div class="max-w-5xl mx-auto px-4 md:px-8 relative z-10">
+    <div class="grid md:grid-cols-2 gap-12 items-center">
+
+      <!-- Left: illustration -->
+      <div class="flex justify-center order-2 md:order-1 reveal">
+        <!-- Signature illustration -->
+        <div class="relative w-72">
+          <!-- Before: papel -->
+          <div class="bg-white rounded-xl p-5 shadow-2xl mb-4 border border-gray-100 opacity-50" style="transform: rotate(-3deg);">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-6 h-6 rounded bg-red-100 flex items-center justify-center text-red-500 text-xs">✗</div>
+              <span class="text-xs font-semibold text-gray-500">Parte de papel</span>
+            </div>
+            <div class="space-y-2">
+              <div class="h-2 bg-gray-200 rounded w-full"></div>
+              <div class="h-2 bg-gray-200 rounded w-3/4"></div>
+              <div class="h-2 bg-gray-100 rounded w-1/2 mt-4"></div>
+            </div>
+            <div class="mt-4 border-t pt-3 text-xs text-gray-300 italic">Firma ilegible · Sin fecha</div>
+          </div>
+
+          <!-- After: REPORTA -->
+          <div class="bg-brand-darkM border border-brand-orange/30 rounded-xl p-5 shadow-2xl" style="transform: rotate(1deg);">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-6 h-6 rounded bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</div>
+              <span class="text-xs font-semibold text-green-400">Firmado en REPORTA</span>
+            </div>
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-xs">
+                <span class="text-white/50">Operario</span>
+                <span class="text-white font-semibold">José Ríos</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-white/50">Horas</span>
+                <span class="text-white font-semibold">8.75 h</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-white/50">Maquinaria</span>
+                <span class="text-white font-semibold">CAT 336</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-white/50">Obra</span>
+                <span class="text-white font-semibold">Torres Norte</span>
+              </div>
+            </div>
+            <div class="mt-4 border-t border-white/10 pt-3">
+              <div class="text-brand-orange text-xs font-bold mb-1">✍ Firmado digitalmente</div>
+              <div class="text-white/40 text-xs">Hoy 14:32:07 · Lima, Perú · GPS verificado</div>
+            </div>
+          </div>
+
+          <!-- Arrow -->
+          <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-brand-orange rounded-full flex items-center justify-center text-white font-black text-lg z-10 shadow-lg">→</div>
+        </div>
+      </div>
+
+      <!-- Right: copy -->
+      <div class="order-1 md:order-2 reveal" style="transition-delay:0.15s">
+        <div class="section-label" style="background:rgba(232,93,4,0.2); color:#FF7520;">El diferenciador</div>
+        <h2 class="text-3xl md:text-4xl font-black text-white leading-tight mt-2 mb-6">
+          La firma que<br />cambia todo
+        </h2>
+        <p class="text-white/65 leading-relaxed mb-6">
+          En el negocio de maquinaria, el que tiene la firma gana la discusión. Siempre.
+        </p>
+        <p class="text-white/65 leading-relaxed mb-6">
+          Con los partes de papel, la firma llega tarde — cuando ya nadie recuerda bien, cuando el residente ya no está seguro, cuando los números se vuelven negociables. Y en esa negociación, siempre pierde el que alquila la maquina.
+        </p>
+        <p class="text-white/65 leading-relaxed mb-8">
+          Con REPORTA, el operario muestra el reporte en la app al final del turno. El cliente lo ve, lo revisa, y firma en ese momento — con su dedo, en la pantalla, con los datos frescos. La firma queda registrada con sello de tiempo y no puede editarse después.
+        </p>
+
+        <!-- Quote -->
+        <div class="bg-brand-orange/15 border-l-4 border-brand-orange pl-5 py-3 rounded-r-xl">
+          <p class="text-white font-bold text-lg leading-snug">
+            "La firma en el momento es la diferencia entre cobrar lo que trabajaste y cobrar lo que el cliente acepta recordar."
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     BENEFICIOS — 8 cards
+═══════════════════════════════════════════════ -->
+<section id="beneficios" class="py-20 md:py-28 bg-white">
+  <div class="max-w-6xl mx-auto px-4 md:px-8">
+    <div class="text-center mb-14 reveal">
+      <div class="section-label">Beneficios</div>
+      <h2 class="text-3xl md:text-4xl font-black text-brand-dark">
+        Todo lo que necesitas para<br class="hidden md:block" />
+        controlar tu operación
+      </h2>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
+      <!-- Offline -->
+      <div class="benefit-card reveal">
+        <div class="text-3xl mb-3">📡</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Trabaja sin señal</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Tu operario registra aunque esté en una quebrada. Cuando vuelve la cobertura, todo sube automático. Cero excusas, cero datos perdidos.</p>
+      </div>
+
+      <!-- Firma digital -->
+      <div class="benefit-card reveal" style="transition-delay:0.05s">
+        <div class="text-3xl mb-3">✍️</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Firma digital en campo</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">El residente firma en la pantalla, frente a la máquina. Queda grabada con fecha, hora y ubicación. Una semana después, nadie puede decir que no recuerda.</p>
+      </div>
+
+      <!-- Valorización -->
+      <div class="benefit-card reveal" style="transition-delay:0.1s">
+        <div class="text-3xl mb-3">⚡</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Valorización automática</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">De 3 horas de domingo a 2 minutos. Seleccionas los reportes aprobados y REPORTA calcula todo — horas, tarifas, propia y de terceros.</p>
+      </div>
+
+      <!-- Flota unificada -->
+      <div class="benefit-card reveal" style="transition-delay:0.15s">
+        <div class="text-3xl mb-3">🏗️</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Flota unificada</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Ves toda tu flota en un solo lugar — la tuya y la subcontratada. Cada hora registrada, cada reporte firmado, trazable y ordenado.</p>
+      </div>
+
+      <!-- Combustible -->
+      <div class="benefit-card reveal" style="transition-delay:0.2s">
+        <div class="text-3xl mb-3">⛽</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Control de combustible</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Sabes cuánto combustible consumió cada máquina en cada turno. Sin fugas, sin diferencias que nadie puede explicar.</p>
+      </div>
+
+      <!-- Gastos -->
+      <div class="benefit-card reveal" style="transition-delay:0.25s">
+        <div class="text-3xl mb-3">🧾</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Gastos desde campo</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Tus operarios cargan los gastos directamente desde la app. Fotos de boletas incluidas. Sin WhatsApp, sin pérdidas.</p>
+      </div>
+
+      <!-- Planificación -->
+      <div class="benefit-card reveal" style="transition-delay:0.3s">
+        <div class="text-3xl mb-3">📅</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Planificación de recursos</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Ves de un vistazo qué máquina está en qué obra, qué operario está asignado, y cuáles son los recursos disponibles para la próxima semana.</p>
+      </div>
+
+      <!-- Sincronización -->
+      <div class="benefit-card reveal" style="transition-delay:0.35s">
+        <div class="text-3xl mb-3">🔄</div>
+        <h3 class="font-black text-brand-dark text-base mb-2">Sincronización en tiempo real</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">La app sincroniza en segundo plano cuando hay internet. El panel web refleja lo que pasa en campo en tiempo real.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     PARA QUIÉN ES
+═══════════════════════════════════════════════ -->
+<section class="py-20 md:py-28 bg-brand-gray">
+  <div class="max-w-5xl mx-auto px-4 md:px-8">
+    <div class="text-center mb-14 reveal">
+      <div class="section-label">Para quién es</div>
+      <h2 class="text-3xl md:text-4xl font-black text-brand-dark">
+        ¿REPORTA es para tu empresa?
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
+
+      <!-- SÍ es para ti -->
+      <div class="bg-white border-2 border-green-200 rounded-2xl p-8 reveal">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 class="font-black text-xl text-green-800">SÍ es para ti</h3>
+        </div>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+            <span class="text-gray-600">Tienes entre 5 y 50 máquinas y prestas servicios a obras de construcción.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+            <span class="text-gray-600">Cada fin de mes sientes que facturas menos de lo que trabajaste.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+            <span class="text-gray-600">Coordinas maquinaria propia y de terceros en distintas obras.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+            <span class="text-gray-600">Eres residente de obra y necesitas validar horas sin depender de papeles.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- NO es para ti -->
+      <div class="bg-white border-2 border-gray-200 rounded-2xl p-8 reveal" style="transition-delay:0.15s">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+          <h3 class="font-black text-xl text-gray-500">NO es para ti (todavía)</h3>
+        </div>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="text-gray-400 mt-0.5 flex-shrink-0">—</span>
+            <span class="text-gray-400">Tienes 1 o 2 máquinas y tu modelo es completamente informal, sin contratos escritos.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-gray-400 mt-0.5 flex-shrink-0">—</span>
+            <span class="text-gray-400">Tu cliente te paga por día sin importar las horas trabajadas.</span>
+          </li>
+        </ul>
+
+        <div class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <p class="text-amber-700 text-sm font-semibold">
+            Si tienes dudas sobre si REPORTA sirve para tu operación, escríbenos por WhatsApp. 20 minutos y lo sabemos.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     PRUEBA SOCIAL — métricas + testimonios
+═══════════════════════════════════════════════ -->
+<section id="prueba-social" class="py-20 md:py-28 diff-bg relative overflow-hidden">
+  <div class="absolute inset-0 hero-grid opacity-20"></div>
+
+  <div class="max-w-5xl mx-auto px-4 md:px-8 relative z-10">
+    <div class="text-center mb-14 reveal">
+      <div class="section-label" style="background:rgba(232,93,4,0.2); color:#FF7520;">Resultados reales</div>
+      <h2 class="text-3xl md:text-4xl font-black text-white">
+        Empresas que ya cobran todo<br class="hidden md:block" /> lo que trabajan
+      </h2>
+    </div>
+
+    <!-- Métricas -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14">
+      <div class="metric-card reveal">
+        <div class="text-brand-orange font-black text-4xl mb-2">50+</div>
+        <div class="text-white/60 text-sm leading-tight">empresas de maquinaria en Perú confían en REPORTA</div>
+      </div>
+      <div class="metric-card reveal" style="transition-delay:0.1s">
+        <div class="text-brand-orange font-black text-4xl mb-2">500+</div>
+        <div class="text-white/60 text-sm leading-tight">máquinas gestionadas cada mes</div>
+      </div>
+      <div class="metric-card reveal" style="transition-delay:0.2s">
+        <div class="text-brand-orange font-black text-4xl mb-2">10K+</div>
+        <div class="text-white/60 text-sm leading-tight">horas registradas y firmadas</div>
+      </div>
+      <div class="metric-card reveal" style="transition-delay:0.3s">
+        <div class="text-green-400 font-black text-4xl mb-2">2 min</div>
+        <div class="text-white/60 text-sm leading-tight">de 3 horas a 2 minutos en valorización</div>
+      </div>
+    </div>
+
+    <!-- Testimonios -->
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <div class="testimonial reveal">
+        <div class="flex mb-4">
+          <span class="text-brand-orange text-xl">★★★★★</span>
+        </div>
+        <blockquote class="text-gray-700 leading-relaxed mb-6 text-base italic">
+          "Cerrábamos el mes con diferencias de 15 a 20 horas por máquina. Ahora el cliente firma en el momento y no hay discusión posible. REPORTA nos ordenó el negocio."
+        </blockquote>
+        <div class="flex items-center gap-3">
+          <!-- Avatar SVG -->
+          <div class="w-12 h-12 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2" stroke-linecap="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-bold text-brand-dark text-sm">Carlos M.</div>
+            <div class="text-gray-500 text-xs">Gerente de Operaciones · Empresa de Maquinaria · Lima</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial reveal" style="transition-delay:0.15s">
+        <div class="flex mb-4">
+          <span class="text-brand-orange text-xl">★★★★★</span>
+        </div>
+        <blockquote class="text-gray-700 leading-relaxed mb-6 text-base italic">
+          "Antes perdía entre S/. 2,000 y S/. 3,000 al mes en horas no facturadas. Ahora tengo el número exacto, firmado, y mi cliente no puede cuestionarlo. Valió desde el primer mes."
+        </blockquote>
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-brand-orange/20 flex items-center justify-center flex-shrink-0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2" stroke-linecap="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="font-bold text-brand-dark text-sm">Roberto A.</div>
+            <div class="text-gray-500 text-xs">Dueño · Grúas y Equipos del Norte · Trujillo</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     FAQ — Accordion
+═══════════════════════════════════════════════ -->
+<section id="faq" class="py-20 md:py-28 bg-white">
+  <div class="max-w-3xl mx-auto px-4 md:px-8">
+    <div class="text-center mb-14 reveal">
+      <div class="section-label">Preguntas frecuentes</div>
+      <h2 class="text-3xl md:text-4xl font-black text-brand-dark">
+        Las dudas que siempre aparecen
+      </h2>
+    </div>
+
+    <div class="reveal">
+
+      <div class="faq-item">
+        <button class="faq-btn" data-faq="1">
+          "Mis operarios no saben usar apps"
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-answer" id="faq-1">
+          La app se diseñó para operarios de maquinaria, no para ingenieros. Si tu operario sabe usar WhatsApp, sabe usar REPORTA. El flujo es: abre la app, ingresa las horas, muestra la pantalla al cliente, el cliente firma. Listo. Y si alguien tiene dudas, el soporte está incluido sin costo adicional.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" data-faq="2">
+          "Ya tenemos Excel y funciona"
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-answer" id="faq-2">
+          El Excel no pierde el reporte. El operario lo pierde. El Excel no olvida las horas. El cliente las olvida. Si tu Excel "funciona", pregúntate: ¿cuánto dejaste de cobrar el último mes? Si la respuesta es "no lo sé exactamente", ya tienes el problema. Una empresa con 10 máquinas que recupera solo 5 horas mal facturadas al mes recupera entre S/. 1,500 y S/. 4,000 según tarifa.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" data-faq="3">
+          "¿Y si no hay internet en la obra?"
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-answer" id="faq-3">
+          Exactamente por eso REPORTA funciona offline. La app guarda todo en el teléfono aunque no haya una sola barra de señal. Cuando el operario llega a zona con cobertura, todo sube automáticamente. Sin intervención, sin riesgo de pérdida.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" data-faq="4">
+          "¿Es caro para mi empresa?"
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-answer" id="faq-4">
+          ¿Cuánto vale una hora de maquinaria en tu contrato? Si una sola hora no facturada por mes cubre el costo de REPORTA, ya se pagó solo. Una empresa con 10 máquinas que recupera solo 5 horas mal facturadas al mes recupera entre S/. 1,500 y S/. 4,000 según tarifa. Eso es lo que REPORTA cuesta en un año — o menos.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-btn" data-faq="5">
+          "¿Qué pasa con la información de mi empresa?"
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E85D04" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <div class="faq-answer" id="faq-5">
+          Tus datos son tuyos. REPORTA corre sobre infraestructura de nivel empresarial — la misma que usan bancos en todo el mundo. Cada empresa tiene su espacio aislado y privado. Puedes exportar todo cuando quieras. Nunca compartimos tu información con terceros.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     CTA FINAL + FORMULARIO
+═══════════════════════════════════════════════ -->
+<section id="cta-final" class="py-20 md:py-28 bg-brand-gray">
+  <div class="max-w-5xl mx-auto px-4 md:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 items-start">
+
+      <!-- Left: CTA copy -->
+      <div class="reveal">
+        <div class="section-label">Empieza hoy</div>
+        <h2 class="text-3xl md:text-4xl font-black text-brand-dark leading-tight mt-2 mb-4">
+          Una llamada de 20 minutos.<br />
+          <span class="text-brand-orange">Sin compromisos. Sin tarjeta.</span>
+        </h2>
+        <p class="text-gray-500 text-lg leading-relaxed mb-8">
+          Cuéntanos cuántas máquinas tienes y cómo manejas los reportes hoy. Te mostramos si REPORTA resuelve tu problema — sin venta a presión.
+        </p>
+
+        <!-- Mini métricas de cierre -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-brand-orange/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-brand-orange text-base">✓</span>
+            </div>
+            <span class="text-gray-600 font-medium">Implementación en menos de 1 día</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-brand-orange/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-brand-orange text-base">✓</span>
+            </div>
+            <span class="text-gray-600 font-medium">Soporte incluido sin costo extra</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-brand-orange/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <span class="text-brand-orange text-base">✓</span>
+            </div>
+            <span class="text-gray-600 font-medium">Sin contrato a largo plazo el primer mes</span>
+          </div>
+        </div>
+
+        <!-- WhatsApp alternativo -->
+        <div class="mt-10 p-5 bg-green-50 border border-green-200 rounded-xl">
+          <p class="text-green-800 font-semibold mb-3">¿Prefieres hablar directo?</p>
+          <a href="https://wa.me/51953852532?text=Hola,%20quiero%20saber%20si%20REPORTA%20sirve%20para%20mi%20empresa%20de%20maquinaria"
+             target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 bg-green-600 text-white font-bold px-5 py-3 rounded-lg hover:bg-green-700 transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.1.547 4.073 1.502 5.789L.057 23.999l6.35-1.66A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12 0-6.628-5.373-12-12-12zm0 21.818a9.806 9.806 0 01-5.001-1.368l-.357-.212-3.71.972.988-3.615-.232-.371A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12c0 5.418-4.398 9.818-9.818 9.818z"/></svg>
+            Hablar por WhatsApp ahora
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: formulario -->
+      <div class="reveal" style="transition-delay:0.15s">
+        <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+          <h3 class="font-black text-xl text-brand-dark mb-6">Quiero ver cómo funciona para mi empresa</h3>
+
+          <form id="contact-form" novalidate>
+            <div class="space-y-5">
+
+              <div>
+                <label class="form-label" for="nombre">Tu nombre *</label>
+                <input class="form-input" type="text" id="nombre" name="nombre" placeholder="Ej: Carlos Mendoza" required />
+                <p class="text-red-500 text-xs mt-1 hidden" id="err-nombre">Ingresa tu nombre.</p>
+              </div>
+
+              <div>
+                <label class="form-label" for="empresa">Nombre de tu empresa *</label>
+                <input class="form-input" type="text" id="empresa" name="empresa" placeholder="Ej: Grúas del Norte SAC" required />
+                <p class="text-red-500 text-xs mt-1 hidden" id="err-empresa">Ingresa el nombre de tu empresa.</p>
+              </div>
+
+              <div>
+                <label class="form-label" for="maquinas">Número de máquinas *</label>
+                <select class="form-input" id="maquinas" name="maquinas" required style="background:#fff;">
+                  <option value="">Selecciona un rango...</option>
+                  <option value="1-5">1 a 5 máquinas</option>
+                  <option value="5-15">5 a 15 máquinas</option>
+                  <option value="15-30">15 a 30 máquinas</option>
+                  <option value="30+">30 máquinas o más</option>
+                </select>
+                <p class="text-red-500 text-xs mt-1 hidden" id="err-maquinas">Selecciona un rango.</p>
+              </div>
+
+              <div>
+                <label class="form-label" for="whatsapp">Tu WhatsApp *</label>
+                <input class="form-input" type="tel" id="whatsapp" name="whatsapp" placeholder="Ej: 999 123 456" required />
+                <p class="text-red-500 text-xs mt-1 hidden" id="err-whatsapp">Ingresa tu número de WhatsApp.</p>
+              </div>
+
+              <button type="submit" class="btn-primary w-full py-4 text-base glow-orange">
+                Quiero ver cómo funciona para mi empresa
+              </button>
+
+              <p class="text-gray-400 text-xs text-center leading-relaxed">
+                Sin compromisos. Sin tarjeta. Te contactamos en menos de 24 horas.
+              </p>
+            </div>
+          </form>
+
+          <!-- Success -->
+          <div id="form-success" class="text-center py-8">
+            <div class="text-5xl mb-4">🎉</div>
+            <h4 class="font-black text-xl text-brand-dark mb-2">¡Listo! Te contactamos pronto.</h4>
+            <p class="text-gray-500">Un asesor de REPORTA se comunicará contigo por WhatsApp en menos de 24 horas.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     CTA BANNER — fondo color
+═══════════════════════════════════════════════ -->
+<section class="cta-bg py-16 md:py-20">
+  <div class="max-w-3xl mx-auto px-4 md:px-8 text-center">
+    <h2 class="text-3xl md:text-4xl font-black text-white mb-4">
+      Deja de perder dinero este mes.
+    </h2>
+    <p class="text-white/80 text-lg mb-8">
+      Tu operario registra, el cliente firma, tú cobras todo. Así de simple.
+    </p>
+    <a href="#cta-final" class="inline-block bg-white text-brand-orange font-black px-8 py-4 rounded-xl text-lg hover:bg-gray-100 transition-colors shadow-xl">
+      Empezar ahora — es gratis el primer mes
+    </a>
+    <p class="text-white/50 text-sm mt-4">Sin compromisos. Sin tarjeta de crédito.</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════════ -->
+<footer class="bg-brand-dark py-12 px-4 md:px-8">
+  <div class="max-w-5xl mx-auto">
+    <div class="grid md:grid-cols-3 gap-10 mb-10">
+
+      <!-- Brand -->
+      <div>
+        <a href="#hero" class="flex items-center gap-2 text-white font-black text-xl tracking-tight mb-3">
+          <span class="text-brand-orange text-2xl">▶</span>
+          REPORTA
+        </a>
+        <p class="text-white/45 text-sm leading-relaxed">
+          La plataforma operativa para empresas de maquinaria pesada en el Perú. Registro de horas, firma digital, valorización automática.
+        </p>
+      </div>
+
+      <!-- Links -->
+      <div>
+        <h4 class="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Producto</h4>
+        <ul class="space-y-3">
+          <li><a href="#como-funciona" class="text-white/50 text-sm hover:text-white transition-colors">Cómo funciona</a></li>
+          <li><a href="#beneficios" class="text-white/50 text-sm hover:text-white transition-colors">Beneficios</a></li>
+          <li><a href="#faq" class="text-white/50 text-sm hover:text-white transition-colors">Preguntas frecuentes</a></li>
+          <li><a href="#cta-final" class="text-white/50 text-sm hover:text-white transition-colors">Solicitar demo</a></li>
+        </ul>
+      </div>
+
+      <!-- Contacto -->
+      <div>
+        <h4 class="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Contacto</h4>
+        <ul class="space-y-3">
+          <li>
+            <a href="mailto:info@reporta.la" class="text-white/50 text-sm hover:text-white transition-colors">
+              info@reporta.la
+            </a>
+          </li>
+          <li>
+            <a href="https://wa.me/51953852532" target="_blank" rel="noopener" class="text-white/50 text-sm hover:text-white transition-colors">
+              WhatsApp: +51 953 852 532
+            </a>
+          </li>
+          <li>
+            <a href="https://reporta.la" class="text-white/50 text-sm hover:text-white transition-colors">
+              reporta.la
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-white/30 text-xs">
+      <p>&copy; 2026 REPORTA. Todos los derechos reservados.</p>
+      <div class="flex gap-6">
+        <a href="#" class="hover:text-white/60 transition-colors">Política de privacidad</a>
+        <a href="#" class="hover:text-white/60 transition-colors">Términos de uso</a>
+        <a href="mailto:info@reporta.la" class="hover:text-white/60 transition-colors">Contacto</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ═══════════════════════════════════════════════
+     WHATSAPP FLOTANTE
+═══════════════════════════════════════════════ -->
+<a id="wa-float"
+   href="https://wa.me/51953852532?text=Hola,%20quiero%20saber%20si%20REPORTA%20sirve%20para%20mi%20empresa%20de%20maquinaria"
+   target="_blank" rel="noopener"
+   aria-label="Hablar por WhatsApp">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.1.547 4.073 1.502 5.789L.057 23.999l6.35-1.66A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12 0-6.628-5.373-12-12-12zm0 21.818a9.806 9.806 0 01-5.001-1.368l-.357-.212-3.71.972.988-3.615-.232-.371A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12c0 5.418-4.398 9.818-9.818 9.818z"/>
+  </svg>
+</a>
+<div id="wa-tooltip">Hablar con un asesor</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════ -->
+<script>
+  // ── Navbar scroll ─────────────────────────────
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 40) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+  }, { passive: true });
+
+  // ── Mobile menu ───────────────────────────────
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobile-menu');
+  hamburger.addEventListener('click', () => {
+    mobileMenu.classList.toggle('open');
+  });
+  // Cerrar al hacer clic en un link
+  mobileMenu.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      mobileMenu.classList.remove('open');
+    });
+  });
+
+  // ── Accordion FAQ ─────────────────────────────
+  document.querySelectorAll('.faq-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.faq;
+      const answer = document.getElementById('faq-' + id);
+      const isOpen = answer.classList.contains('open');
+
+      // Cerrar todos
+      document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
+      document.querySelectorAll('.faq-btn').forEach(b => b.classList.remove('open'));
+
+      // Abrir el clickeado (si estaba cerrado)
+      if (!isOpen) {
+        answer.classList.add('open');
+        btn.classList.add('open');
+      }
+    });
+  });
+
+  // ── Scroll reveal ─────────────────────────────
+  const revealEls = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12 }
+  );
+  revealEls.forEach(el => revealObserver.observe(el));
+
+  // ── Formulario ────────────────────────────────
+  const form = document.getElementById('contact-form');
+  const formSuccess = document.getElementById('form-success');
+
+  function showError(id, show) {
+    const el = document.getElementById('err-' + id);
+    if (el) {
+      el.classList.toggle('hidden', !show);
+    }
+  }
+
+  function validateForm() {
+    const nombre   = document.getElementById('nombre').value.trim();
+    const empresa  = document.getElementById('empresa').value.trim();
+    const maquinas = document.getElementById('maquinas').value;
+    const whatsapp = document.getElementById('whatsapp').value.trim();
+    let valid = true;
+
+    showError('nombre',   !nombre);   if (!nombre)   valid = false;
+    showError('empresa',  !empresa);  if (!empresa)  valid = false;
+    showError('maquinas', !maquinas); if (!maquinas) valid = false;
+    showError('whatsapp', !whatsapp); if (!whatsapp) valid = false;
+
+    return valid;
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const nombre   = document.getElementById('nombre').value.trim();
+    const empresa  = document.getElementById('empresa').value.trim();
+    const maquinas = document.getElementById('maquinas').value;
+    const whatsapp = document.getElementById('whatsapp').value.trim();
+
+    // Construir mensaje WhatsApp para el asesor
+    const msg = encodeURIComponent(
+      `Hola, soy ${nombre} de ${empresa}. Tengo ${maquinas} máquinas y quiero ver cómo funciona REPORTA. Mi WhatsApp es ${whatsapp}.`
+    );
+
+    // Abrir WhatsApp con los datos del formulario
+    window.open(`https://wa.me/51953852532?text=${msg}`, '_blank');
+
+    // Mostrar estado de éxito
+    form.style.display = 'none';
+    formSuccess.classList.add('show');
+  });
+
+  // ── Smooth scroll (fallback para browsers sin soporte nativo) ──
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', (e) => {
+      const target = document.querySelector(anchor.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

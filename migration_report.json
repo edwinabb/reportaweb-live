@@ -1,0 +1,90 @@
+{
+  "Companies": {
+    "Global": {
+      "Bubble": 22,
+      "Supabase": 3,
+      "Diff": -19,
+      "Status": "MISMATCH"
+    }
+  },
+  "Users": {
+    "No Tenant": {
+      "Bubble": 605,
+      "Supabase": 0,
+      "Diff": -605,
+      "Status": "MISMATCH"
+    }
+  },
+  "Paises": {
+    "Global": {
+      "Bubble": 249,
+      "Supabase": 249,
+      "Diff": 0,
+      "Status": "MATCH"
+    }
+  },
+  "Servicios": {
+    "No Tenant": {
+      "Bubble": 0,
+      "Supabase": 0,
+      "Diff": 0,
+      "Status": "MATCH"
+    }
+  },
+  "Maquinarias": {
+    "No Tenant": {
+      "Bubble": 268,
+      "Supabase": 0,
+      "Diff": -268,
+      "Status": "MISMATCH"
+    }
+  },
+  "Cotizaciones": {
+    "No Tenant": {
+      "Bubble": 2529,
+      "Supabase": 0,
+      "Diff": -2529,
+      "Status": "MISMATCH"
+    }
+  },
+  "Cotizacion Items": {
+    "No Tenant": {
+      "Bubble": 0,
+      "Supabase": 0,
+      "Diff": 0,
+      "Status": "MATCH"
+    }
+  },
+  "Reportes Maquinaria": {
+    "No Tenant": {
+      "Bubble": 20700,
+      "Supabase": 0,
+      "Diff": -20700,
+      "Status": "MISMATCH"
+    }
+  },
+  "Reportes Usuario": {
+    "No Tenant": {
+      "Bubble": 22892,
+      "Supabase": 1,
+      "Diff": -22891,
+      "Status": "MISMATCH"
+    }
+  },
+  "Facturas Compra": {
+    "No Tenant": {
+      "Bubble": 1145,
+      "Supabase": 5,
+      "Diff": -1140,
+      "Status": "MISMATCH"
+    }
+  },
+  "Facturas Venta": {
+    "No Tenant": {
+      "Bubble": 2592,
+      "Supabase": 6,
+      "Diff": -2586,
+      "Status": "MISMATCH"
+    }
+  }
+}

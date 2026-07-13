@@ -1,0 +1,114 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/.auth/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# antigravity
+.gemini/
+tmp/
+
+# claude code local state (excluye estado interno, incluye commands compartidos)
+.claude/projects/
+.claude/settings.local.json
+.claude/todos.json
+
+# supabase cli temp state (regenerated on link/push)
+supabase/.temp/
+
+# migration & temporary audits
+*.log
+*.sql
+# ...but DO track supabase migrations (these are source of truth for schema)
+!supabase/migrations/*.sql
+*.csv
+*inspect_output.txt
+*migration_log.txt
+bubble_*.json*
+bubble_*.txt*
+migration-maps.json
+inspect_users_full.txt
+pendientes-abril-02.md
+FULL_MIGRATION_AUDIT.md
+ADMIN_INFO.md
+gap_diagnosis.txt
+schema_info.txt
+verification_report_*.md
+migration_final_*.md
+migration_output_*.md
+verification_report_*.md
+verify_output_*.txt
+final_verification_counts*.txt
+tsc_errors.txt
+debug_keys.txt
+record_dump.json
+full_record_dump.txt
+full_schema_comparison.json
+skipped_records.json
+skipped_report.md
+gap_examples.md
+gap_examples.txt
+explore_output.txt
+inspect_output.txt
+debug_output.txt
+test_paths.txt
+missing_clients.json
+missing_cots_*.json
+ref_tables_check.txt
+final_report.md
+final_report.txt
+repair_log.txt
+release_notes.md
+RELEASE_NOTES.md
+cambios-any-registro.md
+# Keep scripts for now since the user might want them as part of the toolchain
+
+.vercel
+
+.env*.local
+
+# APK builds — tracked in git para deploy a Vercel
+# public/downloads/*.apk
