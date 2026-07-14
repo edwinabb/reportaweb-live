@@ -34,18 +34,19 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Short cache for HTML pages (force revalidation in Cloudflare)
+      // Cache HTML for 5 minutes, then revalidate with Cloudflare
+      // See: docs/TECHNICAL_DEBTS.md § DUDA-CACHE-001
       {
         source: '/:path*\\.html',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Cache-Control', value: 'public, max-age=300, must-revalidate' },
         ],
       },
-      // No cache for HTML routes (app directory)
+      // Cache HTML routes (app directory) for 5 minutes, then revalidate
       {
         source: '/((?!_next|static|api).*)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Cache-Control', value: 'public, max-age=300, must-revalidate' },
         ],
       },
       // No cache for API routes
