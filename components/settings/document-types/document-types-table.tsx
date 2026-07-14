@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Edit2, MoreHorizontal, FileText, AlertCircle, Shield, File, Loader2, Power, PowerOff } from 'lucide-react'
+import { Edit2, MoreHorizontal, FileText, AlertCircle, Shield, File, Loader2, Power, PowerOff, Filter, X } from 'lucide-react'
 
 import {
     Table,
@@ -16,6 +16,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuCheckboxItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
@@ -34,6 +35,16 @@ export function DocumentTypesTable({ data }: DocumentTypesTableProps) {
     const [isPending, startTransition] = useTransition()
     const [editingDoc, setEditingDoc] = useState<DocumentType | undefined>(undefined)
     const [dialogOpen, setDialogOpen] = useState(false)
+    const [categoryFilter, setCategoryFilter] = useState<Set<string>>(new Set())
+    const [statusFilter, setStatusFilter] = useState<Set<boolean>>(new Set())
+
+    const filteredData = useMemo(() => {
+        return data.filter((doc) => {
+            if (categoryFilter.size > 0 && !categoryFilter.has(doc.category)) return false
+            if (statusFilter.size > 0 && !statusFilter.has(doc.is_active)) return false
+            return true
+        })
+    }, [data, categoryFilter, statusFilter])
 
     const handleToggleStatus = (doc: DocumentType) => {
         startTransition(async () => {
@@ -64,20 +75,121 @@ export function DocumentTypesTable({ data }: DocumentTypesTableProps) {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[300px]">Nombre</TableHead>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead>Estado</TableHead>
+                            <TableHead>
+                                <div className="flex items-center space-x-2">
+                                    <span>Categoría</span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                <Filter className={`w-4 h-4 ${categoryFilter.size > 0 ? 'text-blue-500' : ''}`} />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                            <DropdownMenuLabel className="text-xs">Filtrar por categoría</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuCheckboxItem
+                                                checked={categoryFilter.has('con_vencimiento')}
+                                                onCheckedChange={(c) => {
+                                                    const newFilter = new Set(categoryFilter)
+                                                    if (c) newFilter.add('con_vencimiento')
+                                                    else newFilter.delete('con_vencimiento')
+                                                    setCategoryFilter(newFilter)
+                                                }}
+                                            >
+                                                Con Vencimiento
+                                            </DropdownMenuCheckboxItem>
+                                            <DropdownMenuCheckboxItem
+                                                checked={categoryFilter.has('seguro')}
+                                                onCheckedChange={(c) => {
+                                                    const newFilter = new Set(categoryFilter)
+                                                    if (c) newFilter.add('seguro')
+                                                    else newFilter.delete('seguro')
+                                                    setCategoryFilter(newFilter)
+                                                }}
+                                            >
+                                                Seguro
+                                            </DropdownMenuCheckboxItem>
+                                            <DropdownMenuCheckboxItem
+                                                checked={categoryFilter.has('sin_vencimiento')}
+                                                onCheckedChange={(c) => {
+                                                    const newFilter = new Set(categoryFilter)
+                                                    if (c) newFilter.add('sin_vencimiento')
+                                                    else newFilter.delete('sin_vencimiento')
+                                                    setCategoryFilter(newFilter)
+                                                }}
+                                            >
+                                                Sin Vencimiento
+                                            </DropdownMenuCheckboxItem>
+                                            {categoryFilter.size > 0 && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => setCategoryFilter(new Set())} className="text-xs">
+                                                        Limpiar filtro
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </TableHead>
+                            <TableHead>
+                                <div className="flex items-center space-x-2">
+                                    <span>Estado</span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                <Filter className={`w-4 h-4 ${statusFilter.size > 0 ? 'text-blue-500' : ''}`} />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start">
+                                            <DropdownMenuLabel className="text-xs">Filtrar por estado</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuCheckboxItem
+                                                checked={statusFilter.has(true)}
+                                                onCheckedChange={(c) => {
+                                                    const newFilter = new Set(statusFilter)
+                                                    if (c) newFilter.add(true)
+                                                    else newFilter.delete(true)
+                                                    setStatusFilter(newFilter)
+                                                }}
+                                            >
+                                                Activo
+                                            </DropdownMenuCheckboxItem>
+                                            <DropdownMenuCheckboxItem
+                                                checked={statusFilter.has(false)}
+                                                onCheckedChange={(c) => {
+                                                    const newFilter = new Set(statusFilter)
+                                                    if (c) newFilter.add(false)
+                                                    else newFilter.delete(false)
+                                                    setStatusFilter(newFilter)
+                                                }}
+                                            >
+                                                Inactivo
+                                            </DropdownMenuCheckboxItem>
+                                            {statusFilter.size > 0 && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => setStatusFilter(new Set())} className="text-xs">
+                                                        Limpiar filtro
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </TableHead>
                             <TableHead className="text-right">Días Alerta</TableHead>
                             <TableHead className="w-[70px]"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {data.length === 0 ? (
+                        {filteredData.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                     No hay tipos de documentos configurados.
                                 </TableCell>
                             </TableRow>
-                        ) : data.map((doc) => (
+                        ) : filteredData.map((doc) => (
                             <TableRow key={doc.id}>
                                 <TableCell className="font-medium">
                                     <div className="flex items-center gap-2">
