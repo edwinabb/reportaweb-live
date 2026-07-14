@@ -79,6 +79,26 @@ Por cada opción del módulo:
 - Gaps clasificados con acción concreta (ticket UI / entrada de migración / omitido)
 - Preguntas DUDA respondidas por el usuario antes de cerrar el módulo
 
+## Decisiones de diseño aprobadas durante el piloto (2026-07-14)
+
+**Usuarios — crear/editar/ver:**
+- Sin mapa de Google en dirección (campo texto se mantiene)
+- Firma electrónica y PIN: se mueven del paso 1 al paso 2 (después de dirección y contacto familiar)
+- Visibles directo solo al CREAR; en editar/ver → botones "Editar firma" / "Editar PIN" con
+  **re-autenticación** (confirmar password) antes de mostrar/editar
+
+**Estándar global de listados (aplica a TODAS las páginas con listas):**
+- Búsqueda multicampo, case-insensitive, coincidencia en cualquier posición (substring)
+- Filtros por columna en campos estandarizados/tipificados — se elimina el popup de filtros
+- Campos de búsqueda y columnas con filtro se definen en la matriz de cada módulo
+
+**Usuarios — búsqueda y filtros aprobados:**
+| Lista | Busca por | Filtros de columna |
+|---|---|---|
+| Usuarios | nombre completo, nº documento | Cargo · Proveedor · Estado |
+| Tipos de documento | nombre del documento | Vence · Seguro · Individual/Dual · Categoría |
+| Documentos | nombre de la persona | Tipo documento · Proveedor · Estado |
+
 ## Fuera de alcance
 
 - Ejecutar las migraciones de datos (proceso separado, usa el kit existente)
