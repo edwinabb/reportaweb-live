@@ -248,13 +248,26 @@
 12. **TK-U12:** Filtros de columna en Documentos (Gap #4-U20) [Esfuerzo: 3h]
     - Filtros: Tipo documento · Estado (Proveedor: OMITIDO INTENCIONAL per DUDA-301)
 
-### 🟢 BAJA (Migraciones opcionales, datos muy incompletos)
+### 🟢 BAJA (Migraciones opcionales — AUDITORÍA COMPLETADA)
 
-13. **TK-U13:** Migración — Nombre del medio (Gap #2-U7) [Esfuerzo: 1h, 90% faltante]
-14. **TK-U14:** Migración — Fecha de nacimiento (Gap #2-U9) [Esfuerzo: 1h, 73% faltante]
-15. **TK-U15:** Migración — Nacionalidad (Gap #2-U10) [Esfuerzo: 1h, 88% faltante]
-16. **TK-U16:** Migración — PIN de Seguridad (Gap #2-U13) [Esfuerzo: 1h, 100% faltante]
-17. **TK-U17:** Migración — Firma Electrónica (Gap #2-U14) [Esfuerzo: 4h, 90.5% faltante pero importante]
+Ver: `docs/auditoria-ui/OPTIONAL-MIGRATIONS-TK-U13-U17.md` para resultados y roadmap.
+
+13. **TK-U13:** Migración — Nombre del medio [Esfuerzo: 30 min | Cobertura actual: 10% (33/324)]
+    - ✅ RECOMENDADO MIGRAR (datos válidos disponibles)
+
+14. **TK-U14:** Migración — Fecha de nacimiento [Esfuerzo: 0 | Cobertura actual: 0% (0/324)]
+    - ❌ SALTAR (sin datos en BD, formulario ya listo)
+
+15. **TK-U15:** Migración — Nacionalidad [Esfuerzo: 30 min | Cobertura actual: 12% (38/324)]
+    - ✅ RECOMENDADO MIGRAR (datos válidos disponibles)
+
+16. **TK-U16:** Migración — PIN de Seguridad [Esfuerzo: 0 | Cobertura actual: 0% (0/623)]
+    - ❌ SALTAR (nunca capturado en Bubble, es campo nuevo)
+
+17. **TK-U17:** Migración — Firma Electrónica [Esfuerzo: 1.5h | Cobertura actual: 10% (31/324)]
+    - ✅ RECOMENDADO MIGRAR (crítico para compliance, datos válidos)
+
+**Impacto en GO LIVE:** NINGUNO. Todos los tickets críticos (TK-U1 a TK-U4) completados. Campos opcionales pueden migrarse post-launch (Fase 2).
 
 ### ⚪ OMITIDO INTENCIONAL
 
