@@ -34,6 +34,20 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
+      // Short cache for HTML pages (force revalidation in Cloudflare)
+      {
+        source: '/:path*\\.html',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+      // No cache for HTML routes (app directory)
+      {
+        source: '/((?!_next|static|api).*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
       // No cache for API routes
       {
         source: '/api/:path*',
