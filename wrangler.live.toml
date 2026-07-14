@@ -1,0 +1,21 @@
+# Cloudflare Workers configuration for live.reportar.app (PRODUCTION database)
+# Build:  npx opennextjs-cloudflare build
+# Deploy: npx wrangler deploy --name reportaweb3-live --config wrangler.live.toml
+
+name = "reportaweb3-live"
+main = ".open-next/worker.js"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+minify = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# LIVE: Points to PRODUCTION database (fqwhagryqkkhbgznxtwf)
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://fqwhagryqkkhbgznxtwf.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxd2hhZ3J5cWtraGJnem54dHdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NjU4NjIsImV4cCI6MjA5NTM0MTg2Mn0.LRvhkIl-BGYY1Ftvmgc7gazhSYn6mFj7oWTINais3x0"
+SUPABASE_API_URL = "https://fqwhagryqkkhbgznxtwf.supabase.co"
+SUPABASE_PROJECT_ID = "fqwhagryqkkhbgznxtwf"
+GOTENBERG_URL = "https://infrastructure-gotenberg.0vt9eo.easypanel.host"

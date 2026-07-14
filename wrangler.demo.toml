@@ -1,0 +1,21 @@
+# Cloudflare Workers configuration for demo.reportar.app (TEST database)
+# Build:  npx opennextjs-cloudflare build
+# Deploy: npx wrangler deploy --name reportaweb3-demo --config wrangler.demo.toml
+
+name = "reportaweb3-demo"
+main = ".open-next/worker.js"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+minify = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# DEMO: Points to TEST database (oyrokyyaeaeqzlsgxtto)
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://oyrokyyaeaeqzlsgxtto.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95cm9reXlhZWFlcXpsc2d4dHRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MzAwNzQsImV4cCI6MjA5OTIwNjA3NH0.Oy_WO5suRhBeN-FUTVnpRjN2SwdOJZbY0amKaKO20cc"
+SUPABASE_API_URL = "https://oyrokyyaeaeqzlsgxtto.supabase.co"
+SUPABASE_PROJECT_ID = "oyrokyyaeaeqzlsgxtto"
+GOTENBERG_URL = "https://infrastructure-gotenberg.0vt9eo.easypanel.host"
