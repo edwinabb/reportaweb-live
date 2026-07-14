@@ -1,7 +1,10 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
-export default async function proxy(request: NextRequest) {
+// NOTA: Next.js 16 deprecó `middleware.ts` a favor de `proxy.ts` (runtime Node.js),
+// pero @opennextjs/cloudflare (v1.20.1) solo soporta Edge Middleware.
+// Mantener middleware.ts hasta que OpenNext soporte proxy — ver DUDA-DEPS-002.
+export default async function middleware(request: NextRequest) {
     return await updateSession(request)
 }
 

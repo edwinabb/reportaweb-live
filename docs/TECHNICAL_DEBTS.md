@@ -104,6 +104,38 @@ Evaluar junto con DUDA-CACHE-001 (semana 2026-07-28).
 
 ---
 
+## DUDA-DEPS-002: Migrar middleware.ts → proxy.ts cuando OpenNext lo soporte
+
+**Status:** 🔴 BLOQUEADO (por dependencia externa)  
+**Prioridad:** BAJA  
+**Esfuerzo:** 15 min (rename + verificar deploy)
+
+### Contexto
+
+Next.js 16 deprecó la convención `middleware.ts` a favor de `proxy.ts`
+(que corre en runtime Node.js). Se intentó la migración el 2026-07-14 pero
+el deploy a Cloudflare falló con:
+
+```
+ERROR Node.js middleware is not currently supported. Consider switching to Edge Middleware.
+```
+
+`@opennextjs/cloudflare` (v1.20.1, la última) solo soporta **Edge Middleware**.
+Se revirtió a `middleware.ts` (funciona, solo muestra warning de deprecation
+en el build).
+
+### Acción
+
+Cada 1-2 meses revisar el changelog de @opennextjs/cloudflare:
+https://github.com/opennextjs/opennextjs-cloudflare/releases
+
+Cuando anuncie soporte para Node.js middleware/proxy:
+1. `git mv middleware.ts proxy.ts` + renombrar la función a `proxy`
+2. `npm i @opennextjs/cloudflare@latest`
+3. Verificar build local (`npm run build:demo && npx opennextjs-cloudflare build`) y deploy a demo
+
+---
+
 ## Template para nuevas DUDAs
 
 ```markdown
