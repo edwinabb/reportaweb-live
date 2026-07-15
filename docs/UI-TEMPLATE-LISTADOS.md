@@ -1,6 +1,6 @@
 # UI Template — Páginas de Listado (estándar)
 
-**Versión:** 1.0 — 2026-07-14
+**Versión:** 1.1 — 2026-07-14
 **Estado:** ⏳ En revisión con usuario (aplicado a Usuarios, Tipos de Documento, Documentación)
 **Objetivo:** Aplicar a TODOS los módulos de listado (Maquinaria, Terceros, Sitios, EPP, etc.)
 
@@ -25,8 +25,8 @@
    Mantener un `<h1 className="sr-only">` por accesibilidad.
 
 2. **Búsqueda multicampo:** un solo input, case-insensitive, coincidencia en
-   cualquier posición, sobre los campos identificatorios (ej. nombre + nro documento).
-   Placeholder explícito: `"Buscar por nombre o nro documento..."`.
+   cualquier posición, sobre los campos identificatorios (ej. nombre + nro
+   documento + email). Placeholder explícito: `"Buscar por nombre, documento o email..."`.
 
 3. **Sin ordenamiento por columna:** títulos fijos, sin flechas de sort.
 
@@ -44,6 +44,10 @@
    - SIN botón "Vista"/opciones de columnas.
 
 6. **Registros inactivos:** el nombre/identificador se pinta `text-red-600`.
+
+6b. **SIN columna Estado (Activo/Inactivo):** el estado NO se muestra como
+   columna ni como filtro. Lo cubren las vistas Activos/Papelera (regla 5)
+   y el nombre en rojo (regla 6). *(v1.1 — decidido tras validar Usuarios.)*
 
 7. **Paginación (siempre al pie):** contador `N registro(s)` + `Filas por página`
    (10/20/50) + `Página X de Y` + ⏮ ◀ ▶ ⏭.

@@ -295,18 +295,6 @@ export function GlobalDocumentsTable({
                                 />
                             </TableHead>
                             <TableHead>VÁLIDO HASTA</TableHead>
-                            <TableHead>
-                                <ColumnFilterHeader
-                                    title="ESTADO"
-                                    options={[
-                                        { label: 'Activos', value: 'true' },
-                                        { label: 'Inactivos', value: 'false' },
-                                    ]}
-                                    selected={isTrash ? ['false'] : ['true']}
-                                    onChange={(v) => setParam('is_active', v[0] === 'false' ? 'false' : null)}
-                                    multiple={false}
-                                />
-                            </TableHead>
                             <TableHead>ARCHIVO</TableHead>
                             <TableHead className="text-right"></TableHead>
                         </TableRow>
@@ -314,7 +302,7 @@ export function GlobalDocumentsTable({
                     <TableBody>
                         {documents.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                     No se encontraron documentos
                                 </TableCell>
                             </TableRow>
@@ -345,11 +333,6 @@ export function GlobalDocumentsTable({
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
                                         {doc.valid_until ? format(parseISO(doc.valid_until), 'dd/MM/yyyy') : '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                        {doc.is_active
-                                            ? <Badge className="bg-green-500">Activo</Badge>
-                                            : <Badge variant="destructive">Inactivo</Badge>}
                                     </TableCell>
                                     <TableCell>
                                         <a

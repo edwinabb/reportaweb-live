@@ -25,7 +25,7 @@ export function UsersClientPage({ users, isTrash = false }: UsersClientProps) {
     const router = useRouter()
     const [globalSearch, setGlobalSearch] = useState("")
 
-    // Búsqueda multicampo: nombre completo o nro de documento,
+    // Búsqueda multicampo: nombre completo, nro de documento o email,
     // case-insensitive y con coincidencia en cualquier posición.
     const filteredUsers = useMemo(() => {
         const byView = isTrash
@@ -38,7 +38,8 @@ export function UsersClientPage({ users, isTrash = false }: UsersClientProps) {
         return byView.filter((user) => {
             const name = (user.full_name || `${user.first_name || ''} ${user.last_name || ''}`).toLowerCase()
             const doc = user.doc_number?.toLowerCase() ?? ''
-            return name.includes(search) || doc.includes(search)
+            const email = user.email?.toLowerCase() ?? ''
+            return name.includes(search) || doc.includes(search) || email.includes(search)
         })
     }, [users, isTrash, globalSearch])
 
@@ -140,24 +141,6 @@ export function UsersClientPage({ users, isTrash = false }: UsersClientProps) {
             filterFn: includesFilter,
         },
         {
-            accessorKey: "is_active",
-            header: ({ column }) => (
-                <ColumnFilterHeader
-                    title="Estado"
-                    options={[
-                        { label: "Activo", value: "true" },
-                        { label: "Inactivo", value: "false" },
-                    ]}
-                    selected={(column.getFilterValue() as string[]) ?? []}
-                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
-                />
-            ),
-            cell: ({ row }) => row.original.is_active
-                ? <Badge className="bg-green-500">Activo</Badge>
-                : <Badge variant="destructive">Inactivo</Badge>,
-            filterFn: includesFilter,
-        },
-        {
             id: "actions",
             cell: ({ row }) => {
                 const user = row.original
@@ -203,7 +186,7 @@ export function UsersClientPage({ users, isTrash = false }: UsersClientProps) {
                     hideViewOptions
                     toolbarContent={() => (
                         <Input
-                            placeholder="Buscar por nombre o nro documento..."
+                            placeholder="Buscar por nombre, documento o email..."
                             value={globalSearch}
                             onChange={(e) => setGlobalSearch(e.target.value)}
                             className="h-8 w-[250px]"

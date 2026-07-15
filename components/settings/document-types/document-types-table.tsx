@@ -47,7 +47,6 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
     const [editingDoc, setEditingDoc] = useState<DocumentType | undefined>(undefined)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [categoryFilter, setCategoryFilter] = useState<string[]>([])
-    const [statusFilter, setStatusFilter] = useState<string[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [isTrash, setIsTrash] = useState(false)
     const [page, setPage] = useState(1)
@@ -59,10 +58,9 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
             if (isTrash ? doc.is_active : !doc.is_active) return false
             if (search && !doc.name.toLowerCase().includes(search)) return false
             if (categoryFilter.length > 0 && !categoryFilter.includes(doc.category)) return false
-            if (statusFilter.length > 0 && !statusFilter.includes(String(doc.is_active))) return false
             return true
         })
-    }, [data, isTrash, categoryFilter, statusFilter, searchTerm])
+    }, [data, isTrash, categoryFilter, searchTerm])
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize))
     const safePage = Math.min(page, totalPages)
@@ -156,17 +154,6 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
                                     onChange={(v) => { setCategoryFilter(v); resetPage() }}
                                 />
                             </TableHead>
-                            <TableHead>
-                                <ColumnFilterHeader
-                                    title="Estado"
-                                    options={[
-                                        { label: 'Activo', value: 'true' },
-                                        { label: 'Inactivo', value: 'false' },
-                                    ]}
-                                    selected={statusFilter}
-                                    onChange={(v) => { setStatusFilter(v); resetPage() }}
-                                />
-                            </TableHead>
                             <TableHead className="text-right">Días Alerta</TableHead>
                             <TableHead className="w-[70px]"></TableHead>
                         </TableRow>
@@ -174,7 +161,7 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
                     <TableBody>
                         {paginatedData.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                     No hay tipos de documentos{isTrash ? ' en la papelera' : ' configurados'}.
                                 </TableCell>
                             </TableRow>
@@ -194,11 +181,6 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
                                 </TableCell>
 
                                 <TableCell>{getCategoryBadge(doc.category)}</TableCell>
-                                <TableCell>
-                                    <Badge variant={doc.is_active ? "default" : "secondary"}>
-                                        {doc.is_active ? 'Activo' : 'Inactivo'}
-                                    </Badge>
-                                </TableCell>
                                 <TableCell className="text-right">
                                     {(doc.category === 'con_vencimiento' || doc.category === 'seguro') ? (
                                         <Badge variant="outline" className={`

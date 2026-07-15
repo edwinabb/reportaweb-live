@@ -5,6 +5,8 @@ import { PageDescription } from '@/components/ui/page-description'
 
 export const dynamic = 'force-dynamic'
 
+export const metadata = { title: 'Usuarios - Documentación' }
+
 export default async function UserDocumentsPage({
     searchParams,
 }: {
@@ -32,7 +34,7 @@ export default async function UserDocumentsPage({
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
-            <h1 className="sr-only">Documentación de Usuarios</h1>
+            <h1 className="sr-only">Usuarios - Documentación</h1>
             <PageDescription>
                 Listado de documentos del personal. Desde aquí puedes realizar gestiones y descargas masivas.
             </PageDescription>

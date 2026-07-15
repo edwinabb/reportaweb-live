@@ -211,7 +211,7 @@ export function DepurarClient({ documents, totalCount, currentPage, pageSize }: 
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirm} disabled={isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction onClick={handleConfirm} disabled={isPending} className="bg-destructive text-white hover:bg-destructive/90">
                             Confirmar
                         </AlertDialogAction>
                     </AlertDialogFooter>
