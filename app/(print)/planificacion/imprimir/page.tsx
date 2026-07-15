@@ -156,7 +156,9 @@ export default async function PlanificacionImprimirPage({ searchParams }: Props)
                     .no-print { display: none !important; }
                     @page { size: letter landscape; margin: 8mm; }
                     body { background: white !important; margin: 0 !important; }
-                    .print-sheet { box-shadow: none !important; max-width: none !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+                    /* min-height 216mm es solo para el preview en pantalla; impreso
+                       desborda a una 2ª página en blanco (216mm > 216mm - márgenes) */
+                    .print-sheet { box-shadow: none !important; max-width: none !important; width: 100% !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
                 }
                 body { background: #f1f5f9; margin: 0; font-family: 'Segoe UI', Arial, sans-serif; }
                 /* Repetir encabezado de días en cada página */
