@@ -3,24 +3,26 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Maquinaria } from "@/types/maquinaria"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Pencil, Trash } from "lucide-react"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
+import { ColumnFilterHeader, ColumnFilterOption } from "@/components/ui/column-filter-header"
 import { MaquinariaActions } from "@/components/maquinaria/maquinaria-actions"
 
-export const getColumns = (isTrash = false): ColumnDef<Maquinaria>[] => [
+interface ColumnFilterOptions {
+    categoriaOptions: ColumnFilterOption[]
+    marcaOptions: ColumnFilterOption[]
+    modeloOptions: ColumnFilterOption[]
+    propiedadOptions: ColumnFilterOption[]
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const includesFilter = (row: any, id: string, value: string[]) => {
+    if (!value || value.length === 0) return true
+    return value.includes(String(row.getValue(id) ?? ''))
+}
+
+export const getColumns = (isTrash = false, filters: ColumnFilterOptions): ColumnDef<Maquinaria>[] => [
     {
         accessorKey: "nombre",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Equipo" />
-        ),
+        header: "Equipo",
     },
     {
         accessorKey: "codigo_interno",
@@ -28,18 +30,40 @@ export const getColumns = (isTrash = false): ColumnDef<Maquinaria>[] => [
     },
     {
         accessorKey: "categoria",
-        header: "Categoría",
+        header: ({ column }) => (
+            <ColumnFilterHeader
+                title="Categoría"
+                options={filters.categoriaOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
+        ),
+        filterFn: includesFilter,
     },
     {
         accessorKey: "marca",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Marca" />
+            <ColumnFilterHeader
+                title="Marca"
+                options={filters.marcaOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
         ),
+        filterFn: includesFilter,
     },
     {
         accessorFn: (row) => row.modelo || row.modelo_ref?.modelo || "",
-        header: "Modelo",
         id: "modelo",
+        header: ({ column }) => (
+            <ColumnFilterHeader
+                title="Modelo"
+                options={filters.modeloOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
+        ),
+        filterFn: includesFilter,
     },
     {
         accessorKey: "placa",
@@ -47,11 +71,19 @@ export const getColumns = (isTrash = false): ColumnDef<Maquinaria>[] => [
     },
     {
         accessorKey: "propietario",
-        header: "Propiedad",
+        header: ({ column }) => (
+            <ColumnFilterHeader
+                title="Propiedad"
+                options={filters.propiedadOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
+        ),
         cell: ({ row }) => {
             const prop = row.getValue("propietario") as string
             return <Badge variant={prop === 'propio' ? 'default' : 'secondary'}>{prop}</Badge>
-        }
+        },
+        filterFn: includesFilter,
     },
     {
         accessorKey: "estado",

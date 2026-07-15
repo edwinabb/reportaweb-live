@@ -1,13 +1,6 @@
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { getMaquinariaTipos } from "@/lib/actions/maquinaria-types"
 import { TypesClientPage } from "./client-page"
+import { PageDescription } from "@/components/ui/page-description"
 
 export default async function MaquinariaTypesPage({
     searchParams,
@@ -27,21 +20,11 @@ export default async function MaquinariaTypesPage({
 
     return (
         <div className="flex flex-col gap-4">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/maquinarias">Equipos</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbPage>Tipos de Documentos</BreadcrumbPage>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb>
+            <h1 className="sr-only">Tipos de Documentos de Maquinaria</h1>
+            <PageDescription>
+                Tipos de documentos exigibles a la maquinaria (seguros, certificados, revisiones).
+                Buscá por nombre, filtrá por vencimiento u obligatoriedad y definí nuevos tipos.
+            </PageDescription>
 
             <TypesClientPage
                 tipos={tipos}

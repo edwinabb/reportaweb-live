@@ -5,7 +5,7 @@ import { startOfWeek, endOfWeek, addDays, format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, List as ListIcon, User, Truck, Search, CheckCircle2, X, Pencil } from "lucide-react"
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, List as ListIcon, User, Truck, Search, CheckCircle2, X, Pencil, Printer } from "lucide-react"
 import { getTareas, getRecursosForPlanning, getInformesCount, getTareasBorrador, type TareaBorradorResumen, InformesCount } from "@/lib/actions/planificacion"
 import { toggleOperario } from "@/lib/actions/users"
 import { getFestivosInRange, type Festivo } from "@/lib/actions/festivos"
@@ -470,6 +470,16 @@ function PlanificacionPageInner() {
                             Solo operarios
                         </Button>
                     )}
+                    <a
+                        href={`/planificacion/imprimir?vista=${viewMode.toLowerCase()}&semana=${format(startObj, 'yyyy-MM-dd')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" title="Imprimir / Guardar PDF">
+                            <Printer className="h-3.5 w-3.5" />
+                            PDF
+                        </Button>
+                    </a>
                     <span className="text-xs text-gray-400 ml-auto">
                         {viewMode === 'PERSONAL'
                             ? `${personalParaTimeline.length} de ${recursos.personal.length} personas`

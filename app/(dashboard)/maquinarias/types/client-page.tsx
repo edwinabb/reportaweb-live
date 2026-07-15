@@ -6,6 +6,8 @@ import { TipoDocForm } from "@/components/maquinaria/tipo-doc-form"
 import { ColumnDef } from "@tanstack/react-table"
 import { Trash, Pencil, MoreHorizontal, RotateCcw, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ColumnFilterHeader } from "@/components/ui/column-filter-header"
 import { useRouter } from "next/navigation"
 import { deleteMaquinariaTipo, restoreMaquinariaTipo } from "@/lib/actions/maquinaria-types"
 import { toast } from "sonner"
@@ -18,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -108,6 +110,26 @@ export function TypesClientPage(props: TypesClientProps) {
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [editItem, setEditItem] = useState<MaquinariaTipoDoc | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [globalSearch, setGlobalSearch] = useState("")
+
+    // Búsqueda por nombre, case-insensitive y con coincidencia en cualquier posición.
+    const filteredTipos = useMemo(() => {
+        const search = globalSearch.trim().toLowerCase()
+        if (!search) return tipos
+        return tipos.filter((t) => (t.nombre?.toLowerCase() ?? '').includes(search))
+    }, [tipos, globalSearch])
+
+    const siNoOptions = [
+        { label: "Sí", value: "Sí" },
+        { label: "No", value: "No" },
+    ]
+
+    // Filtra por el valor booleano mostrado (Sí/No)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const booleanSiNoFilter = (row: any, id: string, value: string[]) => {
+        if (!value || value.length === 0) return true
+        return value.includes(row.getValue(id) ? "Sí" : "No")
+    }
 
     const confirmDelete = async () => {
         if (!deleteId) return
@@ -132,7 +154,7 @@ export function TypesClientPage(props: TypesClientProps) {
         {
             accessorKey: "nombre",
             header: "Nombre",
-            cell: ({ row }) => <span className="font-bold">{row.getValue("nombre")}</span>
+            cell: ({ row }) => <span>{row.getValue("nombre")}</span>
         },
         {
             accessorKey: "aplica_a",
@@ -141,8 +163,16 @@ export function TypesClientPage(props: TypesClientProps) {
         },
         {
             accessorKey: "requiere_vencimiento",
-            header: "Vencimiento",
-            cell: ({ row }) => <Badge variant="outline">{row.getValue("requiere_vencimiento") ? "Sí" : "No"}</Badge>
+            header: ({ column }) => (
+                <ColumnFilterHeader
+                    title="Vencimiento"
+                    options={siNoOptions}
+                    selected={(column.getFilterValue() as string[]) ?? []}
+                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+                />
+            ),
+            cell: ({ row }) => <Badge variant="outline">{row.getValue("requiere_vencimiento") ? "Sí" : "No"}</Badge>,
+            filterFn: booleanSiNoFilter,
         },
         {
             accessorKey: "dias_alerta",
@@ -150,8 +180,16 @@ export function TypesClientPage(props: TypesClientProps) {
         },
         {
             accessorKey: "es_obligatorio",
-            header: "Obligatorio",
-            cell: ({ row }) => <Badge variant={row.getValue("es_obligatorio") ? "default" : "secondary"}>{row.getValue("es_obligatorio") ? "Sí" : "No"}</Badge>
+            header: ({ column }) => (
+                <ColumnFilterHeader
+                    title="Obligatorio"
+                    options={siNoOptions}
+                    selected={(column.getFilterValue() as string[]) ?? []}
+                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+                />
+            ),
+            cell: ({ row }) => <Badge variant={row.getValue("es_obligatorio") ? "default" : "secondary"}>{row.getValue("es_obligatorio") ? "Sí" : "No"}</Badge>,
+            filterFn: booleanSiNoFilter,
         },
         {
             id: "actions",
@@ -239,9 +277,16 @@ export function TypesClientPage(props: TypesClientProps) {
                 <div className={!props.embedded ? "rounded-lg border p-6 bg-background" : ""}>
                     <DataTable
                         columns={columns}
-                        data={tipos}
-                        searchKey="nombre"
-                        hideViewOptions={props.embedded}
+                        data={filteredTipos}
+                        hideViewOptions
+                        toolbarContent={() => (
+                            <Input
+                                placeholder="Buscar por nombre..."
+                                value={globalSearch}
+                                onChange={(e) => setGlobalSearch(e.target.value)}
+                                className="h-8 w-full md:w-[280px]"
+                            />
+                        )}
                         customAction={
                             <div className="flex items-center gap-2">
                                 <Button

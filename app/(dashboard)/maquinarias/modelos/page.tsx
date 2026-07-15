@@ -1,13 +1,6 @@
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { getMaquinariaModelos } from "@/lib/actions/maquinaria-models"
 import { ModelosClientPage } from "./client-page"
+import { PageDescription } from "@/components/ui/page-description"
 
 export default async function ModelosPage({
     searchParams,
@@ -22,25 +15,13 @@ export default async function ModelosPage({
 
     return (
         <div className="flex flex-col gap-4">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/maquinarias">Equipos</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbPage>Modelos</BreadcrumbPage>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb >
-
-
+            <h1 className="sr-only">Modelos de Maquinaria</h1>
+            <PageDescription>
+                Catálogo de modelos de equipos (marca, tipo y capacidad) que se asignan a las maquinarias.
+                Buscá por modelo, marca o tipo, filtrá por columna y creá nuevos modelos.
+            </PageDescription>
 
             <ModelosClientPage modelos={modelos} isTrash={isTrash} />
-        </div >
+        </div>
     )
 }

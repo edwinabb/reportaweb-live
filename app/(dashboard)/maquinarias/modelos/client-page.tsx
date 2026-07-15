@@ -6,6 +6,8 @@ import { ModelCreationDialog } from "@/components/maquinaria/model-creation-dial
 import { ColumnDef } from "@tanstack/react-table"
 import { Trash, Pencil, MoreHorizontal, RotateCcw, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ColumnFilterHeader } from "@/components/ui/column-filter-header"
 import { useRouter } from "next/navigation"
 import { deleteMaquinariaModelo, restoreMaquinariaModelo } from "@/lib/actions/maquinaria-models"
 import { toast } from "sonner"
@@ -17,7 +19,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -40,6 +42,38 @@ export function ModelosClientPage(props: ModelosClientProps) {
     const router = useRouter()
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [globalSearch, setGlobalSearch] = useState("")
+
+    // Búsqueda multicampo: modelo, marca o tipo de equipo,
+    // case-insensitive y con coincidencia en cualquier posición.
+    const filteredModelos = useMemo(() => {
+        const byView = isTrash ? modelos.filter(m => !m.is_active) : modelos
+
+        const search = globalSearch.trim().toLowerCase()
+        if (!search) return byView
+
+        return byView.filter((m) => {
+            const modelo = m.modelo?.toLowerCase() ?? ''
+            const marca = m.marca?.toLowerCase() ?? ''
+            const tipo = m.tipo_equipo?.toLowerCase() ?? ''
+            return modelo.includes(search) || marca.includes(search) || tipo.includes(search)
+        })
+    }, [modelos, isTrash, globalSearch])
+
+    // Opciones de filtro derivadas de los datos
+    const toOptions = (values: (string | undefined)[]) =>
+        Array.from(new Set(values.filter(Boolean) as string[]))
+            .sort().map(v => ({ label: v, value: v }))
+
+    const marcaOptions = useMemo(() => toOptions(filteredModelos.map(m => m.marca)), [filteredModelos])
+    const tipoOptions = useMemo(() => toOptions(filteredModelos.map(m => m.tipo_equipo)), [filteredModelos])
+    const capacidadOptions = useMemo(() => toOptions(filteredModelos.map(m => m.capacidad)), [filteredModelos])
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const includesFilter = (row: any, id: string, value: string[]) => {
+        if (!value || value.length === 0) return true
+        return value.includes(String(row.getValue(id) ?? ''))
+    }
 
     const confirmDelete = async () => {
         if (!deleteId) return
@@ -64,20 +98,44 @@ export function ModelosClientPage(props: ModelosClientProps) {
         {
             accessorKey: "modelo",
             header: "Modelo",
-            cell: ({ row }) => <span className="font-bold">{row.getValue("modelo")}</span>
+            cell: ({ row }) => <span>{row.getValue("modelo")}</span>
         },
         {
             accessorKey: "marca",
-            header: "Marca",
+            header: ({ column }) => (
+                <ColumnFilterHeader
+                    title="Marca"
+                    options={marcaOptions}
+                    selected={(column.getFilterValue() as string[]) ?? []}
+                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+                />
+            ),
+            filterFn: includesFilter,
         },
         {
             accessorKey: "tipo_equipo",
-            header: "Tipo",
-            cell: ({ row }) => <Badge variant="secondary">{row.getValue("tipo_equipo")}</Badge>
+            header: ({ column }) => (
+                <ColumnFilterHeader
+                    title="Tipo"
+                    options={tipoOptions}
+                    selected={(column.getFilterValue() as string[]) ?? []}
+                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+                />
+            ),
+            cell: ({ row }) => <Badge variant="secondary">{row.getValue("tipo_equipo")}</Badge>,
+            filterFn: includesFilter,
         },
         {
             accessorKey: "capacidad",
-            header: "Capacidad",
+            header: ({ column }) => (
+                <ColumnFilterHeader
+                    title="Capacidad"
+                    options={capacidadOptions}
+                    selected={(column.getFilterValue() as string[]) ?? []}
+                    onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+                />
+            ),
+            filterFn: includesFilter,
         },
         {
             id: "actions",
@@ -167,9 +225,16 @@ export function ModelosClientPage(props: ModelosClientProps) {
                 <div className={!props.embedded ? "rounded-lg border p-6 bg-background" : ""}>
                     <DataTable
                         columns={columns}
-                        data={isTrash ? modelos.filter(m => !m.is_active) : modelos}
-                        searchKey="modelo"
-                        hideViewOptions={props.embedded}
+                        data={filteredModelos}
+                        hideViewOptions
+                        toolbarContent={() => (
+                            <Input
+                                placeholder="Buscar por modelo, marca o tipo..."
+                                value={globalSearch}
+                                onChange={(e) => setGlobalSearch(e.target.value)}
+                                className="h-8 w-full md:w-[280px]"
+                            />
+                        )}
                         customAction={
                             <div className="flex items-center gap-2">
                                 <Button
