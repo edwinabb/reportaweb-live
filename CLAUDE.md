@@ -21,7 +21,7 @@
 ## Estado Actual
 
 **Date:** 2026-07-15  
-**Web Version:** v3.11.3 — ✅ demo + live (PDF semanal validado, fix tareas_estado_check, fechas Bubble migradas)  
+**Web Version:** v3.11.3 — ✅ demo · live: worker `reportaweb-live` desplegado vía GitHub pero **dominio live.reportar.app SIN enrutar al worker (522)** — entorno live aún no listo (falta binding de dominio + secret `SUPABASE_SERVICE_ROLE_KEY` + rotar key)  
 **App Version:** v1.8.14  
 **Auditoría UI:** Módulo 2/15 (Maquinaria) 🔄 EN CURSO — matriz en [docs/auditoria-ui/02-maquinaria.md](./docs/auditoria-ui/02-maquinaria.md) · pre-audit + DUDA-PLAN-001 en [PRE-AUDIT-2026-07-15](./docs/auditoria-ui/PRE-AUDIT-2026-07-15-maquinaria-planificacion.md)  
 **Template listados:** v1.2 DEFINIDO (aplicar a los demás módulos)  
