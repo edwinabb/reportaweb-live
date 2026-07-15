@@ -3,42 +3,30 @@
 import { useState, useTransition } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { format, parseISO, differenceInDays } from 'date-fns'
-import { es } from 'date-fns/locale'
 import {
-    Download,
     FileText,
-    Filter,
     Search,
     MoreVertical,
     Trash2,
-    Eye,
-    CheckCircle,
-    AlertCircle,
     FileArchive,
     Loader2,
-    Pencil
+    Pencil,
+    Eraser
 } from 'lucide-react'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { cn } from '@/lib/utils'
 
 import { DocumentType, UserDocument } from '@/types/user-documents'
 import { getSignedUrls } from '@/lib/actions/user-documents-query'
-import { deleteUserDocument, toggleUserDocumentStatus } from '@/lib/actions/user-documents'
+import { toggleUserDocumentStatus } from '@/lib/actions/user-documents'
+import { exportToExcel } from '@/lib/utils/export-excel'
 
 import { Input } from '@/components/ui/input'
 import { BulkUploadDocumentDialog } from './bulk-upload-document-dialog'
 import { EditDocumentDialog } from './edit-document-dialog'
 import { Button } from '@/components/ui/button'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
 import {
     Table,
     TableBody,
@@ -55,13 +43,15 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { ColumnFilterHeader } from '@/components/ui/column-filter-header'
+import { TablePaginationBar } from '@/components/ui/table-pagination-bar'
 
 interface GlobalDocumentsTableProps {
     documents: UserDocument[]
     documentTypes: DocumentType[]
     totalCount: number
     currentPage: number
-    totalPages: number
+    pageSize: number
 }
 
 export function GlobalDocumentsTable({
@@ -69,7 +59,7 @@ export function GlobalDocumentsTable({
     documentTypes,
     totalCount,
     currentPage,
-    totalPages
+    pageSize
 }: GlobalDocumentsTableProps) {
     const router = useRouter()
     const pathname = usePathname()
@@ -81,41 +71,16 @@ export function GlobalDocumentsTable({
     const [isPending, startTransition] = useTransition()
     const [editingDoc, setEditingDoc] = useState<UserDocument | null>(null)
 
-    // Filter states
+    // Estado de filtros (URL = fuente de verdad; el servidor filtra y pagina)
     const searchTerm = searchParams.get('search') || ''
-    const currentDocType = searchParams.get('documentTypeId') || 'all'
-    const currentExpiryStatus = searchParams.get('expiryStatus') || 'all'
-    const currentStatus = searchParams.get('status') || 'all'
+    const currentDocType = searchParams.get('documentTypeId') || ''
+    const currentExpiryStatus = searchParams.get('expiryStatus') || ''
+    const isTrash = searchParams.get('is_active') === 'false'
 
-    // Handlers
-    const handleSearch = (term: string) => {
+    const setParam = (key: string, value: string | null) => {
         const params = new URLSearchParams(searchParams)
-        if (term) params.set('search', term)
-        else params.delete('search')
-        params.set('page', '1')
-        router.push(`${pathname}?${params.toString()}`)
-    }
-
-    const handleTypeFilter = (typeId: string) => {
-        const params = new URLSearchParams(searchParams)
-        if (typeId && typeId !== 'all') params.set('documentTypeId', typeId)
-        else params.delete('documentTypeId')
-        params.set('page', '1')
-        router.push(`${pathname}?${params.toString()}`)
-    }
-
-    const handleExpiryFilter = (status: string) => {
-        const params = new URLSearchParams(searchParams)
-        if (status && status !== 'all') params.set('expiryStatus', status)
-        else params.delete('expiryStatus')
-        params.set('page', '1')
-        router.push(`${pathname}?${params.toString()}`)
-    }
-
-    const handleStatusFilter = (status: string) => {
-        const params = new URLSearchParams(searchParams)
-        if (status && status !== 'all') params.set('status', status)
-        else params.delete('status')
+        if (value) params.set(key, value)
+        else params.delete(key)
         params.set('page', '1')
         router.push(`${pathname}?${params.toString()}`)
     }
@@ -144,22 +109,17 @@ export function GlobalDocumentsTable({
 
     // Download Helpers
     const handleDownloadExcel = () => {
-        const dataToExport = documents.map(doc => ({
-            'Usuario Nombre': doc.user?.first_name || '',
-            'Usuario Apellido': doc.user?.last_name || '',
-            'Tipo Documento': doc.document_type?.name,
-            'Num. Documento Identidad': doc.user?.doc_number || '',
+        const rows = documents.map(doc => ({
+            'Usuario': `${doc.user?.first_name || ''} ${doc.user?.last_name || ''}`.trim(),
+            'Nro. Documento Identidad': doc.user?.doc_number || '',
+            'Documento': doc.document_type?.name,
             'Válido Desde': doc.valid_from || '-',
             'Válido Hasta': doc.valid_until || '-',
-            'Estado': getStatusText(doc),
+            'Vencimiento': getStatusText(doc),
+            'Estado': doc.is_active ? 'Activo' : 'Inactivo',
             'Nombre Archivo': doc.file_name,
-            'Tamaño (Bytes)': doc.file_size
         }))
-
-        const ws = XLSX.utils.json_to_sheet(dataToExport)
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, "Documentos")
-        XLSX.writeFile(wb, `Reporte_Documentos_${format(new Date(), 'yyyyMMdd')}.xls`, { bookType: 'xls' })
+        if (!exportToExcel('DOCUMENTACION', rows)) toast.error('No hay registros para exportar')
     }
 
     const handleDownloadZip = async () => {
@@ -183,12 +143,7 @@ export function GlobalDocumentsTable({
             const zip = new JSZip()
             const folder = zip.folder("documentos")
 
-            // Fetch and add to zip
-            await Promise.all(signedUrls.map(async (item, index) => {
-                const doc = selectedDocs[index] // Assuming order is preserved, usually is.
-                // To be safe, we can match by path if needed, but array order is usually sync
-                // Actually supabase returns array of objects { error, signedUrl, path }
-
+            await Promise.all(selectedDocs.map(async (doc) => {
                 const signedData = signedUrls.find(s => s.path === doc.file_path)
                 if (!signedData?.signedUrl) return
 
@@ -224,18 +179,14 @@ export function GlobalDocumentsTable({
 
     // Helpers
     const getStatusText = (doc: UserDocument) => {
-        if (!doc.valid_until) return 'Permanente'
+        if (!doc.valid_until) return 'No vence'
         const today = new Date()
         const validUntil = parseISO(doc.valid_until)
         if (validUntil < today) return 'Vencido'
         return 'Vigente'
     }
 
-    const getStatusBadge = (doc: UserDocument) => {
-        if (!doc.is_active) {
-            return <Badge variant="outline" className="bg-gray-50 text-gray-400 border-gray-200 uppercase">Deshabilitado</Badge>
-        }
-
+    const getExpiryBadge = (doc: UserDocument) => {
         if (!doc.valid_until) {
             return <Badge variant="secondary" className="bg-gray-100 text-gray-600 hover:bg-gray-200">NO VENCE</Badge>
         }
@@ -256,90 +207,49 @@ export function GlobalDocumentsTable({
 
     return (
         <div className="space-y-4">
-            {/* Toolbar */}
+            {/* Toolbar estándar: buscador | Depurar | Activos/Papelera | XLS | ZIP | + Nuevo */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border shadow-sm">
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto flex-1">
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar usuario o DNI..."
-                            className="pl-8"
-                            defaultValue={searchTerm}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSearch(e.currentTarget.value)
-                            }}
-                        />
-                    </div>
-                    <Select value={currentDocType} onValueChange={handleTypeFilter}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Tipo Documento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los tipos</SelectItem>
-                            {documentTypes.map(t => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={currentExpiryStatus} onValueChange={handleExpiryFilter}>
-                        <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Vencimiento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos (Vencimiento)</SelectItem>
-                            <SelectItem value="expiring">Por vencer</SelectItem>
-                            <SelectItem value="expired">Vencidos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={currentStatus} onValueChange={handleStatusFilter}>
-                        <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="Estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos (Estado)</SelectItem>
-                            <SelectItem value="active">Activos</SelectItem>
-                            <SelectItem value="inactive">Inactivos</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar usuario o DNI..."
+                        className="pl-8"
+                        defaultValue={searchTerm}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') setParam('search', e.currentTarget.value || null)
+                        }}
+                    />
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-muted/50 p-1 rounded-md border mr-2">
-                        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
-                            <Filter className="h-3.5 w-3.5" /> Vista
-                        </Button>
-                        <Button
-                            variant={!searchParams.get('is_active') || searchParams.get('is_active') === 'true' ? 'default' : 'ghost'}
-                            size="sm"
-                            className={cn("h-8 text-xs px-4", (!searchParams.get('is_active') || searchParams.get('is_active') === 'true') && "bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white")}
-                            onClick={() => {
-                                const params = new URLSearchParams(searchParams)
-                                params.set('is_active', 'true')
-                                params.set('page', '1')
-                                router.push(`${pathname}?${params.toString()}`)
-                            }}
-                        >
-                            Activos
-                        </Button>
-                        <Button
-                            variant={searchParams.get('is_active') === 'false' ? 'default' : 'ghost'}
-                            size="sm"
-                            className={cn("h-8 text-xs px-4", searchParams.get('is_active') === 'false' && "bg-[#FF5A1F] hover:bg-[#FF5A1F]/90 text-white")}
-                            onClick={() => {
-                                const params = new URLSearchParams(searchParams)
-                                params.set('is_active', 'false')
-                                params.set('page', '1')
-                                router.push(`${pathname}?${params.toString()}`)
-                            }}
-                        >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Papelera
-                        </Button>
-                    </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push('/users/documents/depurar')}
+                        title="Documentos activos con más de 1 mes de vencidos"
+                    >
+                        <Eraser className="h-4 w-4 mr-1" /> Depurar vencidos
+                    </Button>
 
-                    <Button variant="outline" size="icon" onClick={handleDownloadExcel} title="Descargar Excel" className="h-9 w-9">
+                    <Button
+                        variant={!isTrash ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setParam('is_active', null)}
+                    >
+                        Activos
+                    </Button>
+                    <Button
+                        variant={isTrash ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setParam('is_active', 'false')}
+                    >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Papelera
+                    </Button>
+
+                    <Button variant="outline" size="sm" onClick={handleDownloadExcel} title="Descargar Excel (lo filtrado)">
                         <FileText className="h-4 w-4 text-green-600" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={handleDownloadZip} title="Descargar Seleccionados (ZIP)" disabled={isDownloading} className="h-9 w-9">
+                    <Button variant="outline" size="sm" onClick={handleDownloadZip} title="Descargar Seleccionados (ZIP)" disabled={isDownloading}>
                         {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4 text-orange-600" />}
                     </Button>
 
@@ -362,10 +272,41 @@ export function GlobalDocumentsTable({
                                 />
                             </TableHead>
                             <TableHead>USUARIO</TableHead>
-                            <TableHead>DOCUMENTO</TableHead>
+                            <TableHead>
+                                <ColumnFilterHeader
+                                    title="DOCUMENTO"
+                                    options={documentTypes.map(t => ({ label: t.name, value: t.id }))}
+                                    selected={currentDocType ? [currentDocType] : []}
+                                    onChange={(v) => setParam('documentTypeId', v[0] ?? null)}
+                                    multiple={false}
+                                />
+                            </TableHead>
                             <TableHead>VÁLIDO DESDE</TableHead>
-                            <TableHead>ESTADO</TableHead>
+                            <TableHead>
+                                <ColumnFilterHeader
+                                    title="VENCIMIENTO"
+                                    options={[
+                                        { label: 'Por vencer', value: 'expiring' },
+                                        { label: 'Vencidos', value: 'expired' },
+                                    ]}
+                                    selected={currentExpiryStatus ? [currentExpiryStatus] : []}
+                                    onChange={(v) => setParam('expiryStatus', v[0] ?? null)}
+                                    multiple={false}
+                                />
+                            </TableHead>
                             <TableHead>VÁLIDO HASTA</TableHead>
+                            <TableHead>
+                                <ColumnFilterHeader
+                                    title="ESTADO"
+                                    options={[
+                                        { label: 'Activos', value: 'true' },
+                                        { label: 'Inactivos', value: 'false' },
+                                    ]}
+                                    selected={isTrash ? ['false'] : ['true']}
+                                    onChange={(v) => setParam('is_active', v[0] === 'false' ? 'false' : null)}
+                                    multiple={false}
+                                />
+                            </TableHead>
                             <TableHead>ARCHIVO</TableHead>
                             <TableHead className="text-right"></TableHead>
                         </TableRow>
@@ -373,7 +314,7 @@ export function GlobalDocumentsTable({
                     <TableBody>
                         {documents.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                     No se encontraron documentos
                                 </TableCell>
                             </TableRow>
@@ -388,7 +329,8 @@ export function GlobalDocumentsTable({
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-sm">
+                                            {/* Estándar: nombre en rojo cuando el registro está inactivo */}
+                                            <span className={cn("font-medium text-sm", !doc.is_active && "text-red-600")}>
                                                 {doc.user?.first_name} {doc.user?.last_name}
                                             </span>
                                             <span className="text-xs text-muted-foreground">{doc.user?.doc_number}</span>
@@ -399,18 +341,21 @@ export function GlobalDocumentsTable({
                                         {doc.valid_from ? format(parseISO(doc.valid_from), 'dd/MM/yyyy') : '-'}
                                     </TableCell>
                                     <TableCell>
-                                        {getStatusBadge(doc)}
+                                        {getExpiryBadge(doc)}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
                                         {doc.valid_until ? format(parseISO(doc.valid_until), 'dd/MM/yyyy') : '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {doc.is_active
+                                            ? <Badge className="bg-green-500">Activo</Badge>
+                                            : <Badge variant="destructive">Inactivo</Badge>}
                                     </TableCell>
                                     <TableCell>
                                         <a
                                             href="#"
                                             onClick={async (e) => {
                                                 e.preventDefault()
-                                                // Quick view logic
-                                                // Ideally use the same getSignedUrls logic or single
                                                 const urlData = await getSignedUrls([doc.file_path])
                                                 if (urlData?.[0]?.signedUrl) window.open(urlData[0].signedUrl, '_blank')
                                             }}
@@ -422,7 +367,7 @@ export function GlobalDocumentsTable({
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -453,28 +398,14 @@ export function GlobalDocumentsTable({
                 />
             )}
 
-            {/* Pagination (Simple) */}
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                >
-                    Anterior
-                </Button>
-                <div className="text-sm text-muted-foreground">
-                    Página {currentPage} de {totalPages || 1}
-                </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage >= totalPages}
-                >
-                    Siguiente
-                </Button>
-            </div>
-        </div >
+            {/* Paginación estándar (servidor, vía URL) */}
+            <TablePaginationBar
+                totalCount={totalCount}
+                page={currentPage}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={(size) => setParam('perPage', String(size))}
+            />
+        </div>
     )
 }
