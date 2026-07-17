@@ -8,7 +8,12 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 
-export default function CreateUserPage() {
+export default async function CreateUserPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ tercero_id?: string; personal_externo?: string; redirect_to?: string }>
+}) {
+    const params = await searchParams
     return (
         <div className="flex-1 space-y-4 w-full px-6 py-6">
             <div className="flex items-center space-x-4">
@@ -31,7 +36,11 @@ export default function CreateUserPage() {
                 </div>
             </div>
             <div className="space-y-4">
-                <UserForm />
+                <UserForm
+                    defaultTerceroId={params.tercero_id}
+                    defaultPersonalExterno={params.personal_externo === '1'}
+                    redirectTo={params.redirect_to}
+                />
             </div>
         </div>
     )

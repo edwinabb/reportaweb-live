@@ -1,18 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useActionState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    DialogFooter,
-} from "@/components/ui/dialog"
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -24,87 +13,45 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import {
-    createTerceroContacto,
-    updateTerceroContacto,
     deleteTerceroContacto,
     getTerceroContactos
 } from "@/lib/actions/terceros-modules"
+import { getTercerosForSelect } from "@/lib/actions/terceros"
 import { TerceroContacto } from "@/types/terceros"
-
-import { ActionCatalogoDialog } from "@/components/common/action-catalogo-dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import {
-    getContactosCargos,
-    getContactosAreas,
-    createContactoCargo,
-    createContactoArea
-} from "@/lib/actions/catalogos"
+import { ContactoDialog } from "./contacto-dialog"
 
 interface TerceroContactosManagerProps {
     terceroId: string
 }
 
+/**
+ * Tab "Contactos" del editor de tercero. El form canónico es ContactoDialog
+ * (mismo componente que la lista global /terceros/contactos) — DUDA-TER-011.
+ */
 export function TerceroContactosManager({ terceroId }: TerceroContactosManagerProps) {
     const [contactos, setContactos] = useState<TerceroContacto[]>([])
+    const [terceros, setTerceros] = useState<{ id: string; razon_social: string }[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingContact, setEditingContact] = useState<TerceroContacto | null>(null)
 
-    const [cargos, setCargos] = useState<{ id: string, nombre: string }[]>([])
-    const [areas, setAreas] = useState<{ id: string, nombre: string }[]>([])
-
-    const loadContactos = async () => {
+    const loadContactos = useCallback(async () => {
         setIsLoading(true)
-        const [data, c, a] = await Promise.all([
+        const [data, tercerosList] = await Promise.all([
             getTerceroContactos(true, terceroId),
-            getContactosCargos(),
-            getContactosAreas()
+            getTercerosForSelect(),
         ])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setContactos(data as any)
-        setCargos(c)
-        setAreas(a)
+        setTerceros(tercerosList)
         setIsLoading(false)
-    }
+    }, [terceroId])
 
     useEffect(() => {
         if (terceroId) {
             loadContactos()
         }
-    }, [terceroId])
-
-    const handleCreate = async (formData: FormData) => {
-        formData.append("tercero_id", terceroId)
-        const result = await createTerceroContacto(null, formData)
-        if (result.success) {
-            toast.success("Contacto creado")
-            setIsDialogOpen(false)
-            loadContactos()
-        } else {
-            toast.error(result.message)
-        }
-    }
-
-    const handleUpdate = async (formData: FormData) => {
-        if (editingContact) {
-            formData.append("id", editingContact.id)
-            formData.append("tercero_id", terceroId)
-            const result = await updateTerceroContacto(null, formData)
-            if (result.success) {
-                toast.success("Contacto actualizado")
-                setIsDialogOpen(false)
-                setEditingContact(null)
-                loadContactos()
-            } else {
-                toast.error(result.message)
-            }
-        }
-    }
+    }, [terceroId, loadContactos])
 
     const handleDelete = async (id: string) => {
         if (confirm("¿Estás seguro de eliminar este contacto?")) {
@@ -153,6 +100,7 @@ export function TerceroContactosManager({ terceroId }: TerceroContactosManagerPr
                             <TableRow>
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Cargo</TableHead>
+                                <TableHead>Área</TableHead>
                                 <TableHead>Teléfono</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead className="w-[100px] text-right">Acciones</TableHead>
@@ -163,6 +111,7 @@ export function TerceroContactosManager({ terceroId }: TerceroContactosManagerPr
                                 <TableRow key={contact.id}>
                                     <TableCell className="font-medium">{contact.nombre_completo}</TableCell>
                                     <TableCell>{contact.cargo || "-"}</TableCell>
+                                    <TableCell>{contact.area || "-"}</TableCell>
                                     <TableCell>{contact.telefono || "-"}</TableCell>
                                     <TableCell>{contact.email || "-"}</TableCell>
                                     <TableCell className="text-right">
@@ -182,93 +131,17 @@ export function TerceroContactosManager({ terceroId }: TerceroContactosManagerPr
                 </div>
             )}
 
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{editingContact ? "Editar Contacto" : "Nuevo Contacto"}</DialogTitle>
-                    </DialogHeader>
-                    <form action={editingContact ? handleUpdate : handleCreate} className="space-y-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="nombre_completo">Nombre Completo *</Label>
-                            <Input
-                                id="nombre_completo"
-                                name="nombre_completo"
-                                defaultValue={editingContact?.nombre_completo}
-                                required
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="cargo">Cargo</Label>
-                                <div className="flex gap-2">
-                                    <Select name="cargo" defaultValue={editingContact?.cargo}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Cargo" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cargos.map(c => (
-                                                <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <ActionCatalogoDialog
-                                        label="Cargo"
-                                        createAction={createContactoCargo}
-                                        onItemCreated={(newItem: { id: string, nombre: string }) => {
-                                            setCargos([...cargos, newItem])
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="area">Área</Label>
-                                <div className="flex gap-2">
-                                    <Select name="area" defaultValue={editingContact?.area}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Área" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {areas.map(a => (
-                                                <SelectItem key={a.id} value={a.nombre}>{a.nombre}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <ActionCatalogoDialog
-                                        label="Área"
-                                        createAction={createContactoArea}
-                                        onItemCreated={(newItem: { id: string, nombre: string }) => {
-                                            setAreas([...areas, newItem])
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="telefono">Teléfono</Label>
-                                <Input
-                                    id="telefono"
-                                    name="telefono"
-                                    defaultValue={editingContact?.telefono}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    defaultValue={editingContact?.email}
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                            <Button type="submit">Guardar</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <ContactoDialog
+                terceros={terceros}
+                defaultTerceroId={terceroId}
+                contactoToEdit={editingContact ?? undefined}
+                open={isDialogOpen}
+                onOpenChange={(open) => {
+                    setIsDialogOpen(open)
+                    if (!open) setEditingContact(null)
+                }}
+                onSuccess={() => loadContactos()}
+            />
         </div>
     )
 }

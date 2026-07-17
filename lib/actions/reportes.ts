@@ -114,14 +114,24 @@ export async function getTerceroPersonalList() {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return []
 
+    // Personal externo vive en profiles (tercero_id / personal_externo), no en
+    // terceros_personal (deprecada, DUDA-TER-006). El id devuelto es un profile id
+    // y el reporte lo guarda en personal_id.
     const { data } = await adminClient
-        .from('terceros_personal')
-        .select('id, nombres, apellidos, cargo, tercero:terceros(id, razon_social)')
+        .from('profiles')
+        .select('id, first_name, last_name, tercero:terceros!profiles_tercero_id_fkey(id, razon_social)')
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
-        .order('nombres')
+        .or('tercero_id.not.is.null,personal_externo.eq.true')
+        .order('first_name')
 
-    return data || []
+    return (data || []).map(p => ({
+        id: p.id,
+        nombres: p.first_name ?? '',
+        apellidos: p.last_name ?? '',
+        cargo: null,
+        tercero: p.tercero
+    }))
 }
 
 // --- REPORTES MAQUINARIA ---

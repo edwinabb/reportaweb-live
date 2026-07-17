@@ -50,8 +50,12 @@ export function ReportePersonalDialog({ open, onOpenChange, reporteId, onSuccess
                         setResolvedTareaId(r.tarea_id ?? '')
                         setInitialData({
                             tipo_personal: r.tipo_personal ?? 'INTERNO',
-                            personal_id: r.personal_id ?? '',
-                            tercero_personal_id: r.tercero_personal_id ?? '',
+                            personal_id: r.tipo_personal === 'EXTERNO' ? '' : (r.personal_id ?? ''),
+                            // EXTERNO nuevo guarda el profile en personal_id; el fallback
+                            // a tercero_personal_id cubre filas legacy (0 hoy en BD)
+                            tercero_personal_id: r.tipo_personal === 'EXTERNO'
+                                ? (r.personal_id ?? r.tercero_personal_id ?? '')
+                                : '',
                             fecha_reporte: r.fecha_reporte ?? '',
                             jornada1_inicio: r.jornada1_inicio ? r.jornada1_inicio.substring(11, 16) : '',
                             jornada1_fin: r.jornada1_fin ? r.jornada1_fin.substring(11, 16) : '',

@@ -69,6 +69,10 @@ export async function createUser(prevState: CreateUserState, formData: FormData)
     const { email, firstName, lastName, role, docNumber, gender, docType, nationality, birthDate, phone, pin, jobTitleId } = validatedFields.data
     const password = validatedFields.data.password || generateTempPassword()
 
+    // Personal externo de terceros (DUDA-TER-006): vínculo opcional en profiles
+    const terceroId = (formData.get('tercero_id') as string) || null
+    const personalExterno = formData.get('personal_externo') === 'true'
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -141,6 +145,8 @@ export async function createUser(prevState: CreateUserState, formData: FormData)
                 role,
                 doc_number: docNumber,
                 tenant_id: effectiveTenantId,
+                tercero_id: terceroId,
+                personal_externo: personalExterno || null,
             })
 
         if (profileError) {
@@ -207,6 +213,7 @@ export async function createUser(prevState: CreateUserState, formData: FormData)
         }
 
         revalidatePath('/users')
+        revalidatePath('/terceros/personal')
         // Must redirect on success
 
     } catch (error: unknown) {
@@ -214,5 +221,5 @@ export async function createUser(prevState: CreateUserState, formData: FormData)
         return { message: `Error inesperado: ${errMsg}` }
     }
 
-    redirect('/users')
+    redirect((formData.get('redirectTo') as string) || '/users')
 }

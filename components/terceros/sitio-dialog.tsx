@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-import { Loader2, Plus, X } from "lucide-react"
+import { Loader2, Plus, Search } from "lucide-react"
+import dynamic from 'next/dynamic'
 
 import { Button } from "@/components/ui/button"
 import {
@@ -34,15 +35,32 @@ import { TerceroSitio } from "@/types/terceros"
 type TerceroSelect = { id: string; razon_social: string }
 import { ActionCatalogoDialog } from "@/components/common/action-catalogo-dialog"
 
-const formSchema = z.object({
+const MapPicker = dynamic(() => import('@/components/common/map-picker'), {
+    ssr: false,
+    loading: () => <p>Cargando mapa...</p>
+})
+
+const DEFAULT_LAT = -12.0464 // Lima
+const DEFAULT_LNG = -77.0428
+
+// Código y Tipo son requeridos SOLO en creación: 1.689 sitios migrados vienen
+// sin esos datos y su edición no debe quedar bloqueada (DUDA-TER-008).
+const buildFormSchema = (isEdit: boolean) => z.object({
     id: z.string().optional(),
-    codigo: z.string().min(1, "Código es requerido"),
+    codigo: z.string().optional(),
     nombre: z.string().min(1, "Nombre es requerido"),
     tercero_ids: z.array(z.string()).min(1, "Selecciona al menos un tercero"),
-    tipo: z.string().min(1, "Tipo es requerido"),
+    tipo: z.string().optional(),
     direccion: z.string().optional(),
     ciudad: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (!isEdit) {
+        if (!data.codigo) ctx.addIssue({ code: "custom", path: ["codigo"], message: "Código es requerido" })
+        if (!data.tipo) ctx.addIssue({ code: "custom", path: ["tipo"], message: "Tipo es requerido" })
+    }
 })
+
+type SitioFormValues = z.infer<ReturnType<typeof buildFormSchema>>
 
 interface SitioDialogProps {
     terceros: TerceroSelect[]
@@ -60,10 +78,16 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
     const open = isControlled ? constrainedOpen : internalOpen
     const setOpen = isControlled ? onOpenChange : setInternalOpen
 
-    // ... rest of component
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [sitiosTipos, setSitiosTipos] = useState<any[]>([])
+    // Coordenadas: null = sin georreferencia (no se escribe en BD si el usuario no la fija)
+    const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+    const [geocoding, setGeocoding] = useState(false)
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const isEdit = !!sitioToEdit
+    const formSchema = useMemo(() => buildFormSchema(isEdit), [isEdit])
+
+    const form = useForm<SitioFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             id: "",
@@ -87,10 +111,17 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
                     codigo: sitioToEdit.codigo || "",
                     nombre: sitioToEdit.nombre,
                     tercero_ids: sitioToEdit.tercero_ids || sitioToEdit.terceros?.map(t => t.id) || [],
-                    tipo: sitioToEdit.tipo || "",
+                    // La columna real es terceros_sitios.tipo (uuid FK a sitios_tipo);
+                    // getTerceroSitios expone tipo_id = uuid y tipo = nombre joineado
+                    tipo: sitioToEdit.tipo_id || "",
                     direccion: sitioToEdit.direccion || "",
                     ciudad: sitioToEdit.ciudad || "",
                 })
+                setCoords(
+                    sitioToEdit.latitud != null && sitioToEdit.longitud != null
+                        ? { lat: Number(sitioToEdit.latitud), lng: Number(sitioToEdit.longitud) }
+                        : null
+                )
             } else {
                 form.reset({
                     id: "",
@@ -101,6 +132,7 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
                     direccion: "",
                     ciudad: "",
                 })
+                setCoords(null)
             }
         }
     }, [sitioToEdit, open, form, defaultTerceroId])
@@ -114,20 +146,51 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
     }, [terceros, defaultTerceroId])
 
     const isSubmitting = form.formState.isSubmitting
-    const isEdit = !!sitioToEdit
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    const handleGeocode = async () => {
+        const dir = form.getValues('direccion')
+        const ciu = form.getValues('ciudad')
+
+        if (!dir) {
+            toast.error("Ingrese una dirección para buscar")
+            return
+        }
+
+        const query = `${dir}, ${ciu || ''}, Peru`
+        setGeocoding(true)
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
+            const data = await res.json()
+
+            if (data && data.length > 0) {
+                setCoords({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
+                toast.success("Ubicación encontrada")
+            } else {
+                toast.error("No se encontraron resultados")
+            }
+        } catch {
+            toast.error("Error al buscar ubicación")
+        } finally {
+            setGeocoding(false)
+        }
+    }
+
+    async function onSubmit(values: SitioFormValues) {
         const formData = new FormData()
         formData.append('id', values.id || '')
-        formData.append('codigo', values.codigo)
+        formData.append('codigo', values.codigo || '')
         formData.append('nombre', values.nombre)
         const terceroIds = (defaultTerceroId && !values.tercero_ids.includes(defaultTerceroId))
             ? [...values.tercero_ids, defaultTerceroId]
             : values.tercero_ids
         formData.append('tercero_ids', terceroIds.join(','))
-        formData.append('tipo', values.tipo)
+        formData.append('tipo', values.tipo || '')
         formData.append('direccion', values.direccion || '')
         formData.append('ciudad', values.ciudad || '')
+        if (coords) {
+            formData.append('latitud', String(coords.lat))
+            formData.append('longitud', String(coords.lng))
+        }
 
         const action = isEdit ? updateTerceroSitio : createTerceroSitio
         const result = await action(null, formData)
@@ -136,18 +199,18 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
             toast.success(isEdit ? "Sitio actualizado" : "Sitio creado")
             if (setOpen) setOpen(false)
             if (!isEdit) form.reset()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (onSuccess) onSuccess((result as any).nombre)
         } else {
             toast.error(result.message || "Error al procesar")
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTipoCreated = (newTipo: any) => {
         setSitiosTipos(prev => [...prev, newTipo])
         form.setValue('tipo', newTipo.id)
     }
-
-    const selectedTerceros = form.watch('tercero_ids')
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -210,7 +273,7 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
                                 name="codigo"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Código *</FormLabel>
+                                        <FormLabel>Código {!isEdit && '*'}</FormLabel>
                                         <FormControl>
                                             <Input placeholder="Ingresa el código" {...field} />
                                         </FormControl>
@@ -242,7 +305,7 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
                             name="tipo"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Tipo *</FormLabel>
+                                    <FormLabel>Tipo {!isEdit && '*'}</FormLabel>
                                     <div className="flex gap-2">
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
@@ -269,41 +332,78 @@ export function SitioDialog({ terceros, sitioToEdit, trigger, onSuccess, open: c
                             )}
                         />
 
-                        <FormField
-                            control={form.control}
-                            name="direccion"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Dirección</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="Ingresa la dirección"
-                                            {...field}
-                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="direccion"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Dirección</FormLabel>
+                                        <div className="flex gap-2">
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Ingresa la dirección"
+                                                    {...field}
+                                                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                                />
+                                            </FormControl>
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="outline"
+                                                className="shrink-0"
+                                                onClick={handleGeocode}
+                                                disabled={geocoding}
+                                                title="Buscar coordenadas"
+                                            >
+                                                {geocoding
+                                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                    : <Search className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="ciudad"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Ciudad</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="Ingresa la ciudad"
+                                                {...field}
+                                                onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
-                        <FormField
-                            control={form.control}
-                            name="ciudad"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Ciudad</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="Ingresa la ciudad"
-                                            {...field}
-                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="space-y-2">
+                            <FormLabel>Ubicación (Georreferencia)</FormLabel>
+                            <div className="border rounded-md overflow-hidden">
+                                <MapPicker
+                                    lat={coords?.lat ?? DEFAULT_LAT}
+                                    lng={coords?.lng ?? DEFAULT_LNG}
+                                    onChange={(lat, lng) => setCoords({ lat, lng })}
+                                />
+                            </div>
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                                {coords ? (
+                                    <>
+                                        <span>Lat: {coords.lat.toFixed(6)}</span>
+                                        <span>Lng: {coords.lng.toFixed(6)}</span>
+                                    </>
+                                ) : (
+                                    <span>Sin georreferencia (haz click en el mapa o busca la dirección)</span>
+                                )}
+                            </div>
+                        </div>
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen && setOpen(false)}>

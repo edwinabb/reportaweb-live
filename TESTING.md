@@ -130,6 +130,28 @@ Archivos afectados:
 
 **Para desbloquear**: seguir pasos en DT-002 en `DEUDA_TECNICA.md`, luego quitar `test.fixme` de los 6 tests.
 
+### TEST-003 — Personal externo migrado a `profiles` (DUDA-TER-006, 2026-07-17)
+
+El módulo Terceros cambió el modelo de personal externo: ya no se usa la tabla
+`terceros_personal` (deprecada y vaciada — los residuos E2E `E2E_TP_%` fueron
+borrados de TEST y PROD el 2026-07-17); el personal externo son `profiles` con
+`tercero_id` y/o `personal_externo = true`.
+
+Impacto en la suite:
+
+| Pieza | Estado | Qué cambiar |
+| ----- | ------ | ----------- |
+| `tests/flows/43-pre-cutover-personal-tercero-reportes.spec.ts` | 🔴 Desactualizado | El flujo EXTERNO ya no escribe `tercero_personal_id`: el form guarda el profile externo en `personal_id`. Reescribir el caso EXTERNO creando un profile con `tercero_id` (no una fila en `terceros_personal`). |
+| `tests/helpers/data-factory.ts` → `createTerceroPersonal` | 🔴 Deprecado | Inserta en `terceros_personal` (tabla deprecada). Sustituir por un helper que cree un profile vinculado a un tercero. |
+| Picker "personal del proveedor" en reportes | Cambió | `getTerceroPersonalList` ahora lee `profiles` (externos por `tercero_id`/`personal_externo`). Los selectores E2E siguen válidos, pero los datos seed deben ser profiles. |
+| Alta de personal externo | Nuevo flujo | `/terceros/personal` → "Nuevo Personal" redirige a `/users/create?personal_externo=1`; el editor de tercero tiene tab **Personal** con alta vía `/users/create?tercero_id=...`. El form de usuarios tiene checkbox "Personal externo" + selector de tercero. |
+
+Además el módulo Terceros aplicó el template v1.2 (ver DUDA-E2E-001 en
+`docs/TECHNICAL_DEBTS.md`): búsqueda multicampo, botones Activos/Papelera/XLS,
+columna "Estado SUNAT" restaurada en la lista de terceros, y validación de
+formularios relajada en modo edición (rubro/RUC en tercero, cargo en contacto
+solo son requeridos al crear).
+
 ## Regresiones registradas
 
 | Fecha | Test | Pasó en | Rompió en | Fix en | Notas |

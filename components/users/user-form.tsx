@@ -12,6 +12,10 @@ import { useEffect, useActionState, useState } from 'react'
 import { toast } from 'sonner'
 import { Profile } from '@/types'
 import { getJobTitles, getPaises } from '@/lib/actions/catalogos'
+import { getTercerosForSelect } from '@/lib/actions/terceros'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 import { UserDocumentsManager } from './documents/user-documents-manager'
 import { DocumentType, UserDocument } from '@/types/user-documents'
@@ -49,9 +53,12 @@ interface UserFormProps {
     /** Modo self-service (usuario editando su propio perfil). Oculta rol, email read-only, redirect propio. */
     selfService?: boolean
     redirectTo?: string
+    /** Preselección de vínculo con tercero (alta desde /terceros/personal o tab Personal) */
+    defaultTerceroId?: string
+    defaultPersonalExterno?: boolean
 }
 
-export function UserForm({ user, initialDocuments = [], documentTypes = [], selfService = false, redirectTo }: UserFormProps) {
+export function UserForm({ user, initialDocuments = [], documentTypes = [], selfService = false, redirectTo, defaultTerceroId, defaultPersonalExterno = false }: UserFormProps) {
     const isEdit = !!user
     const currentAction = isEdit ? updateUser : createUser
     const [state, formAction, isPending] = useActionState(currentAction, null)
@@ -59,6 +66,17 @@ export function UserForm({ user, initialDocuments = [], documentTypes = [], self
     const [isLoadingJobTitles, setIsLoadingJobTitles] = useState(false)
 
     const [activeTab, setActiveTab] = useState("general")
+
+    // Personal externo de terceros (DUDA-TER-006) — solo en creación
+    const [esPersonalExterno, setEsPersonalExterno] = useState(defaultPersonalExterno || !!defaultTerceroId)
+    const [terceroId, setTerceroId] = useState(defaultTerceroId ?? '')
+    const [terceros, setTerceros] = useState<{ id: string, razon_social: string }[]>([])
+
+    useEffect(() => {
+        if (!isEdit && esPersonalExterno && terceros.length === 0) {
+            getTercerosForSelect().then(setTerceros).catch(console.error)
+        }
+    }, [isEdit, esPersonalExterno, terceros.length])
 
     // Countries state
     const [countries, setCountries] = useState<{ id: string, name: string }[]>([])
@@ -256,7 +274,33 @@ export function UserForm({ user, initialDocuments = [], documentTypes = [], self
             ) : (
                 <form action={formAction}>
                     {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
+                    {esPersonalExterno && <input type="hidden" name="personal_externo" value="true" />}
+                    {esPersonalExterno && terceroId && <input type="hidden" name="tercero_id" value={terceroId} />}
                     <div className="space-y-4">
+                        <div className="rounded-md border p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="personal-externo"
+                                    checked={esPersonalExterno}
+                                    onCheckedChange={(v) => setEsPersonalExterno(v === true)}
+                                />
+                                <Label htmlFor="personal-externo" className="cursor-pointer">
+                                    Personal externo de un tercero (proveedor)
+                                </Label>
+                            </div>
+                            {esPersonalExterno && (
+                                <div className="max-w-sm">
+                                    <Label className="mb-1 block text-sm text-muted-foreground">Tercero al que pertenece</Label>
+                                    <SearchableSelect
+                                        options={terceros.map(t => ({ value: t.id, label: t.razon_social }))}
+                                        value={terceroId}
+                                        onChange={setTerceroId}
+                                        placeholder="Seleccionar tercero..."
+                                        searchPlaceholder="Buscar tercero..."
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <h3 className="text-lg font-medium">Información General</h3>
                         <UserProfileFields
                             form={form}

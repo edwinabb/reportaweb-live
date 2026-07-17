@@ -1,15 +1,7 @@
-
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { getTerceroContactos } from "@/lib/actions/terceros-modules"
-import { getTerceros } from "@/lib/actions/terceros"
+import { getTercerosForSelect } from "@/lib/actions/terceros"
 import { ContactosClientPage } from "./client-page"
+import { PageDescription } from "@/components/ui/page-description"
 
 export default async function ContactosPage({
     searchParams,
@@ -18,29 +10,17 @@ export default async function ContactosPage({
 }) {
     const params = await searchParams
     const isTrash = params.view === 'trash'
-    const OnlyActive = !isTrash
 
-    const contactos = await getTerceroContactos(OnlyActive)
-    const terceros = await getTerceros()
+    const contactos = await getTerceroContactos(!isTrash)
+    const terceros = await getTercerosForSelect()
 
     return (
         <div className="flex flex-col gap-4">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href="/terceros">Terceros</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbPage>Contactos</BreadcrumbPage>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb>
-
+            <h1 className="sr-only">Contactos de Terceros</h1>
+            <PageDescription>
+                Contactos de las empresas terceras (clientes y proveedores). Buscá por nombre,
+                email o empresa, filtrá por cargo o empresa, exportá a Excel y registrá nuevos contactos.
+            </PageDescription>
             <ContactosClientPage contactos={contactos} terceros={terceros} isTrash={isTrash} />
         </div>
     )

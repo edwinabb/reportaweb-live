@@ -6,7 +6,7 @@
 
 | Repo | Ruta | Stack | Versión |
 |------|------|-------|---------|
-| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.11.3** |
+| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.11.4** |
 | App móvil | `c:\Proyectos\reporta-app` | Expo 54, expo-router, SQLite/Drizzle, React Native | **1.8.14** |
 | DB / Backend | Supabase test `oyrokyyaeaeqzlsgxtto` (Brazil) / prod `fqwhagryqkkhbgznxtwf` (Brazil) | PostgreSQL + Auth + Storage | — |
 
@@ -20,12 +20,12 @@
 
 ## Estado Actual
 
-**Date:** 2026-07-15  
-**Web Version:** v3.11.3 — ✅ demo · live: worker `reportaweb-live` desplegado vía GitHub pero **dominio live.reportar.app SIN enrutar al worker (522)** — entorno live aún no listo (falta binding de dominio + secret `SUPABASE_SERVICE_ROLE_KEY` + rotar key)  
+**Date:** 2026-07-17  
+**Web Version:** v3.11.4 — ✅ demo · live: worker `reportaweb-live` desplegado vía GitHub pero **dominio live.reportar.app SIN enrutar al worker (522)** — entorno live aún no listo (falta binding de dominio + secret `SUPABASE_SERVICE_ROLE_KEY` + rotar key)  
 **App Version:** v1.8.14  
-**Auditoría UI:** Módulo 2/15 (Maquinaria) 🔄 EN CURSO — matriz en [docs/auditoria-ui/02-maquinaria.md](./docs/auditoria-ui/02-maquinaria.md) · pre-audit + DUDA-PLAN-001 en [PRE-AUDIT-2026-07-15](./docs/auditoria-ui/PRE-AUDIT-2026-07-15-maquinaria-planificacion.md)  
-**Template listados:** v1.2 DEFINIDO (aplicar a los demás módulos)  
-**E2E Suite:** ⚠️ desactualizada tras template v1.2 (DUDA-E2E-001)
+**Auditoría UI:** Módulo 3/15 (Terceros) ✅ template v1.2 + fixes de revisión aplicados (personal externo migrado a `profiles` — DUDA-TER-006); matriz en [docs/auditoria-ui/03-terceros.md](./docs/auditoria-ui/03-terceros.md)  
+**Template listados:** v1.2 aplicado a Usuarios, Maquinaria y Terceros  
+**E2E Suite:** ⚠️ desactualizada tras template v1.2 + cambio personal externo (DUDA-E2E-001 · TESTING.md § TEST-003)
 
 **Deploy demo (pipeline funcionando):**
 - Push a `demo/master` → Cloudflare Workers Builds (worker `reportaweb-demo`)

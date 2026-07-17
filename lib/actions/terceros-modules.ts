@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
-import { TerceroContacto, TerceroPersonal, TerceroSitio } from '@/types/terceros'
+import { TerceroContacto, TerceroPersonal, TerceroSitio, PersonalExterno } from '@/types/terceros'
 import { getSupabaseContext, safeRevalidatePath } from '@/lib/action-context'
 
 
@@ -45,6 +45,9 @@ export async function createTerceroContacto(prevState: any, formData: FormData) 
     const nombre_completo = formData.get('nombre_completo') as string
     const cargo = formData.get('cargo') as string
     const area = formData.get('area') as string
+    // Doble escritura texto + FK durante la transición (DUDA-TER-005)
+    const cargo_id = (formData.get('cargo_id') as string) || null
+    const area_id = (formData.get('area_id') as string) || null
     const telefono = formData.get('telefono') as string
     const email = formData.get('email') as string
 
@@ -60,6 +63,8 @@ export async function createTerceroContacto(prevState: any, formData: FormData) 
             nombre_completo,
             cargo,
             area,
+            cargo_id,
+            area_id,
             telefono,
             email,
             created_by: user.id,
@@ -83,6 +88,9 @@ export async function updateTerceroContacto(prevState: any, formData: FormData) 
     const nombre_completo = formData.get('nombre_completo') as string
     const cargo = formData.get('cargo') as string
     const area = formData.get('area') as string
+    // Doble escritura texto + FK durante la transición (DUDA-TER-005)
+    const cargo_id = formData.get('cargo_id')
+    const area_id = formData.get('area_id')
     const telefono = formData.get('telefono') as string
     const email = formData.get('email') as string
 
@@ -90,18 +98,24 @@ export async function updateTerceroContacto(prevState: any, formData: FormData) 
         return { message: 'Campos requeridos faltantes' }
     }
 
+    const updateData: Record<string, unknown> = {
+        tercero_id,
+        nombre_completo,
+        cargo,
+        area,
+        telefono,
+        email,
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+    }
+    // El dialog solo envía el FK cuando resuelve el texto contra el catálogo;
+    // si no viene (texto legacy o catálogo aún cargando), se conserva el existente
+    if (cargo_id !== null) updateData.cargo_id = (cargo_id as string) || null
+    if (area_id !== null) updateData.area_id = (area_id as string) || null
+
     const { error } = await adminClient
         .from('terceros_contactos')
-        .update({
-            tercero_id,
-            nombre_completo,
-            cargo,
-            area,
-            telefono,
-            email,
-            updated_by: user.id,
-            updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
         .eq('tenant_id', tenantId)
 
@@ -140,7 +154,67 @@ export async function restoreTerceroContacto(id: string) {
     return { message: 'Restaurado correctamente', success: true }
 }
 
-// --- PERSONAL ---
+// --- PERSONAL (externo = profiles vinculados a un tercero, decisión DUDA-TER-006) ---
+
+/**
+ * Personal de terceros = Users del sistema vinculados a una empresa tercera
+ * (profiles.tercero_id IS NOT NULL o personal_externo = true).
+ * La tabla terceros_personal queda deprecada (migración de datos en curso aparte).
+ */
+export async function getPersonalExterno(onlyActive = true, terceroId?: string): Promise<PersonalExterno[]> {
+    const { adminClient, tenantId } = await getSupabaseContext()
+    if (!adminClient || !tenantId) return []
+
+    let query = adminClient
+        .from('profiles')
+        .select(`
+            id, first_name, last_name, email, phone, doc_number, is_active,
+            tercero_id, personal_externo,
+            profile_details (
+                doc_type,
+                job_title:job_title_id(name)
+            ),
+            tercero:tercero_id(razon_social)
+        `)
+        .eq('tenant_id', tenantId)
+
+    if (terceroId) {
+        query = query.eq('tercero_id', terceroId)
+    } else {
+        query = query.or('tercero_id.not.is.null,personal_externo.eq.true')
+    }
+
+    if (onlyActive) {
+        query = query.eq('is_active', true)
+    }
+
+    const { data, error } = await query
+        .order('first_name', { ascending: true })
+
+    if (error) {
+        console.error('Error fetching personal externo:', error)
+        return []
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((p) => {
+        const details = Array.isArray(p.profile_details) ? p.profile_details[0] : p.profile_details
+        return {
+            id: p.id,
+            nombres: p.first_name ?? '',
+            apellidos: p.last_name ?? '',
+            email: p.email ?? null,
+            telefono: p.phone ?? null,
+            tipo_doc: details?.doc_type ?? null,
+            numero_doc: p.doc_number ?? null,
+            cargo: details?.job_title?.name ?? null,
+            empresa: p.tercero?.razon_social ?? null,
+            is_active: p.is_active ?? true,
+        }
+    })
+}
+
+// --- PERSONAL (tabla propia — DEPRECADA, se mantiene por compatibilidad) ---
 
 export async function getTerceroPersonal(onlyActive = true) {
     const { adminClient, tenantId } = await getSupabaseContext()
@@ -405,10 +479,10 @@ export async function createTerceroSitio(prevState: any, formData: FormData) {
         .insert({
             tenant_id: tenantId,
             nombre,
-            codigo,
+            codigo: codigo || null,
             direccion,
             ciudad,
-            tipo: tipo,
+            tipo: tipo || null, // uuid FK a sitios_tipo — '' rompe el cast
             latitud: latitud ? Number(latitud) : null,
             longitud: longitud ? Number(longitud) : null,
             created_by: user.id,
@@ -460,20 +534,24 @@ export async function updateTerceroSitio(prevState: any, formData: FormData) {
         return { message: 'Campos requeridos faltantes' }
     }
 
+    const updateData: Record<string, unknown> = {
+        nombre,
+        codigo: codigo || null,
+        direccion,
+        ciudad,
+        tipo: tipo || null, // uuid FK a sitios_tipo — '' rompe el cast
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+    }
+    // El dialog solo envía coordenadas cuando el usuario las fijó en el mapa;
+    // si faltan, se conservan las almacenadas (sitios migrados pueden tener una sola)
+    if (latitud !== null) updateData.latitud = latitud ? Number(latitud) : null
+    if (longitud !== null) updateData.longitud = longitud ? Number(longitud) : null
+
     // Update sitio
     const { error } = await adminClient
         .from('terceros_sitios')
-        .update({
-            nombre,
-            codigo,
-            direccion,
-            ciudad,
-            tipo: tipo,
-            latitud: latitud ? Number(latitud) : null,
-            longitud: longitud ? Number(longitud) : null,
-            updated_by: user.id,
-            updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
         .eq('tenant_id', tenantId)
 
@@ -481,11 +559,13 @@ export async function updateTerceroSitio(prevState: any, formData: FormData) {
 
     // Update terceros relationships
     // Delete existing relationships
-    await adminClient
+    const { error: delError } = await adminClient
         .from('terceros_sitios_rel')
         .delete()
         .eq('sitio_id', id)
         .eq('tenant_id', tenantId)
+
+    if (delError) return { message: `Error al actualizar terceros del sitio: ${delError.message}` }
 
     // Create new relationships
     if (tercero_ids) {
@@ -498,9 +578,11 @@ export async function updateTerceroSitio(prevState: any, formData: FormData) {
                 created_by: user.id
             }))
 
-            await adminClient
+            const { error: relError } = await adminClient
                 .from('terceros_sitios_rel')
                 .insert(relations)
+
+            if (relError) return { message: `Error al vincular terceros al sitio: ${relError.message}` }
         }
     }
 

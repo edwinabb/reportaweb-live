@@ -28,22 +28,29 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createTerceroContacto, updateTerceroContacto } from "@/lib/actions/terceros-modules"
-import { Tercero, TerceroContacto } from "@/types/terceros"
+import { TerceroContacto } from "@/types/terceros"
 import { ActionCatalogoDialog } from "@/components/common/action-catalogo-dialog"
 import { getContactosCargos, getContactosAreas, createContactoCargo, createContactoArea } from "@/lib/actions/catalogos"
 
-const formSchema = z.object({
+// Solo se necesitan id + razón social (compatible con Tercero[] completo)
+type TerceroSelect = { id: string; razon_social: string }
+
+// Cargo es requerido SOLO en creación: contactos legacy/migrados vienen sin
+// cargo y su edición no debe quedar bloqueada (mismo criterio que DUDA-TER-008).
+const buildFormSchema = (isEdit: boolean) => z.object({
     id: z.string().optional(),
     tercero_id: z.string().min(1, "Seleccionar tercero es requerido"),
     nombre_completo: z.string().min(1, "Nombre es requerido"),
     email: z.string().email("Email inválido").optional().or(z.literal("")),
     telefono: z.string().optional(),
-    cargo: z.string().min(1, "Cargo es requerido"),
+    cargo: isEdit ? z.string().optional() : z.string().min(1, "Cargo es requerido"),
     area: z.string().optional(),
 })
 
+type ContactoFormValues = z.infer<ReturnType<typeof buildFormSchema>>
+
 interface ContactoDialogProps {
-    terceros: Tercero[]
+    terceros: TerceroSelect[]
     defaultTerceroId?: string
     contactoToEdit?: TerceroContacto
     trigger?: React.ReactNode
@@ -61,7 +68,10 @@ export function ContactoDialog({ terceros, defaultTerceroId, contactoToEdit, tri
     const open = isControlled ? constrainedOpen : internalOpen
     const setOpen = isControlled ? onOpenChange : setInternalOpen
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const isEdit = !!contactoToEdit
+    const formSchema = useMemo(() => buildFormSchema(isEdit), [isEdit])
+
+    const form = useForm<ContactoFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             id: "",
@@ -114,22 +124,27 @@ export function ContactoDialog({ terceros, defaultTerceroId, contactoToEdit, tri
     }, [terceros, defaultTerceroId])
 
     const isSubmitting = form.formState.isSubmitting
-    const isEdit = !!contactoToEdit
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: ContactoFormValues) {
         const formData = new FormData()
         // Ensure values are uppercase where appropriate
         const processedValues = {
             ...values,
             nombre_completo: values.nombre_completo.toUpperCase(),
             email: values.email?.toUpperCase() || "", // Emails often kept lowercase, but user said "todas las opciones de texto"
-            cargo: values.cargo.toUpperCase(),
+            cargo: values.cargo?.toUpperCase() || "",
             area: values.area?.toUpperCase() || ""
         }
 
         Object.entries(processedValues).forEach(([key, value]) => {
             if (value) formData.append(key, value)
         })
+
+        // Doble escritura: además del texto legacy, la FK al catálogo (DUDA-TER-005)
+        const cargoId = cargos.find(c => c.nombre.toUpperCase() === processedValues.cargo)?.id
+        const areaId = areas.find(a => a.nombre.toUpperCase() === processedValues.area)?.id
+        if (cargoId) formData.append('cargo_id', cargoId)
+        if (areaId) formData.append('area_id', areaId)
 
         const action = isEdit ? updateTerceroContacto : createTerceroContacto
         const result = await action(null, formData)

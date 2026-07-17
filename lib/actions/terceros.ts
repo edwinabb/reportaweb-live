@@ -87,13 +87,16 @@ export async function createTercero(prevState: any, formData: FormData) {
 
     const razon_social = formData.get('razon_social') as string
     const ruc = formData.get('ruc') as string
-    const tipo = formData.get('tipo') as string
+    // Normalizar tipo a minúsculas (evita registros invisibles al filtro case-sensitive, ej. 'PROVEEDOR')
+    const tipo = ((formData.get('tipo') as string) || '').toLowerCase()
     const rubro_id = formData.get('rubro_id') as string || null
     const pais_id = formData.get('pais_id') as string || null
     const ubigeo_codigo = formData.get('ubigeo_codigo') as string || null
     const direccion = formData.get('direccion') as string
     const ubicacion_ciudad = formData.get('ubicacion_ciudad') as string
     const ubicacion_departamento = formData.get('ubicacion_departamento') as string
+    // Email opcional (QuickTerceroDialog) → se persiste como contacto principal
+    const contactoEmail = (formData.get('email') as string || '').trim()
 
     if (!razon_social || !ruc) {
         return { message: 'Razón Social y RUC son requeridos' }
@@ -152,6 +155,24 @@ export async function createTercero(prevState: any, formData: FormData) {
     if (error) {
         console.error('Error creating tercero:', error)
         return { message: 'Error al crear tercero: ' + error.message }
+    }
+
+    // Si vino un email (alta rápida), crear el contacto principal del tercero
+    if (contactoEmail) {
+        const { error: contactoError } = await adminClient
+            .from('terceros_contactos')
+            .insert({
+                tenant_id: tenantId,
+                tercero_id: data.id,
+                nombre_completo: 'CONTACTO PRINCIPAL',
+                email: contactoEmail,
+                created_by: user.id,
+                updated_by: user.id
+            })
+        if (contactoError) {
+            // No bloquea la creación del tercero
+            console.error('Error creating contacto principal:', contactoError)
+        }
     }
 
     safeRevalidatePath('/terceros')
@@ -232,7 +253,8 @@ export async function updateTercero(prevState: any, formData: FormData) {
     const id = formData.get('id') as string
     const razon_social = formData.get('razon_social') as string
     const ruc = formData.get('ruc') as string
-    const tipo = formData.get('tipo') as string
+    // Normalizar tipo a minúsculas (misma regla que createTercero)
+    const tipo = ((formData.get('tipo') as string) || '').toLowerCase()
     const rubro_id = formData.get('rubro_id') as string || null
     const pais_id = formData.get('pais_id') as string || null
     const ubigeo_codigo = formData.get('ubigeo_codigo') as string || null

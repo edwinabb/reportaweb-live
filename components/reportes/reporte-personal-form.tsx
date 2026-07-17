@@ -213,7 +213,9 @@ export function ReportePersonalForm({ tareaId, personalList, terceroPersonalList
             if (tipoPersonal === 'INTERNO') {
                 payload.personal_id = data.personal_id
             } else {
-                payload.tercero_personal_id = data.tercero_personal_id
+                // El personal externo ahora es un profile (DUDA-TER-006):
+                // se guarda en personal_id; tercero_personal_id queda para filas legacy
+                payload.personal_id = data.tercero_personal_id
             }
 
             if (flags.turnos >= 2) {

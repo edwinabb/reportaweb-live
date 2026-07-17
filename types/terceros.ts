@@ -63,6 +63,24 @@ export interface TerceroSitio {
     tercero_ids?: string[]
 }
 
+/**
+ * Personal de terceros = Users del sistema vinculados a una empresa tercera
+ * (profiles.tercero_id / personal_externo). Ver getPersonalExterno().
+ */
+export interface PersonalExterno {
+    id: string
+    nombres: string
+    apellidos: string
+    email: string | null
+    telefono: string | null
+    tipo_doc: string | null
+    numero_doc: string | null
+    cargo: string | null
+    empresa: string | null
+    is_active: boolean
+}
+
+/** @deprecated La tabla terceros_personal queda deprecada — usar PersonalExterno (profiles). */
 export interface TerceroPersonal {
     id: string
     tercero_id: string

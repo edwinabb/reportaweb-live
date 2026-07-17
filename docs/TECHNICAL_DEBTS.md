@@ -48,15 +48,26 @@ secret key `sb_secret_…` para uso server-side y deshabilitar solo la legacy
 
 **Status:** 🟡 PENDIENTE
 **Prioridad:** ALTA (antes del próximo release a live)
-**Esfuerzo:** 2-4h
+**Esfuerzo:** 2-4h (+1h por el cambio de personal externo)
 
 Los cambios del template v1.2 (búsqueda multicampo, columnas nuevas, botones
 Activos/Papelera/XLS, columna Estado eliminada, títulos removidos) muy
 probablemente rompen tests de `tests/flows/17-usuarios.spec.ts` y relacionados.
 
+**Update 2026-07-17 (módulo Terceros):** el template v1.2 aplicado a Terceros
+añade más superficie desactualizada, y el cambio de personal externo a
+`profiles` (DUDA-TER-006) rompe específicamente:
+- `tests/flows/43-pre-cutover-personal-tercero-reportes.spec.ts` (flujo EXTERNO)
+- `tests/helpers/data-factory.ts` → `createTerceroPersonal` (tabla deprecada)
+
+Detalle completo en [TESTING.md § TEST-003](../TESTING.md). Los residuos E2E
+de `terceros_personal` (21 en PROD, 1 en TEST) fueron borrados; la tabla queda
+en 0 filas y no debe recibir nuevos seeds.
+
 **Acción:** correr `npm run test:e2e:grupo-c` contra la BD test, actualizar
-selectores/asserts al nuevo estándar, y de paso crear helpers reutilizables
-para validar el template en los próximos módulos.
+selectores/asserts al nuevo estándar (incluido Terceros y el nuevo tab
+Personal), reescribir el caso EXTERNO del flow 43 con profiles, y de paso crear
+helpers reutilizables para validar el template en los próximos módulos.
 
 ## DUDA-CACHE-001: Migrar a stale-while-revalidate (Opción B)
 

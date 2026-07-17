@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { useActionState, useEffect, useState, startTransition } from "react"
 import Image from "next/image"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -38,14 +38,18 @@ import { createClient } from '@/utils/supabase/client'
 import { Tercero } from "@/types/terceros"
 import { TerceroContactosManager } from "./tercero-contactos-manager"
 import { TerceroSitiosManager } from "./tercero-sitios-manager"
+import { TerceroPersonalManager } from "./tercero-personal-manager"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 
-const formSchema = z.object({
+// Rubro y formato de RUC son estrictos SOLO en creación: terceros legacy
+// (alta rápida con DNI, migrados sin rubro) no deben quedar bloqueados al editar
+// otros campos (mismo criterio que sitios, DUDA-TER-008).
+const buildFormSchema = (isEdit: boolean) => z.object({
     id: z.string().optional(),
     tipo: z.enum(["cliente", "proveedor", "ambos"]),
     razon_social: z.string().min(2, "Razón social requerida"),
-    ruc: z.string().min(11, "RUC inválido (11 dígitos)").max(11, "RUC inválido"),
-    rubro_id: z.string().optional(),
+    ruc: z.string().min(1, "Código tributario requerido"),
+    rubro_id: isEdit ? z.string().optional() : z.string().min(1, "Rubro es requerido"),
     pais_id: z.string().optional(),
     ubigeo_codigo: z.string().optional(),
     direccion: z.string().optional(),
@@ -55,7 +59,21 @@ const formSchema = z.object({
     // Helper fields for UI
     dept: z.string().optional(),
     prov: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (isEdit) return
+    // Validación de RUC según país (DUDA-TER-013):
+    // PE → exactamente 11 dígitos; otros países → código tributario genérico 6-20 alfanumérico
+    const pais = data.pais_id || "PE"
+    if (pais === "PE") {
+        if (!/^\d{11}$/.test(data.ruc)) {
+            ctx.addIssue({ code: "custom", path: ["ruc"], message: "RUC inválido (11 dígitos)" })
+        }
+    } else if (!/^[A-Za-z0-9]{6,20}$/.test(data.ruc)) {
+        ctx.addIssue({ code: "custom", path: ["ruc"], message: "Código tributario inválido (6 a 20 caracteres alfanuméricos)" })
+    }
 })
+
+type TerceroFormValues = z.infer<ReturnType<typeof buildFormSchema>>
 
 interface TerceroFormProps {
     initialData?: Tercero
@@ -143,8 +161,18 @@ export function TerceroForm({ initialData, isEdit = false }: TerceroFormProps) {
         success: false
     })
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    // Valida con zod (react-hook-form) ANTES de despachar la server action.
+    // Con action={formAction} a secas, la validación del resolver nunca corre.
+    const handleValidatedSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        const formEl = e.currentTarget
+        form.handleSubmit(() => {
+            startTransition(() => formAction(new FormData(formEl)))
+        })()
+    }
+
+    const form = useForm<TerceroFormValues>({
+        resolver: zodResolver(buildFormSchema(isEdit)),
         defaultValues: {
             tipo: (initialData?.tipo as any) || "cliente",
             razon_social: initialData?.razon_social || "",
@@ -292,7 +320,7 @@ export function TerceroForm({ initialData, isEdit = false }: TerceroFormProps) {
                     name="rubro_id"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Rubro de Negocio</FormLabel>
+                            <FormLabel>Rubro de Negocio <span className="text-red-500">*</span></FormLabel>
                             <div className="flex gap-2">
                                 <input type="hidden" name="rubro_id" value={field.value || ''} />
                                 <SearchableSelect
@@ -509,10 +537,20 @@ export function TerceroForm({ initialData, isEdit = false }: TerceroFormProps) {
                         >
                             Sitios
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("personal")}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 ${activeTab === "personal"
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                                }`}
+                        >
+                            Personal
+                        </button>
                     </div>
 
                     {activeTab === "general" && (
-                        <form action={formAction}>
+                        <form onSubmit={handleValidatedSubmit}>
                             <FormContent />
                         </form>
                     )}
@@ -526,9 +564,14 @@ export function TerceroForm({ initialData, isEdit = false }: TerceroFormProps) {
                             <TerceroSitiosManager terceroId={initialData.id} />
                         </div>
                     )}
+                    {activeTab === "personal" && initialData?.id && (
+                        <div className="p-4 border rounded-md min-h-[200px]">
+                            <TerceroPersonalManager terceroId={initialData.id} />
+                        </div>
+                    )}
                 </div>
             ) : (
-                <form action={formAction}>
+                <form onSubmit={handleValidatedSubmit}>
                     <FormContent />
                 </form>
             )}
