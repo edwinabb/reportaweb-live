@@ -25,9 +25,22 @@ El `SUPABASE_SERVICE_ROLE_KEY` de PROD (fqwhagryqkkhbgznxtwf) estuvo committeado
 brevemente en `.env.production` (commits del 2026-07-14, repos privados). Ya se
 retiró del archivo, pero queda en el historial de git.
 
-**Acción:** Supabase Dashboard → proyecto PROD → Settings → API → Reset
-`service_role` key, y actualizar el Secret en Cloudflare (worker reportaweb-live)
-y `.env.local` (PROD_SUPABASE_SERVICE_ROLE_KEY).
+**Update 2026-07-17 (limpieza de copias locales):**
+- Se eliminó un archivo extraviado en la raíz (`C:Proyectos…audit-tickets.ts`,
+  nombre con carácter U+F03A) que tenía la key **trackeada en el árbol actual**
+  — commit `a28bc7d`. La key sigue en el historial de git.
+- Se retiró la key de `.claude/settings.local.json` y de `.env - copia.local`.
+- Queda una copia comentada en `.env.local` línea 20 (reemplazar al rotar).
+
+**Acción:** rotar en Supabase Dashboard → proyecto PROD → Settings → API keys,
+y actualizar el Secret en Cloudflare (worker reportaweb-live) y `.env.local`
+(PROD_SUPABASE_SERVICE_ROLE_KEY).
+
+⚠️ **No usar el reset del JWT secret legacy:** anon y service_role derivan del
+mismo secret, y un reset invalida también la anon key embebida en los APKs
+instalados de reporta-app. Ruta segura: migrar a las API keys nuevas (crear
+secret key `sb_secret_…` para uso server-side y deshabilitar solo la legacy
+`service_role`), verificando en el Dashboard que el proyecto ya ofrece esa opción.
 
 ---
 
