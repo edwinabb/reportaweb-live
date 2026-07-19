@@ -225,7 +225,7 @@ export default function LoginPage() {
                 {/* Footer */}
                 <div className="pt-8 flex flex-col items-center border-t border-slate-100 mt-auto mb-8 gap-1">
                     <span className="text-xs text-slate-400">© 2026 REPORTAR.APP</span>
-                    <span className="text-xs text-slate-300">Versión: 3.7.18</span>
+                    <span className="text-xs text-slate-300">Versión: {process.env.NEXT_PUBLIC_APP_VERSION}</span>
                 </div>
 
                 {/* Elemento decorativo */}

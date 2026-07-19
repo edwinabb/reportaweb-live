@@ -1,8 +1,20 @@
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+// Versión leída de package.json en build-time. Se inyecta como
+// NEXT_PUBLIC_APP_VERSION para el footer (login) y el release de Sentry,
+// evitando que queden números hardcodeados y desactualizados.
+const { version: appVersion } = JSON.parse(
+  readFileSync(path.resolve(__dirname, "package.json"), "utf8"),
+) as { version: string };
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
+
   // Pin del root de Turbopack al directorio del proyecto. Sin esto Next 16
   // asciende hasta `c:\Proyectos` buscando un workspace y rompe el resolver
   // de PostCSS: "Can't resolve 'tailwindcss' in 'c:\\Proyectos'" porque
