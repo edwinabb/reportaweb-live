@@ -6,7 +6,7 @@
 
 | Repo | Ruta | Stack | Versión |
 |------|------|-------|---------|
-| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.11.4** |
+| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.11.5** |
 | App móvil | `c:\Proyectos\reporta-app` | Expo 54, expo-router, SQLite/Drizzle, React Native | **1.8.14** |
 | DB / Backend | Supabase test `oyrokyyaeaeqzlsgxtto` (Brazil) / prod `fqwhagryqkkhbgznxtwf` (Brazil) | PostgreSQL + Auth + Storage | — |
 
@@ -20,8 +20,8 @@
 
 ## Estado Actual
 
-**Date:** 2026-07-18  
-**Web Version:** v3.11.4 — ✅ demo · live: worker `reportaweb-live` desplegado vía GitHub pero **dominio live.reportar.app SIN enrutar al worker (522)** — entorno live aún no listo (falta binding de dominio + secret `SUPABASE_SERVICE_ROLE_KEY` + rotar key)  
+**Date:** 2026-07-22  
+**Web Version:** v3.11.5 — ✅ demo · live: anon rotada a `sb_publishable_` en `.env.production`/`wrangler.live.toml`; deploy en curso. **Pendiente dashboard (usuario):** cargar secret `SUPABASE_SERVICE_ROLE_KEY=sb_secret_` en worker `reportaweb-live` + bindear dominio live.reportar.app (sigue 522 hasta entonces) + deshabilitar legacy keys (cierra DUDA-SEC-001)  
 **App Version:** v1.8.14  
 **Foco activo:** 🚀 **Growth Engine** (leads→trial→cliente) — diseño en curso. Ver [HANDOFF-2026-07-18.md](./docs/HANDOFF-2026-07-18.md) para retomar. Playbook portable (reuso en Impulsar, agosto) en [docs/PLAYBOOK-GROWTH-ENGINE.md](./docs/PLAYBOOK-GROWTH-ENGINE.md). **Specs A–E ✅ escritos** (A también con plan de implementación); faltan planes de B/C/D/E. Precios C cerrados (STANDARD $29.99 / OWN BRAND $49.99 por asiento, mín. 10, USD; semestral −10% / anual −20%).  
 **Auditoría UI:** Módulo 3/15 (Terceros) ✅ template v1.2 + fixes de revisión aplicados (personal externo migrado a `profiles` — DUDA-TER-006); matriz en [docs/auditoria-ui/03-terceros.md](./docs/auditoria-ui/03-terceros.md) — pausada por foco en Growth Engine  
