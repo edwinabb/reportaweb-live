@@ -6,7 +6,7 @@
 #   demo → npx wrangler deploy --name reportaweb3-demo
 #   live → npx wrangler deploy --name reportaweb3-live
 
-name = "reportaweb3"
+name = "reportaweb-live"
 main = ".open-next/worker.js"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
