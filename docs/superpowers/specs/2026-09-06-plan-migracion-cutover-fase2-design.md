@@ -49,6 +49,39 @@ Se identificaron picos de carga de generación de PDF a mediados de mes (13-18) 
 
 ---
 
+## Fase 0b — Reordenar dominios: `reporta.la` (nuevo) / `app.reporta.la` (Bubble) + Postmark
+
+### Contexto
+Decisión del usuario (2026-09-06): revierte el estándar de dominios de 2026-07-22 (`CLAUDE.md` § Estándar de dominios, `PLAYBOOK-DOMAIN-STRATEGY.md`, `ARCHITECTURE.md` § Domain & Routing Standard). En vez de `reportar.app` como dominio único de cara al cliente, se vuelve a `reporta.la` (el dominio histórico, ya conocido por CISE/GRUAS, con Google Workspace y Postmark ya configurados) como dominio principal:
+
+- **`reporta.la` (apex):** pasa a alojar la nueva landing de la v3 (lo que hoy es la landing de `reportar.app`).
+- **`app.reporta.la`:** aloja **Bubble** (el sistema viejo, hoy en producción real para CISE/GRUAS) — se mueve ahí para liberar el apex sin interrumpir a los clientes actuales.
+- **Email:** se migra de Resend a **Postmark**, reutilizando la reputación de envío y la configuración ya existente para Bubble sobre este dominio (a verificar en el dashboard de Postmark cuál es exactamente el dominio/subdominio verificado).
+- Login de la v3: Supabase Auth nativo (email + password, **sin OAuth de Google** — no hay redirect URIs externas que actualizar, solo el Site URL de Supabase).
+
+### Diseño — secuencia (el orden es la parte crítica, no dañar lo que el cliente usa hoy)
+1. **Configurar `app.reporta.la` como dominio personalizado de Bubble** (Bubble → Settings → Domain / General). Verificar que Bubble sigue 100% funcional ahí: login, workflows, y que los links/bookmarks existentes de CISE/GRUAS con el dominio viejo seden un redirect (no un 404) — confirmar en la configuración de dominio de Bubble si el dominio anterior sigue funcionando en paralelo o hay que comunicar el cambio.
+2. **Recién con el paso 1 confirmado**, repuntar el DNS del apex `reporta.la` en Cloudflare hacia el Worker de la v3 (`reportaweb-live` o el que corresponda) y desplegar la landing nueva ahí.
+3. El botón "Login" de la landing nueva, **en esta primera etapa, redirige a `https://app.reporta.la`** (Bubble) — porque el sistema real en uso sigue siendo Bubble hasta que termine el cutover (Fases 1-5 de este plan). Esto permite mostrar/probar la landing nueva sin exponer a nadie real a la v3 todavía.
+4. Verificar en el dashboard de Postmark el dominio/registros (SPF/DKIM) ya configurados para Bubble sobre `reporta.la`; si el dominio raíz ya está verificado, se reutiliza tal cual en `lib/email.ts` (swap de SDK Resend → Postmark); si el registro verificado es un subdominio distinto al que usará la v3, agregar el registro faltante antes de cortar Resend.
+5. Actualizar `NEXT_PUBLIC_SITE_URL`/`NEXT_PUBLIC_APP_URL` y el Site URL de Supabase Auth al nuevo dominio. Actualizar `wrangler.toml`/`wrangler.demo.toml`/`wrangler.live.toml` con los bindings de dominio correctos.
+6. **Al cierre del cutover (Gate de Go-Live, Fase 5):** cambiar el destino del botón "Login" de `app.reporta.la` (Bubble) al login real de la v3, y decidir el destino final de `app.reporta.la` (apagar Bubble o dejarlo como archivo de solo lectura por un tiempo).
+
+### Qué NO cambia
+- `reportar.app` no se usa como dominio principal; se decide más adelante si se redirige a `reporta.la` o simplemente se deja de renovar (bajo impacto: nadie usa la v3 en producción real todavía).
+- No hay OAuth de Google que reconfigurar (login nativo Supabase).
+
+### Agentes / skills
+- Implementación directa (config de DNS/Cloudflare/Supabase + swap de SDK de email); no requiere skill de diseño.
+
+### Criterios de salida
+- Bubble accesible y 100% funcional en `app.reporta.la` (login, workflows, generación de PDF de la Fase 0) antes de tocar el DNS del apex.
+- Landing nueva en `reporta.la` con el botón "Login" apuntando correctamente a `app.reporta.la`.
+- Envío de prueba de email vía Postmark desde `reporta.la` (o el subdominio verificado) sin caer en spam.
+- Ningún link/bookmark existente de CISE/GRUAS queda roto (verificado manualmente con al menos un usuario de cada tenant).
+
+---
+
 ## Fase 1 — Fix urgente UX Planificación (popup sin tabs)
 
 ### Contexto
@@ -129,17 +162,17 @@ El usuario ya viene pagando Bubble + plugins (a extinguir con el cutover) más l
 
 ---
 
-## Fase 4 — Email sobre dominio único `reporta.la`
+## Fase 4 — Email: casillas/alias sobre `reporta.la` (Postmark)
 
 ### Contexto
-Definición final del usuario: una sola marca, un solo dominio (`reporta.la`) — no hay múltiples marcas ni dominios adicionales que verificar.
+El proveedor de email (Postmark) y el dominio (`reporta.la`) ya se resuelven en la **Fase 0b** (adelantado por decisión del usuario, para reusar la reputación de envío ya existente de Bubble). Esta fase queda acotada a: una sola marca, un solo dominio — no hay múltiples marcas ni dominios adicionales que verificar.
 
 ### Diseño
-- Verificar `reporta.la` en Resend (SPF/DKIM/DMARC).
-- En `lib/email.ts`, permitir parametrizar el `from` según el tipo de correo (ej. `noreply@reporta.la`, `importar@reporta.la`, `alo@reporta.la`) — son casillas/alias dentro del mismo dominio verificado, no una integración multi-dominio.
+- Confirmar que `lib/email.ts` (ya migrado a Postmark en la Fase 0b) permite parametrizar el `from` según el tipo de correo (ej. `noreply@reporta.la`, `importar@reporta.la`, `alo@reporta.la`) — son casillas/alias dentro del mismo dominio verificado, no una integración multi-dominio.
+- Revisar y migrar las plantillas de correo existentes (`lib/trial-email-templates.ts` y las que use el Growth Engine) al remitente/dominio nuevo.
 
 ### Agentes / skills
-- Implementación directa (cambio acotado en `lib/email.ts`) + configuración DNS del dominio en el proveedor.
+- Implementación directa (cambio acotado en `lib/email.ts` y plantillas).
 
 ### Criterios de salida
 - Envío de prueba desde cada casilla usada, verificar entrega (no spam, ej. con mail-tester) y que el Reply-To llegue a la casilla correcta.
@@ -160,15 +193,16 @@ Batería completa con **Playwright** (web) + **BlueStacks** (app Android, manual
 
 ### Gate de Go-Live (no se apaga Bubble sin esto)
 - Los 15 módulos auditados y firmados (o su gap explícitamente aceptado por el usuario).
-- Fases 0-4 cerradas con sus criterios de salida cumplidos.
+- Fases 0, 0b, 1-4 cerradas con sus criterios de salida cumplidos.
+- El botón "Login" de la landing en `reporta.la` reapuntado de `app.reporta.la` (Bubble) al login real de la v3.
 - Suite E2E completa en verde (CRUD + usuario + backend + seguridad).
-- Corte comunicado a CISE y GRUAS (fecha, congelamiento de Bubble, ventana).
+- Corte comunicado a CISE y GRUAS (fecha, congelamiento/destino final de `app.reporta.la` (Bubble), ventana).
 
 ---
 
 ## Self-review
 
-- Sin placeholders/TBD: todas las secciones tienen diseño concreto o, donde falta información (ej. desglose de costos de Fase 3), está explícitamente marcado como "a levantar durante la fase", no como decisión pendiente de este documento.
-- Consistencia: Fase 0 y Fase 5 comparten el mismo endpoint bridge como superficie de ataque a revisar en seguridad; Fase 2 hereda el corte de datos (2026-06-07) usado también como referencia en la Restricción transversal.
-- Alcance: cada fase es ejecutable como su propio ciclo de implementación; Fase 2 es la más grande y ya tiene su propio proceso de 10 pasos por módulo definido en el plan de cutover previo (no se duplica aquí, se referencia).
-- Ambigüedad resuelta: el mecanismo de reintento de Fase 0 quedó explícitamente definido como "todo va a la cola" (no hay camino síncrono bloqueante) tras confirmarlo con el usuario.
+- Sin placeholders/TBD: todas las secciones tienen diseño concreto o, donde falta información (ej. desglose de costos de Fase 3, dominio exacto verificado en Postmark de la Fase 0b), está explícitamente marcado como "a verificar durante la fase", no como decisión pendiente de este documento.
+- Consistencia: Fase 0 y Fase 5 comparten el mismo endpoint bridge como superficie de ataque a revisar en seguridad; Fase 2 hereda el corte de datos (2026-06-07) usado también como referencia en la Restricción transversal; Fase 0b y Fase 4 comparten el mismo proveedor (Postmark) y dominio (`reporta.la`), sin duplicar el trabajo de verificación de dominio.
+- Alcance: cada fase es ejecutable como su propio ciclo de implementación; Fase 2 es la más grande y ya tiene su propio proceso de 10 pasos por módulo definido en el plan de cutover previo (no se duplica aquí, se referencia). Fase 0b es arquitectónicamente sensible (dominio de producción real) pero de bajo riesgo de ejecución porque no interrumpe a Bubble hasta confirmar cada paso.
+- Ambigüedad resuelta: el mecanismo de reintento de Fase 0 quedó explícitamente definido como "todo va a la cola" (no hay camino síncrono bloqueante); la secuencia de dominios de Fase 0b quedó explícita paso a paso para no interrumpir el sistema en producción real (Bubble) durante la transición.
