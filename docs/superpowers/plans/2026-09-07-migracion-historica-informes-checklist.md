@@ -1,97 +1,113 @@
-# Migración histórica de Informes/Checklist (con recorte por año) — Implementation Plan
+# Migración completa de Informes/Checklist (formatos + datos + archivos) — Implementation Plan
 
-> **Para workers agénticos:** REQUIRED SUB-SKILL: usar `superpowers:executing-plans` (script único,
-> secuencial, con dry-run obligatorio antes de cada `--apply`). No aplica subagent-driven-development
-> — es un solo script de migración de datos, no una feature de UI con múltiples archivos.
+> **Para workers agénticos:** REQUIRED SUB-SKILL: usar `superpowers:executing-plans` (scripts secuenciales,
+> dry-run obligatorio antes de cada `--apply`). No aplica subagent-driven-development — son scripts de
+> migración de datos con dependencias estrictas de orden entre sí, no features de UI paralelizables.
 
-**Goal:** Migrar los checklists históricos de Bubble (`Informes`, TK-I1 de `docs/auditoria-ui/07-informes.md`)
-a `formatos_informes` con un recorte deliberado de volumen: años ≤2025 solo cabecera + PDF, año 2026 cabecera
-+ respuestas completas, y **nunca** los estados no terminados (`En Proceso`/`Suspendido`) ni `Cancelado`.
+**Goal:** Cerrar TK-I1 (`docs/auditoria-ui/07-informes.md`) por completo: catalogar los formatos de Bubble
+que faltan, migrar sus informes llenados (con el recorte por año/estado que pidió el usuario), y migrar
+todos los archivos (PDFs de informes + cualquier foto adjunta) desde el hosting de Bubble a Supabase
+Storage — para no depender de infraestructura que se apaga con el cutover.
 
-**Architecture:** Un solo script `scripts/migrate-informes-checklist-historico.ts`, mismo patrón que
-`scripts/migrate-terceros-fields.ts` (dry-run por defecto, `--apply` explícito, upsert idempotente por
-`bubble_id`, filtrado a CISE+GRUAS). Lee de Bubble Data API (tipo `Informes`), resuelve relaciones
-(cliente/cotización/tarea/sitio/autor) contra Supabase por `bubble_id`, y escribe en dos modos según el año
-de `fecha_reporte`: **modo cabecera** (solo `formatos_informes`) o **modo completo** (`formatos_informes` +
-`formatos_informes_respuestas` + tablas satélite si aplica).
+**Architecture:** 4 fases secuenciales, cada una su propio script en `scripts/`, mismo patrón que el resto
+de migraciones del proyecto (dry-run por defecto, `--apply` explícito, upsert idempotente por `bubble_id`).
+Fase 0 cataloga formatos (Bubble `Formato`/`Formato_seccion`/`Formato_Pregunta` → Supabase
+`formatos`/`formatos_versiones`/`formatos_preguntas`/`formatos_opciones`). Fase 1 migra los informes
+llenados (Bubble `Informes`/`Informe_respuesta` → Supabase `formatos_informes`/`formatos_informes_respuestas`).
+Fase 2 migra archivos (PDFs + fotos, cualquier tabla que aún referencie una URL de Bubble/S3). Fase 3 valida
+el resultado final contra los conteos de Bubble.
 
-**Tech Stack:** `tsx` + `@supabase/supabase-js` + Bubble Data API (`fetch` nativo) — igual que el resto de
-scripts de migración del proyecto. Sin dependencias nuevas.
+**Tech Stack:** `tsx` + `@supabase/supabase-js` + Bubble Data API (`fetch` nativo) + Supabase Storage. Sin
+dependencias nuevas.
 
-**Spec:** este documento es su propia spec — nace directo del hallazgo TK-I1 de
-`docs/auditoria-ui/07-informes.md` y de la decisión de alcance del usuario (mensaje 2026-09-07).
+**Spec:** este documento es su propia spec — nace de TK-I1 (`07-informes.md`) y de la decisión de alcance
+ampliado del usuario (mensaje 2026-09-07): catalogar TODOS los formatos de Bubble (no solo los 2 ya
+cubiertos), validar qué más se perdió en el reset de mayo, y migrar todos los archivos (no solo PDFs de
+informes).
 
-## Contexto adicional: esta migración ya se había hecho una vez
+---
 
-`docs/superpowers/plans/2026-05-25-migracion-formatos-checklist.md` documenta que la Fase 2 (informes
-llenados) **ya se ejecutó exitosamente el 2026-05-25**: 6.507 informes + miles de respuestas migrados
-(CISE V1: 58, CISE V2: 2.968, GRUAS V2: 3.481 informes; ~50/~4.100/~1.075 respuestas respectivamente).
+## Contexto — dos investigaciones previas a este plan
 
-**Causa raíz de por qué hoy está en 0 filas:** `mcp__claude_ai_Supabase__list_migrations` sobre PROD muestra
-que **todas** las migraciones de schema (incluida `20260419210000_formatos_schema`, con nombre de archivo de
-abril) tienen `version` (timestamp de aplicación) del **2026-05-26**, un solo día después de que ese plan se
-diera por completado — evidencia de una reconstrucción completa de la base desde los archivos de migración
-(equivalente a `supabase db reset` contra PROD). Un reset de este tipo recrea el *schema* desde las
-migraciones pero **borra cualquier dato cargado por script** (los informes/respuestas no viven en ningún
-archivo de migración, se insertaron con un script `migrate-formatos-informes.ts` que ya no existe en el
-repo). Consistente con esto: `formatos_preguntas` (136), `formatos_opciones` (354) y `formatos_versiones`
-(3) en PROD hoy **coinciden exacto** con los números finales del plan de mayo — alguien volvió a correr la
-migración de *plantillas* después del reset (es rápida, ~230 filas) — pero **nadie volvió a correr la
-migración de *informes*, mucho más grande (miles de filas, requiere descargar PDFs)**, y quedó perdida sin
-que nadie lo notara hasta la auditoría del módulo 7 (2026-09-07).
+### 1. La migración de informes YA se había hecho una vez, y un reset de PROD la borró
 
-**Esto no es un caso de "nunca se migró" — es un caso de "se migró y una reconstrucción de base de datos
-posterior lo borró sin que hubiera un re-run".** El presente plan reemplaza al de mayo (que tenía el nombre
-del tipo Bubble de respuestas sin confirmar) y ya incorpora esa pieza resuelta, más el recorte de alcance
-por año que pidió el usuario esta vez (no todo el histórico completo, ver Global Constraints).
+`docs/superpowers/plans/2026-05-25-migracion-formatos-checklist.md` documenta que el 2026-05-25 se migraron
+con éxito 6.507 informes + miles de respuestas (CISE V1: 58, CISE V2: 2.968, GRUAS V2: 3.481). Hoy
+`formatos_informes` está en 0 filas.
+
+**Causa raíz confirmada:** `list_migrations` sobre PROD muestra que **todo** el schema (incluidos archivos
+de migración con nombre de fecha muy anterior) se reaplicó el **2026-05-26** — un día después — evidencia
+de una reconstrucción completa de la base (equivalente a `supabase db reset`), que borra datos cargados por
+script (no por archivo de migración). El cutover real del proyecto ocurrió 3 días después
+(`docs/superpowers/plans/2026-05-29-cutover-plan.md`, sábado 30-may) usando un orquestador
+`scripts/migrate-all-prod.ts` (ya no existe en el repo, se usó y se descartó) con fases `mig2a..mig7` +
+`blockA`/`blockB` + `audit` — **ese orquestador no incluía una fase de formatos/informes**, por lo que la
+migración de mayo nunca se volvió a correr después del reset. El resto de módulos (terceros, maquinaria,
+cotizaciones, servicios, tareas, reportes, facturas) sí forman parte de ese orquestador y están confirmados
+con datos reales hoy (verificado en las auditorías de módulos 1-7 de esta sesión + consultas directas).
+
+**Conclusión de la validación pedida por el usuario (punto 3):** no hace falta re-auditar todo el proyecto
+de nuevo — el gap está acotado a lo que este plan cubre. Sí apareció, de forma oportunista durante esta
+investigación, **un gap chico y no relacionado**: `planes_accion.evidencia_cierre_url` todavía apunta al S3
+de Bubble en al menos algunas filas (el resto de columnas de `planes_accion`, como `lista_fotos`, ya están en
+Supabase). Se incluye como Fase 2 Task 4 (alcance mínimo) en vez de abrir un plan aparte, ya que la Fase 2
+ya construye la función genérica de re-subida de archivos.
+
+### 2. Bubble tiene 8 formatos distintos bajo el mismo tipo `Informes`, no 2
+
+Se investigó `id_formato` de todos los `Informes` en estado `Finalizado` de CISE y GRUAS:
+
+| Tenant | `id_formato` | Nombre (Bubble `Formato.titulo`) | Código | Versión | Informes Finalizado | Estado en Supabase hoy |
+|---|---|---|---|---|---:|---|
+| CISE | `1619551534519x827573097185935400` | FORMATO DE INSPECCIÓN DE GRÚAS V2 | CISE-01 | v02 | 3.093 | ✅ Catalogado (`formatos` existente) |
+| CISE | `1595542112449x409080868229087200` | FORMATO DE INSPECCIÓN DE GRÚAS | CISE-01 | v01 | 55 | ❌ Falta — es una **versión** del mismo `formatos` (mismo código CISE-01, ver plan de mayo §2) |
+| CISE | `1595546424040x702906164512030700` | REPORTE DE PERSONAL | CISE-02 | v01 | 3.358 | ❌ Falta — formato nuevo (1 sección, ~7 preguntas) |
+| CISE | `1595545508403x984980090463453200` | REPORTE DE ALQUILER DE MAQUINARIA | CISE-03 | v01 | 1.865 | ❌ Falta — formato nuevo (1 sección, ~12 preguntas) |
+| CISE | `1617158510068x263631604230651900` | REPORTE DE PERSONAL (Sin Maquinaria) | CISE-02B | v01 | 1.033 | ❌ Falta — formato nuevo (1 sección, ~6 preguntas) |
+| CISE | `1614637642201x789286829766213600` | REPORTE DE MOVILIZACIÓN/DESMOVILIZACIÓN | CISE-05 | v01 | 7 | ❌ Falta — formato nuevo (1 sección, ~15 preguntas) |
+| GRUAS | `1734793744908x241014863998484500` | CHECKLIST DE GRÚAS V2 | V2 | v01 | 3.879 | ✅ Catalogado (`formatos` existente) |
+| GRUAS | `1734547470724x198203873008025600` | CHECKLIST DE GRÚAS (Rev. 01) | V2 | Rev.01 | 3 | ❌ Falta — es una **versión** del mismo `formatos` (mismo código, 5 secciones/~35 preguntas, `con_informe=false`) |
+
+**Total real a catalogar/migrar:** 4 formatos genuinamente nuevos (CISE-02, CISE-02B, CISE-03, CISE-05) + 2
+versiones adicionales de formatos ya existentes (CISE-01 v01, GRUAS Rev.01) + sus ~9.409 informes Finalizado
+correspondientes (que se suman a los ~6.972 de los 2 formatos ya catalogados — **total ≈16.381 informes
+Finalizado entre CISE+GRUAS**, bastante más que el TK-I1 original, que solo contaba los 2 formatos ya
+catalogados).
+
+---
 
 ## Global Constraints
 
 - **Scope de tenants: SOLO CISE (`1cb97ec7-326c-4376-93ee-ed317d3da51b`) y GRUAS
-  (`6f4c923a-c3b7-47c2-9dea-2a187f274f73`)** — mismo scope de todo el proyecto.
-- **Scope de formato: SOLO el `id_formato` ya catalogado en `formatos` para cada tenant** — CISE:
-  `FORMATO DE INSPECCIÓN DE GRÚAS V2` (`bubble_id=1619551534519x827573097185935400`), GRUAS: `CHECKLIST DE
-  GRÚAS V2` (`bubble_id=1734793744908x241014863998484500`). Bubble tiene otros `id_formato` bajo el mismo
-  tipo `Informes` (ej. "PERMISO DE IZAJE DE CARGAS", "REGISTRO DE CAPACITACIÓN") que **no tienen catálogo
-  en `formatos` todavía** — quedan fuera de este plan, ver DUDA-MIG-001.
-- **Scope de estado: SOLO `estado = 'Finalizado'`** (valor exacto de Bubble). Los estados `En Proceso`,
-  `Suspendido` y `Cancelado` **nunca se migran** — decisión explícita del usuario, no son recuperables ni
-  relevantes (no se van a completar).
+  (`6f4c923a-c3b7-47c2-9dea-2a187f274f73`)**.
+- **Scope de formato: TODOS los `id_formato` reales de CISE y GRUAS** (los 8 de la tabla de arriba) — ya no
+  hay exclusión por "no catalogado", ese era el alcance viejo (TK-I1 original); el usuario pidió ampliarlo.
+- **Scope de estado: SOLO `estado = 'Finalizado'`.** `En Proceso`, `Suspendido`, `Cancelado` nunca se migran
+  (decisión ya tomada, sin cambios).
 - **Corte de año sobre `fecha_reporte`:** `< 2026-01-01` → modo cabecera (sin respuestas). `>= 2026-01-01`
-  → modo completo (con respuestas). El corte es sobre el año calendario del reporte, no sobre cuándo se
-  migra.
-- **Idempotencia:** upsert por `bubble_id`, re-ejecutable sin duplicar. Un informe ya migrado en modo
-  cabecera y luego re-ejecutado no debe perder nada; un informe que cambia de tier (poco probable, pero si
-  `fecha_reporte` cruzara el corte) se resuelve por la condición actual, no por su estado previo en Supabase.
-- **Dry-run por defecto.** Nunca escribe sin `--apply`. Reporta conteos y una muestra antes de aplicar,
-  igual que `migrate-terceros-fields.ts`.
-- **No se borra nada.** Este script solo inserta (`upsert`), nunca hace `DELETE`.
+  → modo completo (con respuestas). Sin cambios respecto a la decisión original — aplica igual a los 8
+  formatos.
+- **Orden de dependencias (punto 2 del usuario — ya verificado, sin bloqueantes):** Fase 0 (formatos) no
+  depende de nada nuevo — usa `companies`/`tenants` ya migrados. Fase 1 (informes) depende de Fase 0
+  (`formatos_preguntas.bubble_id` debe existir antes de mapear respuestas) y de que `terceros`, `maquinarias`,
+  `cotizaciones` y `tareas` ya estén migrados — **confirmado, las 4 tienen datos reales hoy** (terceros:
+  auditoría módulo 3 cerrada; maquinaria: módulo 2 cerrada; cotizaciones: 2.606 filas, módulo 6 auditado
+  2026-09-07; tareas: 14.511 filas). Fase 2 (archivos) depende de que Fase 1 haya insertado las filas de
+  `formatos_informes` (necesita el `id` de Supabase para saber dónde guardar cada `pdf_url`). Fase 3
+  (validación) depende de que 0-1-2 hayan corrido.
+- **Idempotencia y dry-run:** igual que el resto de scripts del proyecto — upsert por `bubble_id`, nunca
+  `DELETE`, `--apply` explícito.
 
 ---
 
-## Decisión pendiente de confirmar con el usuario antes de correr `--apply`
+## Decisiones de una línea, a confirmar antes de `--apply` (sin cambios respecto a la versión anterior de este plan)
 
-**DUDA-MIG-001 (alcance):** ¿los otros formatos de Bubble bajo el mismo tipo `Informes` (Permiso de Izaje
-de Cargas, Registro de Capacitación, etc. — no catalogados hoy en `formatos`) se migran en una fase
-posterior, o quedan fuera del cutover porque ya no se usan? Esto NO bloquea este plan (que solo cubre los 2
-formatos ya catalogados), pero conviene decidirlo antes de dar por cerrado el módulo 7 completo.
+- **DUDA-MIG-002 (mapeo de estado):** `Finalizado` → `APROBADO` en `formatos_informes.estado`.
+- **DUDA-MIG-003 (hosting del PDF):** re-subir todos los PDFs a Supabase Storage (esto ahora es explícito,
+  ya no es una recomendación — el usuario lo pidió directamente en el punto 4).
 
-**DUDA-MIG-002 (mapeo de estado):** el modelo de `formatos_informes.estado` en reportaweb3 es un flujo de
-**aprobación** (`BORRADOR → ENVIADO → APROBADO/RECHAZADO/CON_COMENTARIOS`), distinto del modelo de
-**finalización** de Bubble (`Nueva → En Proceso → Suspendido/Cancelado/Finalizado`, sin paso de revisión).
-Este plan mapea `Finalizado` → **`APROBADO`** (estado terminal, badge verde, coherente visualmente con
-"cerrado y sin pendientes"). Si el usuario prefiere otro mapeo (ej. `ENVIADO`, dado que Bubble no tuvo un
-paso de aprobación real), es un cambio de una línea en Task 3 — decirlo antes de `--apply`.
-
-**DUDA-MIG-003 (hosting del PDF):** `archivo_web` de Bubble apunta a S3 de Bubble
-(`//s3.amazonaws.com/appforest_uf/...`), **fuera del control de reportaweb3**. Si ese bucket se vincula a la
-cuenta de Bubble y se cierra/expira al apagar Bubble, los `pdf_url` migrados quedarían rotos.
-**Recomendación de este plan: descargar cada PDF y volver a subirlo a Supabase Storage** (bucket
-`informes-pdf` o similar, path `{tenant_slug}/{codigo}.pdf`), guardando la URL de Supabase en `pdf_url` —
-mismo patrón de "no depender de infraestructura externa que se va a apagar" ya aplicado en la Fase 0 del
-cutover. Alternativa más rápida pero más riesgosa: guardar el URL de Bubble tal cual y migrar los PDFs
-después, en un ticket aparte. Este plan implementa la opción recomendada (Task 4); si el usuario prefiere
-la alternativa rápida, es un flag `--skip-pdf-reupload` de una línea.
+**DUDA-MIG-001 queda resuelta** por el punto 1 del usuario: se migran todos los formatos, no solo los 2
+originales.
 
 ---
 
@@ -99,502 +115,321 @@ la alternativa rápida, es un flag `--skip-pdf-reupload` de una línea.
 
 | File | Acción | Propósito |
 |---|---|---|
-| `scripts/migrate-informes-checklist-historico.ts` | Crear | Script único de migración, todos los steps |
-| `docs/auditoria-ui/07-informes.md` | Modificar | Marcar TK-I1 con el link a este plan y su resultado una vez ejecutado |
+| `scripts/migrate-formatos-faltantes.ts` | Crear | Fase 0 — catalogar los 4 formatos nuevos + 2 versiones faltantes |
+| `scripts/migrate-informes-checklist-historico.ts` | Crear | Fase 1 — informes + respuestas, los 8 formatos |
+| `scripts/migrate-archivos-bubble-a-supabase.ts` | Crear | Fase 2 — función reutilizable de descarga+resubida, aplicada a informes y a `planes_accion.evidencia_cierre_url` |
+| `docs/auditoria-ui/07-informes.md` | Modificar | Cerrar TK-I1 con el resultado final y el nuevo alcance de 8 formatos |
 
 ---
 
-### Task 1: Tipo Bubble de "respuesta individual" — CONFIRMADO (sin trabajo pendiente)
+## FASE 0 — Catalogar los formatos faltantes
 
-**Contexto (resuelto 2026-09-07, corrección del usuario sobre el nombre):** el tipo es **`Informe_respuesta`**
-(singular — `Informes_respuestas`/`Informe_Respuestas` devuelven 404; Bubble es inconsistente entre tipos:
-`Informes` cabecera SÍ requiere plural, `Formato`/`Formato_seccion` funcionan en cualquier capitalización).
-Confirmado en vivo contra la API — 387.743 registros totales (todos los tenants, todos los formatos).
-
-Campos reales (unión de 200 registros de muestra + inspección de las respuestas de un informe real,
-`INF-122`):
-
-```
-_id, id_informe, id_empresa, id_pregunta, respuesta_fecha, respuesta_texto, tipo,
-obligatorio?, "lista_ATS - Borrar", lista_Texto_Para_CSV, lista_usuarios,
-Created By, Created Date, Modified Date
-```
-
-- `id_informe` → FK a `Informes._id` (cabecera del checklist).
-- `id_pregunta` → FK a `Formato_Pregunta._id` (mapear contra `formatos_preguntas.bubble_id`, ya migrado).
-- `respuesta_texto` → el valor de la respuesta en texto (para preguntas "Múltiples opciones" trae la
-  etiqueta elegida, ej. "SI"/"NO"/"NO APLICA"; para "Respuesta abierta" trae el texto libre).
-- `respuesta_fecha` → usado cuando `tipo = "Fecha Hora"` (no todas las respuestas lo traen).
-- `tipo` → mismo campo `tipo` que ya existe en `formato_pregunta` (Múltiples opciones / Respuesta abierta /
-  Fecha Hora / Lista dinámica / etc.), útil para decidir a qué columna de
-  `formatos_informes_respuestas` mapear el valor (`valor_texto` vs `valor_fecha` vs `valor_booleano`).
-- Campos `lista_*` → listas de IDs para tipos de pregunta más complejos (ATS, listas dinámicas de
-  trabajadores) — **no necesarios para el checklist estándar SI/NO/NO APLICA** que es el 100% de las
-  preguntas de `CHECKLIST DE GRÚAS V2` y `FORMATO DE INSPECCIÓN DE GRÚAS V2` (confirmado en
-  `2026-05-25-migracion-formatos-checklist.md` §4, grupo de opciones único "SI - NO (x) - NO APLICA" para
-  ambos formatos) — soportarlos queda fuera de este plan; si aparece una respuesta con `lista_*` poblado y
-  sin `respuesta_texto`, loggear como advertencia y seguir (no bloquear el resto del informe).
-
-`RESPUESTA_BUBBLE_TYPE = 'Informe_respuesta'` — constante fija en el script, sin necesidad de sondeo.
-
----
-
-### Task 2: Función de fetch y filtrado desde Bubble
+### Task 0.1: Migrar los 4 formatos nuevos (CISE-02, CISE-02B, CISE-03, CISE-05)
 
 **Files:**
-- Create: `scripts/migrate-informes-checklist-historico.ts` (base del archivo)
+- Create: `scripts/migrate-formatos-faltantes.ts`
 
 **Interfaces:**
-- Produce: `fetchInformesFiltrados(tenant: 'CISE'|'GRUAS'): Promise<BubbleInforme[]>` — ya filtrado por
-  `id_empresa`, `id_formato` (el catalogado para ese tenant) y `estado='Finalizado'`.
-- Produce: `splitByYear(informes: BubbleInforme[]): { cabecera: BubbleInforme[]; completo: BubbleInforme[] }`
-  — separa por `fecha_reporte < / >= 2026-01-01`.
+- Produce: 4 filas nuevas en `formatos` (una por código), cada una con 1 fila en `formatos_versiones`
+  (`estado='PUBLICADA'` al final), y sus preguntas en `formatos_preguntas` (sin opciones múltiples salvo que
+  el probe confirme que también usan el grupo "SI - NO (x) - NO APLICA" — verificar en Step 2, no asumir).
 
-- [ ] **Step 1: Boilerplate del script (copiado del patrón existente)**
+- [ ] **Step 1: Reusar el boilerplate y las funciones de `migrate-terceros-fields.ts` /
+  `migrate-informes-checklist-historico.ts`** (`fetchAllBubble`, carga de env, cliente Supabase, mapeo de
+  tenants) — no reinventar.
 
-```typescript
-/**
- * Migración histórica de checklists de Bubble (tipo `Informes`) → formatos_informes.
- *
- * Contexto: docs/auditoria-ui/07-informes.md TK-I1 — formatos_informes estaba en 0 filas pese a
- * miles de checklists reales en Bubble. Decisión de alcance del usuario (2026-09-07): no cargar
- * respuestas pregunta-por-pregunta de años que no se van a revisar ni editar (2022-2025 y anteriores);
- * para esos años migrar solo cabecera + PDF. Año 2026 en adelante: cabecera + respuestas completas.
- * Nunca migrar estados no terminados (En Proceso/Suspendido) ni Cancelado.
- *
- * SEGURIDAD: dry-run por defecto. Con --apply ejecuta los INSERT/upsert reales.
- *
- * Uso:
- *   npx tsx scripts/migrate-informes-checklist-historico.ts --probe-respuesta-tipo
- *   npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=CISE                # dry-run
- *   npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=GRUAS --apply
- *   npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=all --apply
- *
- * Env requeridas: BUBBLE_API_URL, BUBBLE_API_TOKEN, SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY
- *   (o PROD_/DEMO_ prefijo) — mismo patrón que scripts/migrate-terceros-fields.ts.
- */
-import { createClient } from '@supabase/supabase-js'
-import fs from 'fs'
-import path from 'path'
-
-const envPath = path.resolve(process.cwd(), '.env.local')
-for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-  const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)$/)
-  if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '')
-}
-
-const BUBBLE_URL = process.env.BUBBLE_API_URL!
-const BUBBLE_HEADERS = { Authorization: `Bearer ${process.env.BUBBLE_API_TOKEN}` }
-const SB_URL = process.env.SUPABASE_URL || process.env.PROD_SUPABASE_API_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.PROD_SUPABASE_SERVICE_ROLE_KEY
-if (!BUBBLE_URL || !process.env.BUBBLE_API_TOKEN) throw new Error('Falta BUBBLE_API_URL / BUBBLE_API_TOKEN')
-if (!SB_URL || !SB_KEY) throw new Error('Falta SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY')
-const supabase = createClient(SB_URL, SB_KEY)
-
-const TENANTS = {
-  CISE:  { bubbleId: '1596035803087x371442079041323000', sbId: '1cb97ec7-326c-4376-93ee-ed317d3da51b', formatoBubbleId: '1619551534519x827573097185935400' },
-  GRUAS: { bubbleId: '1691779382086x534175713862630160', sbId: '6f4c923a-c3b7-47c2-9dea-2a187f274f73', formatoBubbleId: '1734793744908x241014863998484500' },
-} as const
-
-const CORTE_2026 = '2026-01-01T00:00:00.000Z'
-
-const arg = (k: string) => process.argv.find(a => a.startsWith(`--${k}`))
-const APPLY = !!arg('apply')
-const TENANT_ARG = (arg('tenant')?.split('=')[1] || 'all') as 'CISE' | 'GRUAS' | 'all'
-```
-
-- [ ] **Step 2: `fetchAllBubble` genérico con constraints (copiado y extendido de `migrate-terceros-fields.ts`)**
+- [ ] **Step 2: Para cada uno de los 4 `id_formato` nuevos, fetch de `Formato` + `Formato_seccion` +
+  `Formato_Pregunta` y loggear su estructura completa (sin escribir nada)**
 
 ```typescript
-async function fetchAllBubble(type: string, constraints: any[] = [], max = 50000): Promise<any[]> {
-  const out: any[] = []
-  let cursor = 0
-  while (out.length < max) {
-    const url = `${BUBBLE_URL}/${encodeURIComponent(type)}?limit=100&cursor=${cursor}` +
-      (constraints.length ? `&constraints=${encodeURIComponent(JSON.stringify(constraints))}` : '')
-    const res = await fetch(url, { headers: BUBBLE_HEADERS })
-    if (res.status !== 200) throw new Error(`Bubble ${type} HTTP ${res.status}`)
-    const data = await res.json()
-    const results = data.response?.results || []
-    if (!results.length) break
-    out.push(...results)
-    cursor += results.length
-    if (data.response?.remaining <= 0) break
-  }
-  return out
-}
+const FORMATOS_NUEVOS = [
+  { bubbleId: '1595546424040x702906164512030700', tenant: 'CISE', nombre: 'REPORTE DE PERSONAL', codigo: 'CISE-02' },
+  { bubbleId: '1595545508403x984980090463453200', tenant: 'CISE', nombre: 'REPORTE DE ALQUILER DE MAQUINARIA', codigo: 'CISE-03' },
+  { bubbleId: '1617158510068x263631604230651900', tenant: 'CISE', nombre: 'REPORTE DE PERSONAL (Sin Maquinaria)', codigo: 'CISE-02B' },
+  { bubbleId: '1614637642201x789286829766213600', tenant: 'CISE', nombre: 'REPORTE DE MOVILIZACIÓN/DESMOVILIZACIÓN', codigo: 'CISE-05' },
+] as const
 ```
 
-- [ ] **Step 3: `fetchInformesFiltrados`**
+Para cada uno: `GET /Formato/{bubbleId}` → `lista_secciones[]` → por cada sección `GET /Formato_seccion/{id}`
+(campos: solo `numero_seccion`, sin título propio, mismo patrón que el plan de mayo) → sus preguntas vía
+`fetchAllBubble('Formato_Pregunta', [{key:'id_seccion', constraint_type:'equals', value: seccionId}])`.
+Aplicar las mismas **reglas de skip** del plan de mayo §4 (Texto descriptivo/Tarea, Listado DB/Maquinaria,
+Fecha GPS/Fecha, Fecha Hora/Fecha de reporte, Texto descriptivo/Título) — estos 4 formatos son más simples
+(1 sola sección cada uno) así que es probable que la mayoría de sus preguntas sí sean preguntas reales, no
+headers automáticos, pero **no asumir, verificar campo `subtipo` de cada una igual que se hizo con los 2
+formatos originales**.
 
-```typescript
-type BubbleInforme = {
-  _id: string
-  id_empresa: string
-  id_formato: string
-  id_cliente?: string
-  id_cotizacion?: string
-  id_tarea?: string
-  id_objetos?: string[]
-  codigo: string
-  estado: string
-  fecha_reporte: string
-  archivo_nombre?: string
-  archivo_web?: string
-  'Created By'?: string
-  'Created Date': string
-  'Modified Date': string
-  'lista_respuestas - Para que?'?: string[]
-}
+- [ ] **Step 3: Confirmar el grupo de opciones de cada pregunta tipo "Múltiples opciones"**
 
-async function fetchInformesFiltrados(tenant: 'CISE' | 'GRUAS'): Promise<BubbleInforme[]> {
-  const t = TENANTS[tenant]
-  return fetchAllBubble('Informes', [
-    { key: 'id_empresa', constraint_type: 'equals', value: t.bubbleId },
-    { key: 'id_formato', constraint_type: 'equals', value: t.formatoBubbleId },
-    { key: 'estado', constraint_type: 'equals', value: 'Finalizado' },
-  ])
-}
+El plan de mayo encontró que CISE V1/V2 y GRUAS V2 comparten el mismo grupo `1623107775636x527252729130647550`
+("SI - NO (x) - NO APLICA"). Verificar con un fetch real si estos 4 formatos nuevos usan el mismo grupo
+(vía `formato_pregunta.id_grupo_opciones_multiples`) — si sí, reusar las 3 opciones hardcodeadas ya
+definidas; si alguno usa un grupo distinto, fetch de `formato_grupo_opciones_multiple` +
+`formato_opciones_multiples` para ese grupo específico y construir sus opciones reales (no asumir SI/NO/NA
+si el grupo es otro).
 
-function splitByYear(informes: BubbleInforme[]) {
-  const cabecera = informes.filter(i => i.fecha_reporte < CORTE_2026)
-  const completo = informes.filter(i => i.fecha_reporte >= CORTE_2026)
-  return { cabecera, completo }
-}
-```
+- [ ] **Step 4: Insertar en Supabase — mismo patrón que `migrate-formatos-templates.ts` (Fase 1 del plan de
+  mayo §5): `formatos` → `formatos_versiones` (BORRADOR) → `formatos_preguntas` → `formatos_opciones` →
+  `formatos_versiones` (PUBLICADA) → `formatos.version_actual_id`**
 
-- [ ] **Step 4: Verificar conteos contra lo esperado (dry-run, sin escribir nada todavía)**
+- [ ] **Step 5: Dry-run, revisar conteos, luego `--apply`**
 
 ```bash
-npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=GRUAS
+npx tsx scripts/migrate-formatos-faltantes.ts --step=nuevos
+npx tsx scripts/migrate-formatos-faltantes.ts --step=nuevos --apply
 ```
 
-Expected (orden de magnitud, confirmado en el research de este plan — los números exactos pueden variar
-unas decenas por actividad reciente en Bubble): GRUAS ≈ 4.103 informes Finalizado totales, de los cuales
-≈2.478 en modo cabecera (pre-2026) y ≈1.399 en modo completo (2026+). CISE ≈ 3.460 totales, ≈2.745 cabecera
-y ≈346 completo. **Nota:** estos conteos son menores a los que muestra el listado de Bubble en pantalla
-(que suma varios tipos de formato bajo el mismo menú) — es esperado, ver Global Constraints §Scope de
-formato.
+### Task 0.2: Agregar las 2 versiones faltantes a formatos YA catalogados
+
+**Interfaces:**
+- Produce: 2 filas nuevas en `formatos_versiones` (CISE-01 v01, GRUAS V2 Rev.01), vinculadas al `formatos.id`
+  que ya existe — **no crear filas nuevas en `formatos`**.
+
+- [ ] **Step 1: Resolver el `formatos.id` existente por `codigo` + `tenant_id`** (CISE-01 para CISE, el
+  código de GRUAS V2 para GRUAS — confirmar el código exacto leyendo la fila existente).
+
+- [ ] **Step 2: Repetir Steps 2-4 de Task 0.1 pero insertando en `formatos_versiones` con el `formatos.id`
+  resuelto, no uno nuevo.** Ojo: GRUAS Rev.01 tiene `con_informe=false` (a diferencia de todos los demás) —
+  confirmar qué implica ese flag en el resto del código (`lib/actions/formatos.ts`) antes de decidir si se
+  mapea a algún flag de `formatos_versiones` o se ignora con una nota.
+
+- [ ] **Step 3: Dry-run, luego `--apply`**
+
+```bash
+npx tsx scripts/migrate-formatos-faltantes.ts --step=versiones --apply
+```
+
+- [ ] **Step 4: Verificación de conjunto — 6 registros en `formatos` (2 ya existentes + 4 nuevos), 8 en
+  `formatos_versiones` (2 ya existentes + 2 nuevas versiones de esos + 4 de los formatos nuevos)**
+
+```sql
+select f.codigo, f.tenant_id, count(fv.id) versiones
+from formatos f left join formatos_versiones fv on fv.formato_id = f.id
+where f.tenant_id in ('1cb97ec7-326c-4376-93ee-ed317d3da51b','6f4c923a-c3b7-47c2-9dea-2a187f274f73')
+group by f.codigo, f.tenant_id;
+```
 
 ---
 
-### Task 3: Resolución de relaciones y construcción de la fila de cabecera
+## FASE 1 — Migrar informes + respuestas (los 8 formatos)
+
+Esta fase reemplaza y generaliza el plan anterior (que solo cubría 2 formatos) — misma lógica de
+`splitByYear`/`estado='Finalizado'` ya diseñada, ahora iterando sobre los 8 `id_formato` de la tabla de
+Contexto en vez de 1 por tenant.
+
+### Task 1.1: Boilerplate y fetch filtrado, generalizado a lista de formatos
 
 **Files:**
-- Modify: `scripts/migrate-informes-checklist-historico.ts`
-
-**Interfaces:**
-- Consume: `BubbleInforme` (Task 2)
-- Produce: `buildCabecera(informe: BubbleInforme, tenant: 'CISE'|'GRUAS'): Promise<Record<string, any>>` —
-  objeto listo para `upsert` en `formatos_informes`.
-
-- [ ] **Step 1: Cachear mapeos `bubble_id → uuid Supabase` por tabla relacionada**
-
-Igual patrón que `loadOpciones()` en `migrate-terceros-fields.ts`: una función por tabla que arma un
-`Map<bubble_id, uuid>` una sola vez.
+- Create: `scripts/migrate-informes-checklist-historico.ts`
 
 ```typescript
-async function loadBubbleIdMap(table: string, tenantSbId: string): Promise<Map<string, string>> {
-  const { data } = await supabase.from(table).select('id, bubble_id').eq('tenant_id', tenantSbId)
-  const m = new Map<string, string>()
-  for (const row of data ?? []) if (row.bubble_id) m.set(row.bubble_id, row.id)
-  return m
-}
+const FORMATOS_A_MIGRAR = [
+  { tenant: 'CISE' as const, bubbleId: '1619551534519x827573097185935400', codigo: 'CISE-01', version: 'v02' },
+  { tenant: 'CISE' as const, bubbleId: '1595542112449x409080868229087200', codigo: 'CISE-01', version: 'v01' },
+  { tenant: 'CISE' as const, bubbleId: '1595546424040x702906164512030700', codigo: 'CISE-02', version: 'v01' },
+  { tenant: 'CISE' as const, bubbleId: '1595545508403x984980090463453200', codigo: 'CISE-03', version: 'v01' },
+  { tenant: 'CISE' as const, bubbleId: '1617158510068x263631604230651900', codigo: 'CISE-02B', version: 'v01' },
+  { tenant: 'CISE' as const, bubbleId: '1614637642201x789286829766213600', codigo: 'CISE-05', version: 'v01' },
+  { tenant: 'GRUAS' as const, bubbleId: '1734793744908x241014863998484500', codigo: 'GRUAS-V2', version: 'v01' },
+  { tenant: 'GRUAS' as const, bubbleId: '1734547470724x198203873008025600', codigo: 'GRUAS-V2', version: 'Rev.01' },
+]
 ```
 
-Tablas a cachear por tenant: `terceros` (para `id_cliente`), `cotizaciones` (para `id_cotizacion`),
-`tareas` (para `id_tarea`), `terceros_sitios` o la tabla de sitios que corresponda (para el sitio de la
-tarea, si `formatos_informes.sitio_id` se resuelve vía la tarea y no directo desde Bubble — confirmar
-mirando si `Informes` trae `id_sitio` propio; si no, dejar `sitio_id` NULL y que se herede de `tarea_id` en
-lectura, como ya hace el resto del sistema), `profiles` (para `Created By` → `created_by`, comparando por
-`bubble_id` en `profiles`).
+`fetchInformesFiltrados` ahora recibe un `id_formato` puntual (no "el formato catalogado del tenant") y se
+llama una vez por cada entrada de `FORMATOS_A_MIGRAR`. El resto de la lógica (`splitByYear`, `estado`) es
+igual a la versión anterior de este plan.
 
-- [ ] **Step 2: `buildCabecera` — campos comunes a AMBOS modos (cabecera y completo)**
+- [ ] **Step 1-4:** iguales a la Task 2 de la versión anterior de este plan (boilerplate, `fetchAllBubble`,
+  `fetchInformesFiltrados` parametrizado por `id_formato`, `splitByYear`) — no repetir aquí, ver historial
+  de este archivo si hace falta el código exacto.
 
-```typescript
-async function buildCabecera(
-  informe: BubbleInforme,
-  tenant: 'CISE' | 'GRUAS',
-  maps: { clientes: Map<string,string>; cotizaciones: Map<string,string>; tareas: Map<string,string>; profiles: Map<string,string> },
-  pdfUrl: string | null,
-) {
-  const t = TENANTS[tenant]
-  return {
-    tenant_id: t.sbId,
-    bubble_id: informe._id,
-    codigo_informe: informe.codigo,
-    estado: 'APROBADO' as const,   // DUDA-MIG-002 — confirmar mapeo antes de --apply
-    fecha_inicio: informe.fecha_reporte,
-    fecha_fin: informe.fecha_reporte,
-    cliente_id: informe.id_cliente ? maps.clientes.get(informe.id_cliente) ?? null : null,
-    cotizacion_id: informe.id_cotizacion ? maps.cotizaciones.get(informe.id_cotizacion) ?? null : null,
-    tarea_id: informe.id_tarea ? maps.tareas.get(informe.id_tarea) ?? null : null,
-    created_by: informe['Created By'] ? maps.profiles.get(informe['Created By']) ?? null : null,
-    created_at: informe['Created Date'],
-    updated_at: informe['Modified Date'],
-    pdf_url: pdfUrl,
-    pdf_generado_at: pdfUrl ? informe['Modified Date'] : null,
-    is_active: true,
-  }
-}
-```
-
-Nota: `version_id` (FK a la versión del formato) se deja NULL o se resuelve contra la versión activa del
-`formato` cacheado si `formatos` versiona por fecha — revisar `lib/actions/formatos.ts` al implementar; no
-bloquea el resto de la fila si queda NULL (columna nullable).
-
-- [ ] **Step 3: Test manual — construir la cabecera de 3 informes de muestra (1 pre-2026, 1 de 2026, 1 sin
-  cliente/cotización vinculados) y loggear el objeto resultante sin escribir nada**
-
-Correr con un flag temporal `--sample=3` que solo imprime `JSON.stringify(await buildCabecera(...), null, 2)`
-para 3 registros elegidos a mano por `_id`, verificar visualmente que las relaciones resolvieron a UUIDs
-reales (no `null` cuando debería haber match).
-
----
-
-### Task 4: Descarga y re-subida del PDF a Supabase Storage
-
-**Files:**
-- Modify: `scripts/migrate-informes-checklist-historico.ts`
-- (Si no existe) Crear bucket `informes-pdf` (privado o público según el resto de buckets de PDFs del
-  proyecto — revisar convención existente, ej. cómo se guardan los PDF de `reportes_maquinaria`)
-
-**Interfaces:**
-- Produce: `reuploadPdf(archivoWeb: string, tenant: 'CISE'|'GRUAS', codigo: string): Promise<string | null>`
-  — descarga el PDF de la URL de Bubble/S3 y lo sube a Supabase Storage, devuelve la URL pública/firmada
-  nueva. Devuelve `null` si `archivoWeb` viene vacío (no debería pasar en `Finalizado`, pero cubrir el caso).
-
-- [ ] **Step 1: Confirmar el bucket y el patrón de ruta ya usado para PDFs similares**
-
-Buscar en el código cómo `reportes_maquinaria.pdf_url` o `cotizaciones.pdf_url` guardan sus archivos (¿bucket
-público con URL directa, o signed URL generada al vuelo?). Replicar exactamente ese patrón para
-consistencia — no inventar uno nuevo. Si no hay un bucket de PDFs de informes todavía, usar
-`docs/{tenant_slug}/informes/{codigo}.pdf` dentro de un bucket ya existente si el patrón del proyecto
-reutiliza buckets, o crear `informes-pdf` si el patrón es "un bucket por tipo de documento".
-
-- [ ] **Step 2: Implementar `reuploadPdf`**
-
-```typescript
-async function reuploadPdf(archivoWeb: string, tenant: 'CISE' | 'GRUAS', codigo: string): Promise<string | null> {
-  if (!archivoWeb) return null
-  const url = archivoWeb.startsWith('//') ? `https:${archivoWeb}` : archivoWeb
-  const res = await fetch(url)
-  if (!res.ok) { console.log(`   ⚠️  PDF no descargable (${res.status}): ${url}`); return null }
-  const buffer = Buffer.from(await res.arrayBuffer())
-  const tenantSlug = tenant === 'CISE' ? 'cise' : 'gruas'
-  const path = `${tenantSlug}/${codigo}.pdf`
-  if (!APPLY) return `[dry-run] subiría a informes-pdf/${path} (${buffer.length} bytes)`
-  const { error } = await supabase.storage.from('informes-pdf').upload(path, buffer, { contentType: 'application/pdf', upsert: true })
-  if (error) { console.log(`   ❌ Error subiendo ${path}: ${error.message}`); return null }
-  const { data } = supabase.storage.from('informes-pdf').getPublicUrl(path)
-  return data.publicUrl
-}
-```
-
-- [ ] **Step 3: Rate-limiting — no descargar 6.000+ PDFs en paralelo**
-
-Procesar en lotes secuenciales pequeños (ej. 10 a la vez con `Promise.all` por lote, con una pausa breve
-entre lotes) para no saturar el S3 de Bubble ni la conexión — mismo espíritu de cuidado que el resto de
-scripts de este proyecto, que son todos secuenciales por defecto.
-
-- [ ] **Step 4: Test — re-subir 3 PDFs de muestra en modo `--apply` limitado (`--sample=3`) y verificar
-  manualmente que abren correctamente desde la URL nueva de Supabase**
-
----
-
-### Task 5: Modo completo (2026+) — respuestas y tablas satélite
-
-**Files:**
-- Modify: `scripts/migrate-informes-checklist-historico.ts`
-
-**Interfaces:**
-- Consume: `RESPUESTA_BUBBLE_TYPE` (Task 1), `formatos_preguntas` cacheado por `bubble_id`
-- Produce: `buildRespuestas(informe: BubbleInforme, informeSbId: string, preguntasMap: Map<string,string>): Promise<Record<string,any>[]>`
-
-- [ ] **Step 1: Cachear `formatos_preguntas` por `bubble_id` (por tenant, ya que las preguntas son por
-  formato/tenant)**
-
-```typescript
-async function loadPreguntasMap(formatoId: string): Promise<Map<string, string>> {
-  const { data } = await supabase.from('formatos_preguntas').select('id, bubble_id').eq('formato_id', formatoId)
-  const m = new Map<string, string>()
-  for (const row of data ?? []) if (row.bubble_id) m.set(row.bubble_id, row.id)
-  return m
-}
-```
-
-- [ ] **Step 2: Fetch de las respuestas de un informe y mapeo a filas de `formatos_informes_respuestas`**
-
-`Informe_respuesta` se filtra directo por `id_informe` (no hace falta resolver la lista de IDs del campo
-`lista_respuestas - Para que?` de `Informes` — más simple: consultar `Informe_respuesta` con constraint
-`id_informe = <bubble _id del informe>`):
-
-```typescript
-async function fetchRespuestasDeInforme(informeBubbleId: string) {
-  return fetchAllBubble('Informe_respuesta', [
-    { key: 'id_informe', constraint_type: 'equals', value: informeBubbleId },
-  ])
-}
-
-function buildRespuestas(
-  respuestasBubble: any[],
-  informeSbId: string,
-  tenantSbId: string,
-  preguntasMap: Map<string, string>,
-) {
-  const rows: Record<string, any>[] = []
-  for (const r of respuestasBubble) {
-    const pregunta_id = r.id_pregunta ? preguntasMap.get(r.id_pregunta) ?? null : null
-    if (!pregunta_id) {
-      console.log(`   ⚠️  respuesta ${r._id} sin pregunta_id resuelto (id_pregunta=${r.id_pregunta ?? '(vacío)'})`)
-      continue   // no bloquea el resto del informe — la cabecera y el PDF siguen siendo válidos
-    }
-    rows.push({
-      tenant_id: tenantSbId,
-      informe_id: informeSbId,
-      pregunta_id,
-      valor_texto: r.respuesta_texto ?? null,
-      valor_fecha: r.tipo === 'Fecha Hora' ? (r.respuesta_fecha ?? null) : null,
-      created_at: r['Created Date'],
-    })
-  }
-  return rows
-}
-```
-
-Nota: `valor_booleano`/`opcion_id` de `formatos_informes_respuestas` quedan sin usar en esta migración — el
-checklist SI/NO/NO APLICA guarda su respuesta como texto libre en Bubble (`respuesta_texto = "SI"`, no un ID
-de opción), así que se migra tal cual a `valor_texto`; no hace falta resolver contra `formatos_opciones`
-para que el dato sea correcto y legible (`informe-read-view.tsx` debe poder mostrar `valor_texto`
-directamente — confirmar al implementar que no asume `opcion_id` obligatorio).
-
-- [ ] **Step 3: Test — para 1 informe de 2026 conocido (usar el `INF-3693` visto en la auditoría de Bubble,
-  o el primero que aparezca en `completo`), construir sus respuestas y comparar manualmente contra el PDF
-  real de ese informe (mismo informe, mismas ~33 preguntas con SI/NO/NO APLICA) para confirmar que el
-  mapeo pregunta↔respuesta es correcto antes de escalar a todos los registros.**
-
----
-
-### Task 6: Orquestación, upsert final y reporte
-
-**Files:**
-- Modify: `scripts/migrate-informes-checklist-historico.ts`
-
-**Interfaces:**
-- Produce: función `main()` que corre todo el flujo y termina con un resumen.
-
-- [ ] **Step 1: Orquestar por tenant**
-
-```typescript
-async function migrarTenant(tenant: 'CISE' | 'GRUAS') {
-  console.log(`\n=== ${tenant} ===`)
-  const informes = await fetchInformesFiltrados(tenant)
-  const { cabecera, completo } = splitByYear(informes)
-  console.log(`  Total Finalizado (formato catalogado): ${informes.length}`)
-  console.log(`  Modo cabecera (pre-2026): ${cabecera.length}`)
-  console.log(`  Modo completo (2026+): ${completo.length}`)
-
-  const maps = await loadAllMaps(tenant)   // clientes, cotizaciones, tareas, profiles
-
-  let okCabecera = 0, okCompleto = 0, errores = 0
-
-  for (const informe of [...cabecera, ...completo]) {
-    const esCompleto = informe.fecha_reporte >= CORTE_2026
-    try {
-      const pdfUrl = await reuploadPdf(informe.archivo_web ?? '', tenant, informe.codigo)
-      const row = await buildCabecera(informe, tenant, maps, pdfUrl)
-      if (!APPLY) { esCompleto ? okCompleto++ : okCabecera++; continue }
-
-      const { data: inserted, error } = await supabase.from('formatos_informes').upsert(row, { onConflict: 'bubble_id' }).select('id').single()
-      if (error) { errores++; console.log(`  ❌ ${informe.codigo}: ${error.message}`); continue }
-
-      if (esCompleto) {
-        const respuestas = await buildRespuestas(informe, inserted.id, /* preguntasMap del formato de este tenant */)
-        if (respuestas.length) {
-          const { error: errR } = await supabase.from('formatos_informes_respuestas').upsert(respuestas)
-          if (errR) console.log(`  ⚠️  ${informe.codigo}: respuestas con error: ${errR.message}`)
-        }
-        okCompleto++
-      } else {
-        okCabecera++
-      }
-    } catch (e: any) {
-      errores++
-      console.log(`  ❌ ${informe.codigo}: ${e.message}`)
-    }
-  }
-
-  console.log(`  ${APPLY ? '✅ Migrados' : '[dry-run] Migraría'}: ${okCabecera} cabecera + ${okCompleto} completo · ❌ ${errores} errores`)
-}
-```
-
-- [ ] **Step 2: `main()` con selección de tenant vía `--tenant`**
-
-```typescript
-async function main() {
-  const tenants: ('CISE' | 'GRUAS')[] = TENANT_ARG === 'all' ? ['CISE', 'GRUAS'] : [TENANT_ARG]
-  for (const t of tenants) await migrarTenant(t)
-}
-main()
-```
-
-- [ ] **Step 3: Correr dry-run completo y revisar el resumen con el usuario antes de `--apply`**
+- [ ] **Step 5: Dry-run con el nuevo alcance completo y comparar contra la tabla de Contexto**
 
 ```bash
 npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=all
 ```
 
-- [ ] **Step 4: Aplicar primero a UN tenant (GRUAS, el más chico en volumen de `completo`) y verificar en
-  la UI real de reportaweb3 (`/informes`) antes de aplicar a CISE**
+Esperado (orden de magnitud): **≈16.381 informes Finalizado totales** entre los 8 formatos y 2 tenants (vs.
+~6.972 de la versión anterior de este plan, que solo cubría 2 formatos) — el dry-run debe acercarse a esta
+cifra; si difiere mucho, detenerse y revisar antes de aplicar.
+
+### Task 1.2: Resolución de relaciones + cabecera — igual a la versión anterior
+
+Sin cambios de lógica respecto a Task 3 de la versión anterior de este plan (`buildCabecera`, mapeo
+`cliente_id`/`cotizacion_id`/`tarea_id`/`created_by` por `bubble_id`) — ahora se llama una vez por cada
+`(tenant, id_formato)` de `FORMATOS_A_MIGRAR`, resolviendo `formato_id`/`version_id` contra el `formatos`
+correspondiente (ya catalogado por Fase 0).
+
+**Ajuste nuevo:** para formatos como CISE-02/CISE-03/CISE-02B/CISE-05 (que no son checklists de grúa sino
+reportes de personal/maquinaria/movilización), revisar si además de `tarea_id` hace falta resolver
+`maquinaria_id`/`personal_id` contra `id_objetos` de `Informes` — el campo existe en el schema de Bubble
+(confirmado en el research de la versión anterior) pero no se usó todavía porque los 2 formatos originales
+no lo necesitaban con la misma intensidad. Insertar en `formatos_informes_maquinarias`/`formatos_informes_personal`
+cuando `id_objetos` venga poblado y el tipo de formato lo amerite (confirmar en el research de
+implementación, no adivinar la relación 1:1 sin verificarla contra un registro real).
+
+### Task 1.3: Respuestas — igual a la versión anterior (`Informe_respuesta`, ya confirmado)
+
+Sin cambios respecto a la Task 5 de la versión anterior — `fetchRespuestasDeInforme` + `buildRespuestas`
+por `id_informe`, mapeo `id_pregunta → formatos_preguntas.bubble_id` (ahora con más preguntas cacheadas,
+las de los 8 formatos en vez de 2).
+
+### Task 1.4: Orquestación y aplicación por tenant — igual a la versión anterior, iterando formatos
 
 ```bash
-npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=GRUAS --apply
-```
-
-Abrir `/informes` logueado como un usuario de GRUAS, confirmar: (a) aparecen los informes migrados con su
-PDF real, (b) los de 2026 muestran "Puntos" (respuestas) correctamente, (c) los pre-2026 muestran la
-cabecera sin romper la UI aunque no tengan respuestas (confirmar que `informe-read-view.tsx` no asume que
-siempre hay al menos 1 respuesta).
-
-- [ ] **Step 5: Aplicar a CISE**
-
-```bash
+npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=GRUAS --apply   # el más chico primero
 npx tsx scripts/migrate-informes-checklist-historico.ts --tenant=CISE --apply
 ```
 
-- [ ] **Step 6: Verificación final de conteos (Supabase MCP o SQL directo)**
+---
 
-```sql
-select tenant_id, count(*) filter (where estado='APROBADO') aprobados,
-       count(*) filter (where id in (select informe_id from formatos_informes_respuestas)) con_respuestas
-from formatos_informes
-where tenant_id in ('1cb97ec7-326c-4376-93ee-ed317d3da51b','6f4c923a-c3b7-47c2-9dea-2a187f274f73')
-group by tenant_id;
+## FASE 2 — Migrar archivos (PDFs + fotos) de Bubble a Supabase Storage
+
+### Task 2.1: Función reutilizable de descarga + resubida
+
+**Files:**
+- Create: `scripts/migrate-archivos-bubble-a-supabase.ts`
+
+**Interfaces:**
+- Produce: `migrarArchivo(bubbleUrl: string, bucket: string, path: string): Promise<string | null>` —
+  descarga de Bubble/S3, sube a Supabase Storage, devuelve la URL pública nueva. Registra cada intento en
+  `file_migration_log` (tabla que **ya existe y ya se usó** para la migración de archivos de mayo — reusarla,
+  no crear una tabla paralela, así el log queda unificado con el historial de esa migración anterior).
+
+```typescript
+async function migrarArchivo(
+  bubbleUrl: string,
+  bucket: string,
+  storagePath: string,
+  tableName: string,
+  rowId: string,
+  field: string,
+): Promise<string | null> {
+  const url = bubbleUrl.startsWith('//') ? `https:${bubbleUrl}` : bubbleUrl
+  if (!APPLY) return `[dry-run] ${bucket}/${storagePath}`
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
+    const { error } = await supabase.storage.from(bucket).upload(storagePath, buffer, { contentType, upsert: true })
+    if (error) throw error
+    const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath)
+    await supabase.from('file_migration_log').upsert({
+      table_name: tableName, row_id: rowId, field, bubble_url: url,
+      storage_bucket: bucket, storage_path: storagePath, public_url: data.publicUrl,
+      content_type: contentType, size_bytes: buffer.length, status: 'done',
+    })
+    return data.publicUrl
+  } catch (e: any) {
+    await supabase.from('file_migration_log').upsert({
+      table_name: tableName, row_id: rowId, field, bubble_url: url,
+      status: 'error', error: e.message,
+    })
+    return null
+  }
+}
 ```
 
-Esperado: `aprobados` ≈ total Finalizado migrado por tenant; `con_respuestas` ≈ solo los de 2026 (~346 CISE
-+ ~1.399 GRUAS, sujeto a los conteos reales del dry-run).
+- [ ] **Step 1: Confirmar el esquema exacto de `file_migration_log`** (columnas ya confirmadas por consulta
+  directa: `table_name, row_id, field, bubble_url, storage_bucket, storage_path, public_url, content_type,
+  size_bytes, status, error, attempts, created_at, updated_at`) y si tiene una PK/unique constraint que
+  permita `upsert` limpio (revisar antes de asumir `upsert` sin conflicto declarado).
 
-- [ ] **Step 7: Actualizar `docs/auditoria-ui/07-informes.md`**
+- [ ] **Step 2: Rate-limiting** — procesar en lotes secuenciales pequeños (10 a la vez), igual criterio que
+  el resto de scripts de este proyecto.
 
-Marcar TK-I1 como resuelto, con el conteo final migrado y un link a este plan. Actualizar el veredicto de
-cierre del módulo de 🔴 a 🟡 o 🟢 según el resultado (queda 🟡 si DUDA-MIG-001 sobre los otros formatos de
-Bubble sigue abierta).
+### Task 2.2: Aplicar a los PDFs de `formatos_informes` (todos los migrados en Fase 1)
+
+- [ ] **Step 1:** para cada fila de `formatos_informes` con `pdf_url` apuntando todavía a
+  `archivo_web`/S3-de-Bubble (es decir, recién insertada por Fase 1 sin re-subir), llamar `migrarArchivo`
+  con bucket `informes-pdf`, path `{tenant_slug}/{codigo_informe}.pdf`, y hacer `UPDATE formatos_informes
+  SET pdf_url = <nueva url>`.
+
+- [ ] **Step 2:** correr para GRUAS primero (menor volumen), verificar 3 PDFs abren bien, luego CISE.
+
+**Nota de integración con Fase 1:** dado que Fase 1 ya construye `pdf_url` como parte de `buildCabecera`
+(Task 4 de la versión anterior de este plan, `reuploadPdf`), en la práctica **Fase 1 y Fase 2 Task 2.2 son
+la misma operación** — se listan por separado en este documento porque Fase 2 generaliza la función a otras
+tablas (Task 2.3), pero en la implementación real `reuploadPdf` de Fase 1 debe ser la misma función
+`migrarArchivo` de Fase 2, no una duplicada. Implementar Fase 2 Task 2.1 primero, y que Fase 1 la importe.
+
+### Task 2.3: Fotos adjuntas en `formatos_informes_respuestas` (si existen)
+
+- [ ] **Step 1:** revisar si alguna respuesta de los 8 formatos tiene `tipo = "Adjunto"`/`"Foto"` con un
+  valor de archivo (campo a confirmar en la implementación — no se vio en la muestra de `Informe_respuesta`
+  research de este plan, que fueron preguntas SI/NO/Texto/Fecha; **puede que ningún formato de checklist
+  tenga preguntas de foto real** — confirmar contando `formatos_preguntas` con `tipo='FOTO'` entre los 8
+  formatos antes de invertir tiempo en este Step).
+
+- [ ] **Step 2:** si existen, aplicar `migrarArchivo` con bucket `informes-fotos`, actualizar
+  `formatos_informes_respuestas.valor_foto_url`.
+
+### Task 2.4: Hallazgo oportunista — `planes_accion.evidencia_cierre_url`
+
+**Contexto:** durante el research de este plan (punto 4 del usuario, "migrar todos los archivos") se
+encontró que `planes_accion.evidencia_cierre_url` todavía apunta al S3 de Bubble en al menos algunas filas
+(a diferencia de `planes_accion.lista_fotos`, que ya está en Supabase desde la migración de mayo). No es
+parte del alcance de Informes/Checklist, pero se resuelve acá porque la función `migrarArchivo` ya está
+construida y el volumen es chico.
+
+- [ ] **Step 1:** `SELECT count(*) FROM planes_accion WHERE evidencia_cierre_url LIKE '%bubble%' OR
+  evidencia_cierre_url LIKE '%amazonaws%'` para dimensionar antes de tocar nada.
+
+- [ ] **Step 2:** aplicar `migrarArchivo` con bucket `planes-accion` (mismo bucket que `lista_fotos` si
+  existe, revisar convención), `UPDATE planes_accion SET evidencia_cierre_url = <nueva url>`.
+
+---
+
+## FASE 3 — Validación final
+
+### Task 3.1: Conteos finales vs. la tabla de Contexto
+
+```sql
+select fi.tenant_id, f.codigo, count(*) informes, count(fi.pdf_url) con_pdf,
+       count(*) filter (where fi.pdf_url NOT LIKE '%bubble%' AND fi.pdf_url NOT LIKE '%amazonaws%') pdf_en_supabase,
+       count(*) filter (where fir.informe_id is not null) con_respuestas
+from formatos_informes fi
+join formatos f on f.id = fi.version_id  -- o el join correcto según cómo quede version_id/formato_id
+left join formatos_informes_respuestas fir on fir.informe_id = fi.id
+where fi.tenant_id in ('1cb97ec7-326c-4376-93ee-ed317d3da51b','6f4c923a-c3b7-47c2-9dea-2a187f274f73')
+group by fi.tenant_id, f.codigo;
+```
+
+Esperado: ~16.381 informes totales repartidos entre los 8 formatos según la tabla de Contexto, 100% con
+`pdf_en_supabase`, y `con_respuestas` solo en los de 2026 (usar el conteo real del dry-run de Fase 1 como
+referencia, no un número fijo).
+
+### Task 3.2: Actualizar `docs/auditoria-ui/07-informes.md`
+
+Marcar TK-I1 como resuelto, actualizar la tabla de formatos (ya no son 2, son 8), actualizar el veredicto
+de cierre del módulo de 🔴 a 🟢 si todo lo anterior corrió sin errores significativos, o 🟡 si queda algún
+residual documentado (ej. respuestas sin `pregunta_id` resuelto, informes sin PDF descargable).
+
+### Task 3.3: Nota para no perder este hallazgo — actualizar el propio plan de mayo
+
+Agregar una nota al final de `docs/superpowers/plans/2026-05-25-migracion-formatos-checklist.md` señalando
+que su resultado se perdió en el reset del 2026-05-26 y fue re-migrado por este plan (2026-09-07) —
+para que quien lea ese documento en el futuro no vuelva a confundirse pensando que sigue vigente.
 
 ---
 
 ## Self-review
 
-- **Cobertura del spec:** recorte por año ✅ (Task 2 `splitByYear`), exclusión de estados no terminados y
-  Cancelado ✅ (Task 2 `fetchInformesFiltrados` filtra `estado='Finalizado'` en el fetch mismo, nunca trae
-  los demás), migración de cabecera+PDF para años viejos ✅ (Task 3+4), migración completa para 2026 ✅
-  (Task 5), idempotencia ✅ (upsert por `bubble_id` en todas las escrituras).
-- **Placeholders:** ninguno pendiente — el tipo Bubble de "respuesta individual" (Task 1) quedó confirmado
-  (`Informe_respuesta`, corrección del usuario sobre el nombre exacto + verificación en vivo contra la API)
-  con su mapeo de campos completo. Tasks 2-4 (modo cabecera, ~65% del volumen) tampoco dependían de esto y
-  pueden ejecutarse de forma independiente si se quiere avanzar por partes.
-- **Consistencia de tipos:** `estado: 'APROBADO'` como valor fijo coincide con el enum ya definido en
-  `InformeCompleto['estado']` (`lib/actions/formatos-informes.ts`); `bubble_id` como clave de upsert
-  coincide con la columna ya presente en `formatos_informes`.
-- **Decisión de diseño explícita:** re-subir los PDFs a Supabase Storage en vez de linkear el S3 de Bubble
-  directamente (DUDA-MIG-003) — mismo criterio de independencia de infraestructura ya aplicado en Fase 0.
+- **Cobertura del spec:** los 4 puntos del usuario están cubiertos — (1) Fase 0 cataloga los 6 formatos
+  faltantes (4 nuevos + 2 versiones), (2) el orden de dependencias se verificó explícito en Global
+  Constraints con evidencia real de que terceros/maquinaria/cotizaciones/tareas ya están migrados, (3) la
+  sección de Contexto documenta la causa raíz y confirma que el resto del proyecto no tiene el mismo
+  problema (con la única excepción oportunista de `planes_accion.evidencia_cierre_url`, ya incorporada como
+  Task 2.4), (4) Fase 2 migra archivos de informes y generaliza la función para cualquier otro archivo
+  suelto que aparezca.
+- **Placeholders:** ninguno bloqueante. Task 1.2 tiene una verificación explícita a hacer en
+  implementación (si `id_objetos` debe poblar `formatos_informes_maquinarias`/`_personal` para los formatos
+  de reportes) en vez de asumir la respuesta sin datos — correcto dejarlo como paso de investigación
+  explícito, no un placeholder de pereza. Task 2.3 igual (confirmar si existen preguntas tipo FOTO antes de
+  construir esa parte).
+- **Consistencia de tipos:** `migrarArchivo` de Fase 2 Task 2.1 es la misma función que debe usar Fase 1
+  (antes llamada `reuploadPdf`) — señalado explícitamente para no duplicar lógica.
+- **Decisión de diseño explícita:** reusar `file_migration_log` (tabla ya existente de la migración de
+  archivos de mayo) en vez de crear una tabla de log nueva — mantiene un solo historial unificado de todas
+  las migraciones de archivos del proyecto, pasadas y presentes.
