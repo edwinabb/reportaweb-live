@@ -308,6 +308,35 @@ y crear los tickets de UI correspondientes.
 
 ---
 
+## DUDA-ADMIN-001: `reporta-admin` — deploy real + datos pendientes antes de habilitar el bridge de Bubble
+
+**Status:** 🟡 PENDIENTE
+**Prioridad:** ALTA (bloquea que el bridge de PDF de Bubble funcione en producción)
+**Esfuerzo:** ~2-3h de trabajo del usuario (credenciales/deploy) + tiempo de obtener plantillas reales
+
+### Contexto
+
+`reporta-admin` (repo separado, `C:\Proyectos\reporta-admin`) quedó con las Tasks 2-9 completas y revisión final aplicada (2026-09-07) — incluye un fix de seguridad Critical real (Server Action sin auth check que permitía leer plantillas de cualquier tenant desde el bucket privado; corregido con `requireReportaAdmin()`) y una RPC de activación atómica. `reportaweb3` ya integra la nueva resolución de plantillas (`lib/bubble-docx-pdf.ts` lee de `system_document_templates` + Storage en vez de `fs`), cerrando el bloqueo Critical #1 de la Fase 0 del cutover — pero **solo a nivel de código**. Faltan 4 cosas, todas fuera del alcance de lo que un agente puede hacer sin credenciales del usuario:
+
+### Pendientes
+
+1. **Deploy real de `reporta-admin` a Cloudflare Workers** (Task 10 Steps 4-5 del plan, `docs/superpowers/plans/2026-09-06-reporta-admin.md`): `npx wrangler login`, cargar los secrets `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` en el dashboard de Cloudflare, `npx wrangler deploy`, bindear el dominio `admin.reporta.la`.
+2. **Poblar `system_document_templates`**: la tabla está en 0 filas tanto en TEST como en PROD. Hasta que no se suba al menos una plantilla activa por tenant+tipo vía `reporta-admin`, el bridge de PDF de Bubble va a fallar con `BubbleTemplateNotFoundError` para TODO documento. Solo existe un archivo placeholder (`cotizacion-bubble.docx`, copiado de un template existente) — **no hay origen identificado para los otros 5 tipos** (`valorizacion_venta`, `valorizacion_compra`, `reporte_maquinaria`, `reporte_horas_maquinaria`, `reporte_personal`). Hay que conseguir esos `.docx` reales (probablemente exportados de docmaker, igual que se hizo para cotización en la Fase 0).
+3. **`wrangler.toml` de reporta-admin solo apunta a PROD** — no hay config para TEST/demo. El smoke test de Task 10 Step 5 (subir plantilla + probar contra `demo.reportar.app`, que lee TEST) no va a funcionar tal como está planteado sin agregar una config/worker para TEST, o decidir hacer el smoke test directo contra PROD.
+4. **TEST no tiene ningún perfil con rol `reporta_admin`** — si se decide correr `reporta-admin` localmente contra TEST (`.env.local`), nadie podría loguearse hasta crear ese perfil.
+
+### Recomendación
+
+Resolver en este orden: (4) crear un perfil `reporta_admin` en TEST → (1) deploy a Cloudflare (puede ir directo a producción, dado que aún no hay clientes reales en v3) → (3) decidir smoke test contra PROD directamente en vez de armar un segundo entorno → (2) conseguir y subir las 6 plantillas reales por CISE y GRUAS antes de anunciar el bridge como funcional a Bubble.
+
+### Criterios de Éxito
+
+- `admin.reporta.la` accesible y logueable.
+- Las 6 combinaciones tipo × {CISE, GRUAS} tienen al menos una plantilla activa en PROD.
+- El smoke test de Fase 0 (`curl` al bridge de PDF) devuelve `status: "done"` con `pdf_url` válido para los 6 tipos, no solo cotización.
+
+---
+
 ## Template para nuevas DUDAs
 
 ```markdown
