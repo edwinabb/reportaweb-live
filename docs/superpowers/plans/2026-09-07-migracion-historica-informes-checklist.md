@@ -21,6 +21,30 @@ scripts de migración del proyecto. Sin dependencias nuevas.
 **Spec:** este documento es su propia spec — nace directo del hallazgo TK-I1 de
 `docs/auditoria-ui/07-informes.md` y de la decisión de alcance del usuario (mensaje 2026-09-07).
 
+## Contexto adicional: esta migración ya se había hecho una vez
+
+`docs/superpowers/plans/2026-05-25-migracion-formatos-checklist.md` documenta que la Fase 2 (informes
+llenados) **ya se ejecutó exitosamente el 2026-05-25**: 6.507 informes + miles de respuestas migrados
+(CISE V1: 58, CISE V2: 2.968, GRUAS V2: 3.481 informes; ~50/~4.100/~1.075 respuestas respectivamente).
+
+**Causa raíz de por qué hoy está en 0 filas:** `mcp__claude_ai_Supabase__list_migrations` sobre PROD muestra
+que **todas** las migraciones de schema (incluida `20260419210000_formatos_schema`, con nombre de archivo de
+abril) tienen `version` (timestamp de aplicación) del **2026-05-26**, un solo día después de que ese plan se
+diera por completado — evidencia de una reconstrucción completa de la base desde los archivos de migración
+(equivalente a `supabase db reset` contra PROD). Un reset de este tipo recrea el *schema* desde las
+migraciones pero **borra cualquier dato cargado por script** (los informes/respuestas no viven en ningún
+archivo de migración, se insertaron con un script `migrate-formatos-informes.ts` que ya no existe en el
+repo). Consistente con esto: `formatos_preguntas` (136), `formatos_opciones` (354) y `formatos_versiones`
+(3) en PROD hoy **coinciden exacto** con los números finales del plan de mayo — alguien volvió a correr la
+migración de *plantillas* después del reset (es rápida, ~230 filas) — pero **nadie volvió a correr la
+migración de *informes*, mucho más grande (miles de filas, requiere descargar PDFs)**, y quedó perdida sin
+que nadie lo notara hasta la auditoría del módulo 7 (2026-09-07).
+
+**Esto no es un caso de "nunca se migró" — es un caso de "se migró y una reconstrucción de base de datos
+posterior lo borró sin que hubiera un re-run".** El presente plan reemplaza al de mayo (que tenía el nombre
+del tipo Bubble de respuestas sin confirmar) y ya incorpora esa pieza resuelta, más el recorte de alcance
+por año que pidió el usuario esta vez (no todo el histórico completo, ver Global Constraints).
+
 ## Global Constraints
 
 - **Scope de tenants: SOLO CISE (`1cb97ec7-326c-4376-93ee-ed317d3da51b`) y GRUAS
@@ -80,48 +104,38 @@ la alternativa rápida, es un flag `--skip-pdf-reupload` de una línea.
 
 ---
 
-### Task 1: Confirmar el tipo Bubble de "respuesta individual" (solo necesario para el modo completo/2026)
+### Task 1: Tipo Bubble de "respuesta individual" — CONFIRMADO (sin trabajo pendiente)
 
-**Files:**
-- Modify: `scripts/migrate-informes-checklist-historico.ts` (función `fetchRespuestaTipo` / constante de
-  tipo)
+**Contexto (resuelto 2026-09-07, corrección del usuario sobre el nombre):** el tipo es **`Informe_respuesta`**
+(singular — `Informes_respuestas`/`Informe_Respuestas` devuelven 404; Bubble es inconsistente entre tipos:
+`Informes` cabecera SÍ requiere plural, `Formato`/`Formato_seccion` funcionan en cualquier capitalización).
+Confirmado en vivo contra la API — 387.743 registros totales (todos los tenants, todos los formatos).
 
-**Interfaces:**
-- Produce: `RESPUESTA_BUBBLE_TYPE: string` — el nombre exacto del tipo en el Data API de Bubble para los
-  ítems dentro de `lista_respuestas - Para que?` de cada `Informes`.
+Campos reales (unión de 200 registros de muestra + inspección de las respuestas de un informe real,
+`INF-122`):
 
-**Contexto:** durante el research de este plan se confirmó el tipo `Informes` (cabecera) y `Formato_Pregunta`
-(catálogo de preguntas, ya migrado, 136 filas), pero **no se pudo confirmar por fuerza bruta el nombre del
-tipo de cada respuesta individual** (el campo se llama `lista_respuestas - Para que?` en el JSON de
-`Informes`, con IDs como `1602602487287x743003792437411800`). Candidatos ya descartados (404): `Pregunta`,
-`Preguntas`, `Respuesta`, `Respuestas`, `Respuesta_Pregunta`, `Item`, `Items`, `Checklist Respuesta`,
-`Formato Pregunta Respuesta`, entre ~15 más — ver historial de este plan.
-
-- [ ] **Step 1: Pedir al usuario el nombre exacto del tipo desde el editor de Bubble**
-
-No hay forma de listar tipos vía Data API sin conocer el nombre. Pedir al usuario que abra el editor de
-Bubble (Data → Types) y confirme el nombre del tipo cuyas instancias aparecen en
-`Informes.lista_respuestas`. Alternativa: si el usuario no tiene acceso rápido al editor, probar el propio
-script con `--probe-respuesta-id=<uno de los IDs de ejemplo>` contra una lista ampliada de candidatos
-(incluir variantes con tildes, con `Informe_` de prefijo, en inglés, etc.) — función ya armada en el script
-(`probeCandidates()`), correr con:
-
-```bash
-npx tsx scripts/migrate-informes-checklist-historico.ts --probe-respuesta-tipo
+```
+_id, id_informe, id_empresa, id_pregunta, respuesta_fecha, respuesta_texto, tipo,
+obligatorio?, "lista_ATS - Borrar", lista_Texto_Para_CSV, lista_usuarios,
+Created By, Created Date, Modified Date
 ```
 
-- [ ] **Step 2: Una vez confirmado, hardcodear el nombre en la constante**
+- `id_informe` → FK a `Informes._id` (cabecera del checklist).
+- `id_pregunta` → FK a `Formato_Pregunta._id` (mapear contra `formatos_preguntas.bubble_id`, ya migrado).
+- `respuesta_texto` → el valor de la respuesta en texto (para preguntas "Múltiples opciones" trae la
+  etiqueta elegida, ej. "SI"/"NO"/"NO APLICA"; para "Respuesta abierta" trae el texto libre).
+- `respuesta_fecha` → usado cuando `tipo = "Fecha Hora"` (no todas las respuestas lo traen).
+- `tipo` → mismo campo `tipo` que ya existe en `formato_pregunta` (Múltiples opciones / Respuesta abierta /
+  Fecha Hora / Lista dinámica / etc.), útil para decidir a qué columna de
+  `formatos_informes_respuestas` mapear el valor (`valor_texto` vs `valor_fecha` vs `valor_booleano`).
+- Campos `lista_*` → listas de IDs para tipos de pregunta más complejos (ATS, listas dinámicas de
+  trabajadores) — **no necesarios para el checklist estándar SI/NO/NO APLICA** que es el 100% de las
+  preguntas de `CHECKLIST DE GRÚAS V2` y `FORMATO DE INSPECCIÓN DE GRÚAS V2` (confirmado en
+  `2026-05-25-migracion-formatos-checklist.md` §4, grupo de opciones único "SI - NO (x) - NO APLICA" para
+  ambos formatos) — soportarlos queda fuera de este plan; si aparece una respuesta con `lista_*` poblado y
+  sin `respuesta_texto`, loggear como advertencia y seguir (no bloquear el resto del informe).
 
-```typescript
-const RESPUESTA_BUBBLE_TYPE = '<nombre confirmado>'
-```
-
-- [ ] **Step 3: Verificar campos del tipo confirmado**
-
-Fetch de un registro real y loggear sus keys — debe incluir como mínimo: el ID de la pregunta que responde
-(`id_pregunta` o similar, para mapear contra `formatos_preguntas.bubble_id`), el valor de la respuesta
-(texto/booleano/opción — Bubble mostraba "SI"/"NO"/"NO APLICA" en el wizard de llenado), y opcionalmente una
-nota/observación. Documentar el mapeo real encontrado como comentario en el script.
+`RESPUESTA_BUBBLE_TYPE = 'Informe_respuesta'` — constante fija en el script, sin necesidad de sondeo.
 
 ---
 
@@ -411,24 +425,48 @@ async function loadPreguntasMap(formatoId: string): Promise<Map<string, string>>
 
 - [ ] **Step 2: Fetch de las respuestas de un informe y mapeo a filas de `formatos_informes_respuestas`**
 
-Con `RESPUESTA_BUBBLE_TYPE` ya confirmado (Task 1), fetch por lista de IDs (Bubble no soporta "IN" nativo
-sobre `_id` fácilmente vía constraints — traer por lotes con `constraint_type: 'in'` si el campo lo permite,
-o iterar uno por uno si la API no lo soporta para `_id`; confirmar en la implementación real). Mapear cada
-respuesta a:
+`Informe_respuesta` se filtra directo por `id_informe` (no hace falta resolver la lista de IDs del campo
+`lista_respuestas - Para que?` de `Informes` — más simple: consultar `Informe_respuesta` con constraint
+`id_informe = <bubble _id del informe>`):
 
 ```typescript
-{
-  tenant_id: t.sbId,
-  informe_id: informeSbId,
-  pregunta_id: preguntasMap.get(respuesta.id_pregunta) ?? null,   // nombre exacto de campo, confirmar en Task 1
-  valor_texto: /* según el tipo real encontrado en Task 1 */,
-  created_at: respuesta['Created Date'],
+async function fetchRespuestasDeInforme(informeBubbleId: string) {
+  return fetchAllBubble('Informe_respuesta', [
+    { key: 'id_informe', constraint_type: 'equals', value: informeBubbleId },
+  ])
+}
+
+function buildRespuestas(
+  respuestasBubble: any[],
+  informeSbId: string,
+  tenantSbId: string,
+  preguntasMap: Map<string, string>,
+) {
+  const rows: Record<string, any>[] = []
+  for (const r of respuestasBubble) {
+    const pregunta_id = r.id_pregunta ? preguntasMap.get(r.id_pregunta) ?? null : null
+    if (!pregunta_id) {
+      console.log(`   ⚠️  respuesta ${r._id} sin pregunta_id resuelto (id_pregunta=${r.id_pregunta ?? '(vacío)'})`)
+      continue   // no bloquea el resto del informe — la cabecera y el PDF siguen siendo válidos
+    }
+    rows.push({
+      tenant_id: tenantSbId,
+      informe_id: informeSbId,
+      pregunta_id,
+      valor_texto: r.respuesta_texto ?? null,
+      valor_fecha: r.tipo === 'Fecha Hora' ? (r.respuesta_fecha ?? null) : null,
+      created_at: r['Created Date'],
+    })
+  }
+  return rows
 }
 ```
 
-Si `pregunta_id` resuelve a `null` (pregunta no encontrada en el catálogo), loggear como advertencia y
-**no** insertar esa fila individual (no bloquear el resto del informe) — la cabecera y el PDF siguen
-siendo válidos aunque falte 1 respuesta.
+Nota: `valor_booleano`/`opcion_id` de `formatos_informes_respuestas` quedan sin usar en esta migración — el
+checklist SI/NO/NO APLICA guarda su respuesta como texto libre en Bubble (`respuesta_texto = "SI"`, no un ID
+de opción), así que se migra tal cual a `valor_texto`; no hace falta resolver contra `formatos_opciones`
+para que el dato sea correcto y legible (`informe-read-view.tsx` debe poder mostrar `valor_texto`
+directamente — confirmar al implementar que no asume `opcion_id` obligatorio).
 
 - [ ] **Step 3: Test — para 1 informe de 2026 conocido (usar el `INF-3693` visto en la auditoría de Bubble,
   o el primero que aparezca en `completo`), construir sus respuestas y comparar manualmente contra el PDF
@@ -551,12 +589,10 @@ Bubble sigue abierta).
   Cancelado ✅ (Task 2 `fetchInformesFiltrados` filtra `estado='Finalizado'` en el fetch mismo, nunca trae
   los demás), migración de cabecera+PDF para años viejos ✅ (Task 3+4), migración completa para 2026 ✅
   (Task 5), idempotencia ✅ (upsert por `bubble_id` en todas las escrituras).
-- **Placeholders:** el único punto genuinamente abierto es el nombre del tipo Bubble de "respuesta
-  individual" (Task 1) — no es un placeholder de pereza, es una dependencia real que no se pudo resolver
-  por fuerza bruta durante el research de este plan (~25 nombres candidatos probados, todos 404) y necesita
-  el editor de Bubble o un ID de muestra. El plan no avanza a Task 5 sin resolver esto, pero Tasks 2-4
-  (todo el modo cabecera, que cubre el ~65% del volumen) no dependen de Task 1 en absoluto y pueden
-  ejecutarse y darse por completos primero.
+- **Placeholders:** ninguno pendiente — el tipo Bubble de "respuesta individual" (Task 1) quedó confirmado
+  (`Informe_respuesta`, corrección del usuario sobre el nombre exacto + verificación en vivo contra la API)
+  con su mapeo de campos completo. Tasks 2-4 (modo cabecera, ~65% del volumen) tampoco dependían de esto y
+  pueden ejecutarse de forma independiente si se quiere avanzar por partes.
 - **Consistencia de tipos:** `estado: 'APROBADO'` como valor fijo coincide con el enum ya definido en
   `InformeCompleto['estado']` (`lib/actions/formatos-informes.ts`); `bubble_id` como clave de upsert
   coincide con la columna ya presente en `formatos_informes`.
