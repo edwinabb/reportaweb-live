@@ -1,24 +1,46 @@
 import PizZip from 'pizzip'
 import Docxtemplater from 'docxtemplater'
-import fs from 'fs'
-import path from 'path'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'https://demo-ia-gotenberg.ccralj.easypanel.host'
+const TEMPLATES_BUCKET = 'system-templates'
 
 export class BubbleTemplateNotFoundError extends Error {}
 
 /**
- * Rellena la plantilla public/templates/bubble/<templateKey>.docx con `data`
- * y la convierte a PDF vía Gotenberg (LibreOffice). Mismo mecanismo que
- * app/api/pdf/generate-docx/route.ts, parametrizado por templateKey.
+ * Resuelve la plantilla ACTIVA para (tenantId, tipo) desde system_document_templates,
+ * la descarga de Storage, la rellena con `data` y la convierte a PDF vía Gotenberg.
+ *
+ * Reemplaza la lectura previa vía fs.readFileSync(public/templates/bubble/...), que
+ * no funciona en Cloudflare Workers (confirmado con smoke test real: 404 en producción).
  */
-export async function renderBubbleDocxPdf(templateKey: string, data: Record<string, unknown>): Promise<ArrayBuffer> {
-    const templatePath = path.join(process.cwd(), 'public', 'templates', 'bubble', `${templateKey}.docx`)
-    if (!fs.existsSync(templatePath)) {
-        throw new BubbleTemplateNotFoundError(`Plantilla no encontrada: ${templateKey}.docx`)
+export async function renderBubbleDocxPdf(
+    adminClient: SupabaseClient,
+    tenantId: string,
+    tipo: string,
+    data: Record<string, unknown>,
+): Promise<ArrayBuffer> {
+    const { data: row, error: queryError } = await adminClient
+        .from('system_document_templates')
+        .select('storage_path')
+        .eq('tenant_id', tenantId)
+        .eq('tipo', tipo)
+        .eq('is_active', true)
+        .maybeSingle()
+
+    if (queryError || !row) {
+        throw new BubbleTemplateNotFoundError(`No hay plantilla activa para tenant=${tenantId} tipo=${tipo}`)
     }
 
-    const content = fs.readFileSync(templatePath, 'binary')
+    const { data: fileBlob, error: downloadError } = await adminClient.storage
+        .from(TEMPLATES_BUCKET)
+        .download(row.storage_path)
+
+    if (downloadError || !fileBlob) {
+        throw new BubbleTemplateNotFoundError(`No se pudo descargar la plantilla: ${row.storage_path}`)
+    }
+
+    const content = Buffer.from(await fileBlob.arrayBuffer())
     const zip = new PizZip(content)
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true })
     doc.render(data)

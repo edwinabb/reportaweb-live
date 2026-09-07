@@ -13,6 +13,13 @@ const ALLOWED_TENANT_IDS = new Set([
     '6f4c923a-c3b7-47c2-9dea-2a187f274f73', // GRUAS
 ])
 
+// template_key ahora representa el `tipo` de system_document_templates (antes era
+// nombre de archivo validado por regex genérico). Lista fija = más estricta.
+const TIPOS_VALIDOS = new Set([
+    'cotizacion', 'valorizacion_venta', 'valorizacion_compra',
+    'reporte_maquinaria', 'reporte_horas_maquinaria', 'reporte_personal',
+])
+
 interface BubblePdfRequestBody {
     tenant_id: string
     template_key: string
@@ -55,15 +62,15 @@ export async function POST(req: NextRequest) {
     if (doc_category !== 'comercial' && doc_category !== 'operativo') {
         return NextResponse.json({ error: 'doc_category debe ser "comercial" u "operativo"' }, { status: 400 })
     }
-    if (!/^[a-zA-Z0-9_-]+$/.test(template_key)) {
-        return NextResponse.json({ error: 'template_key inválido' }, { status: 400 })
+    if (!TIPOS_VALIDOS.has(template_key)) {
+        return NextResponse.json({ error: 'template_key debe ser uno de los tipos válidos' }, { status: 400 })
     }
 
     const adminClient = createAdminClient()
     const storagePath = `bubble/${doc_category}/${entity_id}-${Date.now()}.pdf`
 
     try {
-        const pdf = await renderBubbleDocxPdf(template_key, data)
+        const pdf = await renderBubbleDocxPdf(adminClient, tenant_id, template_key, data)
         const publicUrl = await saveToStorage(adminClient, BUCKET, storagePath, Buffer.from(pdf))
         if (!publicUrl) throw new Error('No se pudo subir el PDF a Storage')
         return NextResponse.json({ status: 'done', pdf_url: publicUrl })
