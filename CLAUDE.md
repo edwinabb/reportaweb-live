@@ -6,7 +6,7 @@
 
 | Repo | Ruta | Stack | Versión |
 |------|------|-------|---------|
-| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.12.0** |
+| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.12.1** |
 | App móvil | `c:\Proyectos\reporta-app` | Expo 54, expo-router, SQLite/Drizzle, React Native | **1.8.14** |
 | DB / Backend | Supabase test `oyrokyyaeaeqzlsgxtto` (Brazil) / prod `fqwhagryqkkhbgznxtwf` (Brazil) | PostgreSQL + Auth + Storage | — |
 
@@ -22,10 +22,11 @@
 
 ## Estado Actual
 
-**Date:** 2026-07-23  
-**Web Version:** v3.12.0 — ✅ demo · live: anon rotada a `sb_publishable_` en `.env.production`/`wrangler.live.toml`; deploy en curso. **Pendiente dashboard (usuario):** cargar secret `SUPABASE_SERVICE_ROLE_KEY=sb_secret_` en worker `reportaweb-live` + bindear dominio live.reportar.app (sigue 522 hasta entonces) + deshabilitar legacy keys (cierra DUDA-SEC-001)  
+**Date:** 2026-09-06  
+**Web Version:** v3.12.1 — Fase 0 del plan ampliado de cutover: endpoint bridge de PDF para Bubble (`/api/bubble/pdf/generate`, reemplazo de docmaker.co) + cola de reintentos por `doc_category` + webhook a Bubble. Deploy a demo en curso; **pendiente:** smoke test desplegado (lectura de plantillas `.docx` vía `fs` bajo Cloudflare Workers, sin verificar) antes de habilitar Bubble real. Ver `docs/superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md`.  
 **App Version:** v1.8.14  
-**Foco activo (2026-07-23):** 🔀 **Cutover CISE/GRUAS (Bubble → v3)** — sacar a los 2 únicos clientes reales de Bubble. Plan: [docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md](./docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md) · handoff del día: [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md). Migración ~95% a nivel tabla; bloqueante = **gaps de migración a nivel campo** que revela la auditoría UI. Acceso a Bubble LIVE confirmado (token de `.env.local` funciona). **Growth Engine PAUSADO** (specs+planes A–E ✅; ver [PLAN-GROWTH-ENGINE-JOURNEY.md](./docs/PLAN-GROWTH-ENGINE-JOURNEY.md) + [HANDOFF-2026-07-18.md](./docs/HANDOFF-2026-07-18.md) para retomar).  
+**Plan ampliado (2026-09-06):** `docs/superpowers/specs/2026-09-06-plan-migracion-cutover-fase2-design.md` — Fase 0 (PDF bridge, en curso) → Fase 0b (dominios reporta.la/Postmark) → Fase 1 (fix UX Planificación) → Fase 2 (auditoría exhaustiva módulos 5-15) → Fase 3 (costos infra) → Fase 4 (email) → Fase 5 (E2E + gate final).  
+**Foco activo previo (2026-07-23):** 🔀 **Cutover CISE/GRUAS (Bubble → v3)** — sacar a los 2 únicos clientes reales de Bubble. Plan: [docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md](./docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md) · handoff del día: [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md). Migración ~95% a nivel tabla; bloqueante = **gaps de migración a nivel campo** que revela la auditoría UI. Acceso a Bubble LIVE confirmado (token de `.env.local` funciona). **Growth Engine PAUSADO** (specs+planes A–E ✅; ver [PLAN-GROWTH-ENGINE-JOURNEY.md](./docs/PLAN-GROWTH-ENGINE-JOURNEY.md) + [HANDOFF-2026-07-18.md](./docs/HANDOFF-2026-07-18.md) para retomar).  
 **Auditoría UI:** Módulo **4/15** (Planificación) ✅ matriz en [docs/auditoria-ui/04-planificacion.md](./docs/auditoria-ui/04-planificacion.md) (DUDAs resueltas; DUDA-PLAN-001 espera aprobación para TK-P1). **Terceros (3/15): CERRADO en PROD** — esquema (`estadosunat`/`condicionsunat`) + re-migración de campos aplicada (rubro/ubicación/SUNAT/cargo-área/sitios·código/tipo/geodata) vía Management API (03-terceros.md).  
 **Template listados:** v1.2 aplicado a Usuarios, Maquinaria y Terceros  
 **E2E Suite:** ⚠️ desactualizada tras template v1.2 + cambio personal externo (DUDA-E2E-001 · TESTING.md § TEST-003)
