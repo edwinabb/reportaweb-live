@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
     if (doc_category !== 'comercial' && doc_category !== 'operativo') {
         return NextResponse.json({ error: 'doc_category debe ser "comercial" u "operativo"' }, { status: 400 })
     }
+    if (!/^[a-zA-Z0-9_-]+$/.test(template_key)) {
+        return NextResponse.json({ error: 'template_key inválido' }, { status: 400 })
+    }
 
     const adminClient = createAdminClient()
     const storagePath = `bubble/${doc_category}/${entity_id}-${Date.now()}.pdf`
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: e.message }, { status: 404 })
         }
         console.error('[POST /api/bubble/pdf/generate] intento inmediato falló, encolando:', e)
-        await enqueuePdfJob({
+        const enqueued = await enqueuePdfJob({
             adminClient,
             tenantId: tenant_id,
             entityType: 'bubble_docx',
@@ -81,6 +84,12 @@ export async function POST(req: NextRequest) {
             payload: data,
             callbackUrl: callback_url,
         })
+        if (!enqueued) {
+            return NextResponse.json(
+                { error: 'No se pudo encolar el PDF para reintento' },
+                { status: 503 },
+            )
+        }
         return NextResponse.json(
             { status: 'queued', message: `El PDF de ${filename ?? entity_id} está en cola y se notificará por webhook al completarse.` },
             { status: 202 },
