@@ -80,7 +80,7 @@ Los 🟢 ya cerrados no se reauditan salvo que aparezca un gap nuevo.
 | 3 | Terceros | ✅ | `03-terceros.md` | 🟢 Auditado — **críticos TK-T1..T5 sin ejecutar** |
 | 4 | Planificación / Tareas | ✅ | `04-planificacion.md` | 🟢 Auditado (2026-07-23) — **TK-P1 espera aprobación DUDA-PLAN-001** |
 | 5 | Configuración / Catálogos | ⚠️ parcial (tab 1 de 6 de Bubble) | `05-configuracion.md` | 🟡 Auditado con limitación de acceso (DUDA-CONF-000) — **NO cerrar como 🟢** hasta recapturar Bubble tabs 2-6 |
-| 6 | Cotizaciones | ❌ | — | ⬜ Pendiente |
+| 6 | Cotizaciones | ✅ | `06-cotizaciones.md` | 🟡 Auditado (2026-09-07) — mejor cobertura hasta ahora, 4 DUDAs de confirmación, sin bloqueantes |
 | 7 | Informes (Checklist·Maq·Personal·Gastos) | ❌ | — | ⬜ Pendiente |
 | 8 | Planes de Acción | ❌ | — | ⬜ Pendiente |
 | 9 | Gestión EPP | ❌ | — | ⬜ Pendiente |
