@@ -19,6 +19,7 @@
 | DUDA-DEPS-002 | middleware.ts → proxy.ts (espera soporte OpenNext) | BAJA | 🔴 Bloqueado |
 | DUDA-MAQ-HORAS | `maquinaria_horas` sin UI propia (se usa en informes y tareas) | MEDIA | 🟡 Pendiente |
 | — | Migrar cron jobs de Vercel a Cloudflare | MEDIA | 🟡 Pendiente |
+> Nota (2026-09-06): `/api/cron/pdf-jobs` específicamente ya NO depende de esta migración — se resolvió drenando `pdf_jobs` con `pg_cron`+`pg_net` directo en Supabase, porque `@opennextjs/cloudflare@1.20.1` no expone un hook `scheduled()` para Next.js. Detalle en [docs/superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md](./superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md) (Task 9). El resto de los crons del proyecto siguen pendientes de la migración a Cloudflare Cron Triggers, por eso la fila arriba se mantiene.
 | — | Crear entorno Cloudflare de prod (`reportar.app` apex) + rebind `demo`→`dev.reportar.app` (estándar dominios 2026-07-22) | ALTA | 🟡 Pendiente |
 | — | Plan Workers Paid ($5/mes, por cuenta) — worker remoto 4.86 MB gzip > Free 1 MB. Opt. a Free: matar source maps de CI (ver ARCHITECTURE) | BAJA | 🟡 Pendiente |
 | — | **Implementar Growth Engine** (leads→trial 15+7+3→pago→servicios, con IA en ventas+operación). Sub-proyectos A–E diseñados. Journey consolidado: [PLAN-GROWTH-ENGINE-JOURNEY.md](./PLAN-GROWTH-ENGINE-JOURNEY.md) · playbook [PLAYBOOK-GROWTH-ENGINE.md](./PLAYBOOK-GROWTH-ENGINE.md) · specs `docs/superpowers/specs/` · planes `docs/superpowers/plans/` | ALTA | 🟡 Diseñado (specs+planes), pendiente ejecución (orden A→C→D→B→E) |

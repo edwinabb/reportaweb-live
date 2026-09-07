@@ -5,10 +5,22 @@ import { generateAndStorePdf as genMaquinaria } from '@/lib/reporte-maquinaria-p
 import { generateAndStorePdf as genInspeccion } from '@/lib/inspeccion-pdf'
 import { renderPdfFromHtml } from '@/lib/pdf-generator'
 import { saveToStorage } from '@/lib/pdf-cache'
+import { renderBubbleDocxPdf, BubbleTemplateNotFoundError } from '@/lib/bubble-docx-pdf'
+import { notifyBubbleCallback } from '@/lib/bubble-webhook'
+import { computeNextRetryAt, type DocCategory } from '@/lib/pdf-retry-schedule'
+import { sendEmail } from '@/lib/email'
 
 const BATCH_SIZE = 10
 
+// Email de admin para alertas operativas (fallback documentado: sin convención previa
+// de "email de admin" en el repo, se creó esta env var — ver .env.example).
+const ADMIN_ALERT_EMAIL = process.env.ADMIN_ALERT_EMAIL || ''
+
 export async function POST(req: NextRequest) {
+    if (!process.env.CRON_SECRET) {
+        console.error('[cron/pdf-jobs] CRON_SECRET no configurada')
+        return NextResponse.json({ error: 'Configuración del servidor incompleta' }, { status: 500 })
+    }
     const authHeader = req.headers.get('authorization')
     if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,6 +34,7 @@ export async function POST(req: NextRequest) {
         .from('pdf_jobs')
         .select('*')
         .eq('status', 'pending')
+        .lte('next_retry_at', new Date().toISOString())
         .order('created_at', { ascending: true })
         .limit(BATCH_SIZE)
 
@@ -39,6 +52,59 @@ export async function POST(req: NextRequest) {
 
         try {
             let pdfUrl: string | null = null
+
+            if (job.entity_type === 'bubble_docx') {
+                let templateNotFound = false
+                try {
+                    const pdf = await renderBubbleDocxPdf(job.template_key, job.payload ?? {})
+                    pdfUrl = await saveToStorage(admin, job.bucket, job.storage_path, Buffer.from(pdf))
+                } catch (bubbleErr) {
+                    console.error('[cron/pdf-jobs] bubble_docx intento falló:', bubbleErr)
+                    pdfUrl = null
+                    templateNotFound = bubbleErr instanceof BubbleTemplateNotFoundError
+                }
+
+                const category = (job.doc_category ?? 'operativo') as DocCategory
+                if (pdfUrl) {
+                    await admin.from('pdf_jobs').update({
+                        status: 'done', pdf_url: pdfUrl, last_error: null, updated_at: new Date().toISOString(),
+                    }).eq('id', job.id)
+                    if (job.callback_url) {
+                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'done', pdf_url: pdfUrl })
+                    }
+                    results.push({ id: job.id, status: 'done' })
+                } else if (templateNotFound) {
+                    // No tiene sentido reintentar: la plantilla nunca va a aparecer sola.
+                    await admin.from('pdf_jobs').update({
+                        status: 'failed', last_error: `Plantilla no encontrada: ${job.template_key}`, updated_at: new Date().toISOString(),
+                    }).eq('id', job.id)
+                    if (job.callback_url) {
+                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed' })
+                    }
+                    await alertBubbleDocxFailure(job)
+                    results.push({ id: job.id, status: 'failed', error: 'template not found' })
+                } else {
+                    const newAttempts = job.attempts + 1 // ya escrito arriba en el update de "processing"
+                    const nextRetry = computeNextRetryAt(category, newAttempts)
+                    if (nextRetry) {
+                        await admin.from('pdf_jobs').update({
+                            status: 'pending', next_retry_at: nextRetry.toISOString(),
+                            last_error: 'Gotenberg failed', updated_at: new Date().toISOString(),
+                        }).eq('id', job.id)
+                        results.push({ id: job.id, status: 'pending', error: 'requeued' })
+                    } else {
+                        await admin.from('pdf_jobs').update({
+                            status: 'failed', last_error: 'Reintentos agotados', updated_at: new Date().toISOString(),
+                        }).eq('id', job.id)
+                        if (job.callback_url) {
+                            await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed' })
+                        }
+                        await alertBubbleDocxFailure(job)
+                        results.push({ id: job.id, status: 'failed' })
+                    }
+                }
+                continue // ya manejamos el update de estado para este job, saltar el bloque genérico de abajo
+            }
 
             if (job.entity_type === 'reporte_personal') {
                 const result = await genPersonal(job.entity_id, admin as any, job.tenant_id)
@@ -90,6 +156,35 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ processed: jobs.length, results })
+}
+
+// Alerta por email cuando un job bubble_docx agota reintentos (o falla por plantilla
+// inexistente). Fallas de envío se loguean pero nunca rompen el resto del cron.
+async function alertBubbleDocxFailure(job: any): Promise<void> {
+    if (!ADMIN_ALERT_EMAIL) {
+        console.error('[cron/pdf-jobs] ADMIN_ALERT_EMAIL no configurada, no se envía alerta')
+        return
+    }
+    try {
+        const result = await sendEmail({
+            to: ADMIN_ALERT_EMAIL,
+            subject: `[Reporta] PDF de Bubble falló definitivamente (entity_id: ${job.entity_id})`,
+            html: `
+                <p>Un job de generación de PDF (<code>bubble_docx</code>) falló definitivamente y no se reintentará más.</p>
+                <ul>
+                    <li><strong>entity_id:</strong> ${job.entity_id}</li>
+                    <li><strong>doc_category:</strong> ${job.doc_category ?? '—'}</li>
+                    <li><strong>template_key:</strong> ${job.template_key ?? '—'}</li>
+                    <li><strong>last_error:</strong> ${job.last_error ?? '—'}</li>
+                </ul>
+            `,
+        })
+        if (!result.success) {
+            console.error('[cron/pdf-jobs] alerta de fallo bubble_docx no se pudo enviar:', result.error)
+        }
+    } catch (e: unknown) {
+        console.error('[cron/pdf-jobs] excepción al enviar alerta de fallo bubble_docx:', e)
+    }
 }
 
 // Allow GET for schedulers that don't support POST

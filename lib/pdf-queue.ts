@@ -1,4 +1,6 @@
+// lib/pdf-queue.ts
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { computeNextRetryAt, type DocCategory } from './pdf-retry-schedule'
 
 export type PdfJobEntityType =
     | 'reporte_maquinaria'
@@ -7,6 +9,7 @@ export type PdfJobEntityType =
     | 'informe'
     | 'valorizacion'
     | 'cotizacion'
+    | 'bubble_docx'
 
 export interface EnqueuePdfJobParams {
     adminClient: SupabaseClient
@@ -16,30 +19,90 @@ export interface EnqueuePdfJobParams {
     bucket: string
     storagePath: string
     htmlSnapshot?: string
+    // Campos exclusivos de bubble_docx:
+    docCategory?: DocCategory
+    templateKey?: string
+    payload?: Record<string, unknown>
+    callbackUrl?: string
 }
 
 /**
- * Inserts a pending PDF job. Silently ignores duplicate (partial unique index on pending).
- * Cannot use upsert with partial unique indexes — use insert with ignoreDuplicates.
+ * Inserta un job pendiente. Ignora duplicados (índice único parcial en 'pending').
+ * No se puede usar upsert con índices únicos parciales — se usa insert con ignoreDuplicates.
+ *
+ * Para jobs `bubble_docx` (identificados por la presencia de `docCategory`), un duplicado
+ * NO se ignora silenciosamente: el payload es el dato a renderizar, así que si Bubble
+ * reenvía la misma entity_id con datos nuevos mientras hay un job pendiente, se actualiza
+ * la fila existente (payload, template_key, callback_url, storage_path) para que el
+ * próximo intento del cron use los datos frescos.
+ *
+ * Retorna `true` si el insert fue exitoso, si el duplicado fue ignorado (entity_types
+ * sin docCategory), o si el UPDATE de refresco (bubble_docx) tuvo éxito. Retorna `false`
+ * solo ante un error real no relacionado a duplicados.
  */
-export async function enqueuePdfJob(params: EnqueuePdfJobParams): Promise<void> {
-    const { adminClient, tenantId, entityType, entityId, bucket, storagePath, htmlSnapshot } = params
+export async function enqueuePdfJob(params: EnqueuePdfJobParams): Promise<boolean> {
+    const {
+        adminClient, tenantId, entityType, entityId, bucket, storagePath, htmlSnapshot,
+        docCategory, templateKey, payload, callbackUrl,
+    } = params
+
+    const row: Record<string, unknown> = {
+        tenant_id: tenantId,
+        entity_type: entityType,
+        entity_id: entityId,
+        bucket,
+        storage_path: storagePath,
+        html_snapshot: htmlSnapshot ?? null,
+        status: 'pending',
+        attempts: 0,
+        updated_at: new Date().toISOString(),
+    }
+
+    if (docCategory) {
+        row.doc_category = docCategory
+        row.max_attempts = 5
+        row.template_key = templateKey ?? null
+        row.payload = payload ?? null
+        row.callback_url = callbackUrl ?? null
+        const nextRetry = computeNextRetryAt(docCategory, 0)
+        row.next_retry_at = (nextRetry ?? new Date()).toISOString()
+    }
+
     const { error } = await adminClient
         .from('pdf_jobs')
-        .insert({
-            tenant_id: tenantId,
-            entity_type: entityType,
-            entity_id: entityId,
-            bucket,
-            storage_path: storagePath,
-            html_snapshot: htmlSnapshot ?? null,
-            status: 'pending',
-            attempts: 0,
-            updated_at: new Date().toISOString(),
-        }, { ignoreDuplicates: true } as any)
-    if (error && !error.message?.includes('duplicate') && error.code !== '23505') {
+        .insert(row, { ignoreDuplicates: true } as any)
+
+    if (!error) return true
+
+    const isDuplicate = error.message?.includes('duplicate') || error.code === '23505'
+    if (!isDuplicate) {
         console.error('[enqueuePdfJob] failed:', error.message)
+        return false
     }
+
+    // Duplicado: para bubble_docx, refrescar el job pendiente existente con el payload nuevo.
+    if (docCategory) {
+        const { error: updateError } = await adminClient
+            .from('pdf_jobs')
+            .update({
+                payload: payload ?? null,
+                template_key: templateKey ?? null,
+                callback_url: callbackUrl ?? null,
+                storage_path: storagePath,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('entity_type', entityType)
+            .eq('entity_id', entityId)
+            .eq('tenant_id', tenantId)
+            .eq('status', 'pending')
+
+        if (updateError) {
+            console.error('[enqueuePdfJob] refresh update failed:', updateError.message)
+            return false
+        }
+    }
+
+    return true
 }
 
 export function queuedPdfResponse(entityLabel: string): Response {
