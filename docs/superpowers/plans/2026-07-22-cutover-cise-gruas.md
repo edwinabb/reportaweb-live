@@ -79,7 +79,7 @@ Los 🟢 ya cerrados no se reauditan salvo que aparezca un gap nuevo.
 | 2 | Maquinaria | ✅ | `02-maquinaria.md` | 🟢 Auditado |
 | 3 | Terceros | ✅ | `03-terceros.md` | 🟢 Auditado — **críticos TK-T1..T5 sin ejecutar** |
 | 4 | Planificación / Tareas | ✅ | `04-planificacion.md` | 🟢 Auditado (2026-07-23) — **TK-P1 espera aprobación DUDA-PLAN-001** |
-| 5 | Configuración / Catálogos | ❌ | — | ⬜ Pendiente (define FKs de otros módulos) |
+| 5 | Configuración / Catálogos | ⚠️ parcial (tab 1 de 6 de Bubble) | `05-configuracion.md` | 🟡 Auditado con limitación de acceso (DUDA-CONF-000) — **NO cerrar como 🟢** hasta recapturar Bubble tabs 2-6 |
 | 6 | Cotizaciones | ❌ | — | ⬜ Pendiente |
 | 7 | Informes (Checklist·Maq·Personal·Gastos) | ❌ | — | ⬜ Pendiente |
 | 8 | Planes de Acción | ❌ | — | ⬜ Pendiente |
