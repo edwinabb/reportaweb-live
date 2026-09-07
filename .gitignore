@@ -127,3 +127,5 @@ scripts/
 
 # Papelera local (no versionar)
 papelera/
+
+/.worktrees/
