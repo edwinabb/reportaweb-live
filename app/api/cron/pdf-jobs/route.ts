@@ -5,6 +5,9 @@ import { generateAndStorePdf as genMaquinaria } from '@/lib/reporte-maquinaria-p
 import { generateAndStorePdf as genInspeccion } from '@/lib/inspeccion-pdf'
 import { renderPdfFromHtml } from '@/lib/pdf-generator'
 import { saveToStorage } from '@/lib/pdf-cache'
+import { renderBubbleDocxPdf } from '@/lib/bubble-docx-pdf'
+import { notifyBubbleCallback } from '@/lib/bubble-webhook'
+import { computeNextRetryAt, type DocCategory } from '@/lib/pdf-retry-schedule'
 
 const BATCH_SIZE = 10
 
@@ -22,6 +25,7 @@ export async function POST(req: NextRequest) {
         .from('pdf_jobs')
         .select('*')
         .eq('status', 'pending')
+        .lte('next_retry_at', new Date().toISOString())
         .order('created_at', { ascending: true })
         .limit(BATCH_SIZE)
 
@@ -39,6 +43,46 @@ export async function POST(req: NextRequest) {
 
         try {
             let pdfUrl: string | null = null
+
+            if (job.entity_type === 'bubble_docx') {
+                try {
+                    const pdf = await renderBubbleDocxPdf(job.template_key, job.payload ?? {})
+                    pdfUrl = await saveToStorage(admin, job.bucket, job.storage_path, Buffer.from(pdf))
+                } catch (bubbleErr) {
+                    console.error('[cron/pdf-jobs] bubble_docx intento falló:', bubbleErr)
+                    pdfUrl = null
+                }
+
+                const category = (job.doc_category ?? 'operativo') as DocCategory
+                if (pdfUrl) {
+                    await admin.from('pdf_jobs').update({
+                        status: 'done', pdf_url: pdfUrl, last_error: null, updated_at: new Date().toISOString(),
+                    }).eq('id', job.id)
+                    if (job.callback_url) {
+                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'done', pdf_url: pdfUrl })
+                    }
+                    results.push({ id: job.id, status: 'done' })
+                } else {
+                    const newAttempts = job.attempts + 1 // ya escrito arriba en el update de "processing"
+                    const nextRetry = computeNextRetryAt(category, newAttempts)
+                    if (nextRetry) {
+                        await admin.from('pdf_jobs').update({
+                            status: 'pending', next_retry_at: nextRetry.toISOString(),
+                            last_error: 'Gotenberg failed', updated_at: new Date().toISOString(),
+                        }).eq('id', job.id)
+                        results.push({ id: job.id, status: 'pending', error: 'requeued' })
+                    } else {
+                        await admin.from('pdf_jobs').update({
+                            status: 'failed', last_error: 'Reintentos agotados', updated_at: new Date().toISOString(),
+                        }).eq('id', job.id)
+                        if (job.callback_url) {
+                            await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed' })
+                        }
+                        results.push({ id: job.id, status: 'failed' })
+                    }
+                }
+                continue // ya manejamos el update de estado para este job, saltar el bloque genérico de abajo
+            }
 
             if (job.entity_type === 'reporte_personal') {
                 const result = await genPersonal(job.entity_id, admin as any, job.tenant_id)
