@@ -1,5 +1,6 @@
 
-import { Resend } from 'resend'
+// Fase 4 (migración Resend → Postmark): dominio de envío aún no migrado, sin verificación en vivo todavía.
+import { ServerClient } from 'postmark'
 
 export interface EmailOptions {
     to: string | string[]
@@ -18,36 +19,39 @@ export async function sendEmail({
     cc,
     replyTo,
 }: EmailOptions): Promise<{ success: boolean; error?: string }> {
-    const apiKey = process.env.RESEND_API_KEY
+    const apiKey = process.env.POSTMARK_API_KEY
 
     if (!apiKey) {
         // Development fallback: log to console when key is not configured
         console.log('========================================')
-        console.log('[EMAIL] RESEND_API_KEY not set — logging email')
+        console.log('[EMAIL] POSTMARK_API_KEY not set — logging email')
         console.log(`To: ${Array.isArray(to) ? to.join(', ') : to}`)
         console.log(`Subject: ${subject}`)
         console.log('========================================')
         return { success: true }
     }
 
-    const resend = new Resend(apiKey)
+    const client = new ServerClient(apiKey)
 
     try {
-        const { error } = await resend.emails.send({
-            from, to, subject, html,
-            ...(cc ? { cc } : {}),
-            ...(replyTo ? { reply_to: replyTo } : {}),
+        const result = await client.sendEmail({
+            From: from,
+            To: Array.isArray(to) ? to.join(',') : to,
+            Subject: subject,
+            HtmlBody: html,
+            ...(cc ? { Cc: Array.isArray(cc) ? cc.join(',') : cc } : {}),
+            ...(replyTo ? { ReplyTo: replyTo } : {}),
         })
 
-        if (error) {
-            console.error('[Email] Resend error:', error)
-            return { success: false, error: error.message }
+        if (result.ErrorCode !== 0) {
+            console.error('[Email] Postmark error:', result.Message)
+            return { success: false, error: result.Message }
         }
 
         return { success: true }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error desconocido al enviar correo'
-        console.error('[Email] Resend exception:', err)
+        console.error('[Email] Postmark exception:', err)
         return { success: false, error: msg }
     }
 }
