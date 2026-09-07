@@ -223,8 +223,8 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 min-h-0 flex flex-col">
-                    <ScrollArea className="flex-1 bg-gray-50/30">
+                <div className="flex-1 min-h-0 grid grid-rows-1">
+                    <ScrollArea className="min-h-0 bg-gray-50/30">
                         <div className="p-6 space-y-8">
                             {/* SECCION 1: INFORMACION GENERAL */}
                             <section className="space-y-6">
