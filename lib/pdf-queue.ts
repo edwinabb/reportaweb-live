@@ -1,4 +1,6 @@
+// lib/pdf-queue.ts
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { computeNextRetryAt, type DocCategory } from './pdf-retry-schedule'
 
 export type PdfJobEntityType =
     | 'reporte_maquinaria'
@@ -7,6 +9,7 @@ export type PdfJobEntityType =
     | 'informe'
     | 'valorizacion'
     | 'cotizacion'
+    | 'bubble_docx'
 
 export interface EnqueuePdfJobParams {
     adminClient: SupabaseClient
@@ -16,27 +19,48 @@ export interface EnqueuePdfJobParams {
     bucket: string
     storagePath: string
     htmlSnapshot?: string
+    // Campos exclusivos de bubble_docx:
+    docCategory?: DocCategory
+    templateKey?: string
+    payload?: Record<string, unknown>
+    callbackUrl?: string
 }
 
 /**
- * Inserts a pending PDF job. Silently ignores duplicate (partial unique index on pending).
- * Cannot use upsert with partial unique indexes — use insert with ignoreDuplicates.
+ * Inserta un job pendiente. Ignora duplicados (índice único parcial en 'pending').
+ * No se puede usar upsert con índices únicos parciales — se usa insert con ignoreDuplicates.
  */
 export async function enqueuePdfJob(params: EnqueuePdfJobParams): Promise<void> {
-    const { adminClient, tenantId, entityType, entityId, bucket, storagePath, htmlSnapshot } = params
+    const {
+        adminClient, tenantId, entityType, entityId, bucket, storagePath, htmlSnapshot,
+        docCategory, templateKey, payload, callbackUrl,
+    } = params
+
+    const row: Record<string, unknown> = {
+        tenant_id: tenantId,
+        entity_type: entityType,
+        entity_id: entityId,
+        bucket,
+        storage_path: storagePath,
+        html_snapshot: htmlSnapshot ?? null,
+        status: 'pending',
+        attempts: 0,
+        updated_at: new Date().toISOString(),
+    }
+
+    if (docCategory) {
+        row.doc_category = docCategory
+        row.max_attempts = 5
+        row.template_key = templateKey ?? null
+        row.payload = payload ?? null
+        row.callback_url = callbackUrl ?? null
+        const nextRetry = computeNextRetryAt(docCategory, 0)
+        row.next_retry_at = (nextRetry ?? new Date()).toISOString()
+    }
+
     const { error } = await adminClient
         .from('pdf_jobs')
-        .insert({
-            tenant_id: tenantId,
-            entity_type: entityType,
-            entity_id: entityId,
-            bucket,
-            storage_path: storagePath,
-            html_snapshot: htmlSnapshot ?? null,
-            status: 'pending',
-            attempts: 0,
-            updated_at: new Date().toISOString(),
-        }, { ignoreDuplicates: true } as any)
+        .insert(row, { ignoreDuplicates: true } as any)
     if (error && !error.message?.includes('duplicate') && error.code !== '23505') {
         console.error('[enqueuePdfJob] failed:', error.message)
     }
