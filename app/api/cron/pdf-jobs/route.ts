@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
             if (job.entity_type === 'bubble_docx') {
                 let templateNotFound = false
                 try {
-                    const pdf = await renderBubbleDocxPdf(job.template_key, job.payload ?? {})
+                    const pdf = await renderBubbleDocxPdf(admin, job.tenant_id, job.template_key, job.payload ?? {})
                     pdfUrl = await saveToStorage(admin, job.bucket, job.storage_path, Buffer.from(pdf))
                 } catch (bubbleErr) {
                     console.error('[cron/pdf-jobs] bubble_docx intento falló:', bubbleErr)
