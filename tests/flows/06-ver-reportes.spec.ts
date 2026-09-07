@@ -124,13 +124,14 @@ test.describe('Flow 6 — ver reportes en detalle de tarea @critical', () => {
         const dialog = page.getByRole('dialog').filter({ hasText: 'Información General' })
         await expect(dialog).toBeVisible({ timeout: 5_000 })
 
-        // Cambiar al tab Reportes (renombrado en v3.7.x a "Paso 3. Reportes")
-        await dialog.getByRole('tab', { name: /Paso 3|Reportes/i }).click()
-
+        // Post-Fase 1 UX: ya no hay tabs, la sección Reportes está siempre
+        // visible con scroll continuo — no hace falta click para revelarla.
         await test.step('reporte personal visible con nombre completo y horas', async () => {
-            // El nombre de personal solo aparece en esta sección (único en el dialog).
+            // Post-Fase 1 UX: el nombre de personal ahora aparece también en la
+            // sección "Recursos Asignados" (siempre montada junto a Reportes) →
+            // 2 matches, igual que el caso de maquinaria más abajo.
             await expect(
-                dialog.getByText('E2E_Personal F6_operador', { exact: false }),
+                dialog.getByText('E2E_Personal F6_operador', { exact: false }).first(),
             ).toBeVisible({ timeout: 10_000 })
             await expect(dialog.getByText('8 horas', { exact: false })).toBeVisible()
         })
