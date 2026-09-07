@@ -24,8 +24,13 @@ interface BubblePdfRequestBody {
 }
 
 export async function POST(req: NextRequest) {
+    const expectedKey = process.env.BUBBLE_PDF_BRIDGE_API_KEY
+    if (!expectedKey) {
+        console.error('[POST /api/bubble/pdf/generate] BUBBLE_PDF_BRIDGE_API_KEY no configurada')
+        return NextResponse.json({ error: 'Configuración del servidor incompleta' }, { status: 500 })
+    }
     const auth = req.headers.get('authorization')
-    if (!auth || auth !== `Bearer ${process.env.BUBBLE_PDF_BRIDGE_API_KEY}`) {
+    if (!auth || auth !== `Bearer ${expectedKey}`) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
