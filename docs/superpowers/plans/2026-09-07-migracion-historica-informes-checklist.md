@@ -414,6 +414,49 @@ para que quien lea ese documento en el futuro no vuelva a confundirse pensando q
 
 ---
 
+## FASE 4 — Gap de datos encontrado en la auditoría de Cotizaciones (TK-C3)
+
+**Contexto:** `docs/auditoria-ui/06-cotizaciones.md` (módulo 6, auditado 2026-09-07) encontró que
+`tasas_cambio` tiene 532/571 fechas migradas para GRUAS (93,2% de cobertura, 39 fechas faltantes) — el
+único hallazgo de esa auditoría que es un gap real de **migración de datos** (mismo patrón `bubble_id`
+idempotente que el resto de este plan). El resto de hallazgos de esa auditoría son tickets de UI/feature,
+no de migración — se listan al final de esta fase como referencia, sin tareas de implementación acá.
+
+### Task 4.1: Re-sincronizar `tasas_cambio` (TK-C3)
+
+**Files:**
+- Create o reusar: `scripts/migrate-tasas-cambio.ts` (revisar primero si `lib/actions/tasas-cambio.ts` ya
+  tiene un script de migración inicial reutilizable, dado que la tabla ya existe con 871 filas totales —
+  esto es un **re-sync incremental**, no una migración desde cero).
+
+- [ ] **Step 1: Confirmar el tipo Bubble de `tasas_cambio`** (candidato directo por nombre de tabla y por el
+  patrón ya usado en este proyecto: `Tasa_Cambio`/`TasaCambio`/`Tasas_Cambio` — probar contra la API antes
+  de asumir).
+
+- [ ] **Step 2: Dry-run — comparar fechas de Bubble vs `tasas_cambio.fecha` existente para GRUAS, listar las
+  39 (u otro número real, confirmar) fechas faltantes.**
+
+- [ ] **Step 3: Upsert idempotente por fecha+tenant (o por `bubble_id` si el tipo Bubble lo trae) — no
+  duplicar las 532 ya existentes.**
+
+- [ ] **Step 4: `--apply`, luego verificar cobertura final ≥ 99% para GRUAS (y de paso confirmar CISE, que
+  la auditoría no marcó como gap pero vale re-chequear con el mismo script).**
+
+### Backlog relacionado (NO son tareas de este plan — tickets de UI/feature, dejar para trabajo aparte)
+
+| ID | Severidad | Descripción |
+|---|---|---|
+| TK-C1 | 🟡 MEDIA | Falta el dashboard "Panel de Cotizaciones" y el botón "Descargar CSV" en el listado |
+| TK-C2 | 🟢 BAJA | Columna `cotizaciones.periodo_cantidad` muerta (candidata a `DROP COLUMN`) |
+| TK-C4 | 🟢 BAJA | Sin equivalente a las 4 tarjetas KPI clicables de Bubble (el select de estado ya cubre la función) |
+| TK-C5 | 🟢 BAJA | Botón "Filtrar" de Bubble (Gestión y Servicios) no explorado a fondo |
+| DUDA-COT-000 | — | Redirect intermitente 307 en `/cotizaciones` (race de sesión) — no específico de este módulo |
+| DUDA-COT-001 | — | ¿El botón "Filtrar" de Bubble tiene filtros reales no cubiertos? |
+| DUDA-COT-002 | — | reportaweb3 bloquea editar cotizaciones APROBADA/RECHAZADA, Bubble no — ¿confirmar o corregir? |
+| DUDA-COT-003 | — | `token_aprobacion`/`pin_aprobacion` — ¿flujo real en uso o feature sin UI de consumo? |
+
+---
+
 ## Self-review
 
 - **Cobertura del spec:** los 4 puntos del usuario están cubiertos — (1) Fase 0 cataloga los 6 formatos
@@ -422,7 +465,9 @@ para que quien lea ese documento en el futuro no vuelva a confundirse pensando q
   sección de Contexto documenta la causa raíz y confirma que el resto del proyecto no tiene el mismo
   problema (con la única excepción oportunista de `planes_accion.evidencia_cierre_url`, ya incorporada como
   Task 2.4), (4) Fase 2 migra archivos de informes y generaliza la función para cualquier otro archivo
-  suelto que aparezca.
+  suelto que aparezca. Fase 4 (agregada a pedido del usuario) incorpora el único gap de datos real de la
+  auditoría de Cotizaciones (TK-C3, `tasas_cambio`), dejando el resto de esa auditoría (tickets de UI/feature)
+  como backlog explícito, no mezclado con las tareas de migración de datos de este plan.
 - **Placeholders:** ninguno bloqueante. Task 1.2 tiene una verificación explícita a hacer en
   implementación (si `id_objetos` debe poblar `formatos_informes_maquinarias`/`_personal` para los formatos
   de reportes) en vez de asumir la respuesta sin datos — correcto dejarlo como paso de investigación
