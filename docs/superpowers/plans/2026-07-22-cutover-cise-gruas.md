@@ -81,7 +81,7 @@ Los 🟢 ya cerrados no se reauditan salvo que aparezca un gap nuevo.
 | 4 | Planificación / Tareas | ✅ | `04-planificacion.md` | 🟢 Auditado (2026-07-23) — **TK-P1 espera aprobación DUDA-PLAN-001** |
 | 5 | Configuración / Catálogos | ⚠️ parcial (tab 1 de 6 de Bubble) | `05-configuracion.md` | 🟡 Auditado con limitación de acceso (DUDA-CONF-000) — **NO cerrar como 🟢** hasta recapturar Bubble tabs 2-6 |
 | 6 | Cotizaciones | ✅ | `06-cotizaciones.md` | 🟡 Auditado (2026-09-07) — mejor cobertura hasta ahora, 4 DUDAs de confirmación, sin bloqueantes |
-| 7 | Informes (Checklist·Maq·Personal·Gastos) | ❌ | — | ⬜ Pendiente |
+| 7 | Informes (Checklist·Maq·Personal·Gastos) | ✅ | `07-informes.md` | 🔴 Auditado (2026-09-07) — CRÍTICO: `formatos_informes` (checklists) y `reportes_combustible` en 0 filas, miles de registros de Bubble sin migrar |
 | 8 | Planes de Acción | ❌ | — | ⬜ Pendiente |
 | 9 | Gestión EPP | ❌ | — | ⬜ Pendiente |
 | 10 | Ventas (Panel·Valoraciones·Facturas) | ❌ | — | ⬜ Pendiente |

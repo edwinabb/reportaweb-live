@@ -306,6 +306,11 @@ Al auditar los módulos Informes (#9) y Planificación (#7), mapear dónde debe
 mostrarse/alimentarse `maquinaria_horas` (jornadas, total_horas, cant_servicios)
 y crear los tickets de UI correspondientes.
 
+**Confirmado en auditoría módulo 7 (Informes, 2026-09-07):** `maquinaria_horas`
+sigue sin ningún `grep` positivo en `lib/`/`app/` — ni "Horas Maquinaria" (que
+usa `reportes_maquinaria`) ni ninguna otra pantalla la consume. Deuda sigue
+abierta, ver `docs/auditoria-ui/07-informes.md`.
+
 ---
 
 ## DUDA-ADMIN-001: `reporta-admin` — deploy real + datos pendientes antes de habilitar el bridge de Bubble
