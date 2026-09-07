@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -55,7 +54,6 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
     const [terceroPersonalList, setTerceroPersonalList] = useState<any[]>([])
     const [plantillas, setPlantillas] = useState<any[]>([])
 
-    const [activeTab, setActiveTab] = useState("general")
     const [loading, setLoading] = useState(false)
 
     // Sub-dialogs state
@@ -65,7 +63,6 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
     useEffect(() => {
         if (open && tareaId) {
             loadDetails(tareaId)
-            setActiveTab(selectedDate ? 'reportes' : 'general')
         }
     }, [open, tareaId, selectedDate])
 
@@ -227,31 +224,12 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
                 </DialogHeader>
 
                 <div className="flex-1 min-h-0 flex flex-col">
-                    <Tabs defaultValue="general" className="flex-1 flex flex-col" value={activeTab} onValueChange={setActiveTab}>
-                        <div className="px-6 border-b">
-                            <TabsList className="bg-transparent h-12 w-full justify-start gap-6 p-0">
-                                <TabsTrigger value="general" className="data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:shadow-none rounded-none px-0 h-12 bg-transparent text-gray-500 data-[state=active]:text-orange-600">
-                                    1. Información General
-                                </TabsTrigger>
-                                <TabsTrigger value="recursos" className="data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:shadow-none rounded-none px-0 h-12 bg-transparent text-gray-500 data-[state=active]:text-orange-600">
-                                    2. Recursos
-                                </TabsTrigger>
-                                <TabsTrigger value="formatos" className="data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:shadow-none rounded-none px-0 h-12 bg-transparent text-gray-500 data-[state=active]:text-orange-600">
-                                    3. Inspecciones
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="reportes"
-                                    className="data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:shadow-none rounded-none px-0 h-12 bg-transparent text-gray-500 data-[state=active]:text-orange-600"
-                                >
-                                    4. Reportes
-                                </TabsTrigger>
-                            </TabsList>
-                        </div>
-
-                        <ScrollArea className="flex-1 bg-gray-50/30">
-                            <div className="p-6">
-                                <TabsContent value="general" className="mt-0 space-y-6">
-                                    {loading && !tarea ? (
+                    <ScrollArea className="flex-1 bg-gray-50/30">
+                        <div className="p-6 space-y-8">
+                            {/* SECCION 1: INFORMACION GENERAL */}
+                            <section className="space-y-6">
+                                <h3 className="font-semibold text-sm uppercase text-gray-500">1. Información General</h3>
+                                {loading && !tarea ? (
                                         <div className="text-sm text-gray-400 p-6 text-center">Cargando…</div>
                                     ) : !tarea ? (
                                         <div className="text-sm text-red-500 p-6 text-center">No se pudo cargar la tarea.</div>
@@ -315,9 +293,13 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
 
                                         </>
                                     )}
-                                </TabsContent>
+                            </section>
 
-                                <TabsContent value="recursos" className="mt-0 space-y-6">
+                            <Separator />
+
+                            {/* SECCION 2: RECURSOS */}
+                            <section className="space-y-6">
+                                <h3 className="font-semibold text-sm uppercase text-gray-500">2. Recursos</h3>
                                     {loading && !tarea ? (
                                         <div className="text-sm text-gray-400 p-6 text-center">Cargando…</div>
                                     ) : !tarea ? (
@@ -343,9 +325,124 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
                                             </CardContent>
                                         </Card>
                                     )}
-                                </TabsContent>
+                            </section>
 
-                                <TabsContent value="reportes" className="mt-0 space-y-6">
+                            <Separator />
+
+                            {/* SECCION 3: FORMATOS (INSPECCIONES + INFORMES) */}
+                            <section className="space-y-6">
+                                <h3 className="font-semibold text-sm uppercase text-gray-500">3. Inspecciones</h3>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="font-semibold text-sm uppercase text-gray-600 flex items-center gap-2">
+                                            <FileCheck className="h-4 w-4" /> Informes (Formatos)
+                                        </h4>
+                                        <NuevoInformeDialog
+                                            plantillas={plantillas}
+                                            defaultTareaId={tareaId ?? undefined}
+                                            defaultTarea={tarea ? { id: tarea.id, codigo: tarea.codigo ?? null, titulo: tarea.titulo, cliente: tarea.cliente ? { id: tarea.cliente.id, razon_social: tarea.cliente.razon_social } : null } : undefined}
+                                        />
+                                    </div>
+
+                                    {/* Inspecciones técnicas (checklist de maquinaria) */}
+                                    {inspecciones.length > 0 && (
+                                        <div className="mb-4">
+                                            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2 flex items-center gap-1">
+                                                <CheckCircle2 className="h-3 w-3" /> Inspecciones Técnicas ({inspecciones.length})
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {inspecciones.map((ins: any) => {
+                                                    const maq: any = ins.maquinaria
+                                                    const fecha = ins.fecha_inspeccion
+                                                        ? new Date(ins.fecha_inspeccion).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                        : '—'
+                                                    return (
+                                                        <Link
+                                                            key={ins.id}
+                                                            href={`/inspecciones/${ins.id}`}
+                                                            target="_blank"
+                                                            className="bg-white p-3 rounded border flex items-center justify-between shadow-sm hover:bg-gray-50"
+                                                        >
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-gray-800 font-mono text-xs">
+                                                                    {ins.codigo_interno ?? ins.codigo ?? ins.id.slice(0, 8)}
+                                                                </span>
+                                                                <span className="text-xs text-gray-500">
+                                                                    {maq?.codigo_interno ?? maq?.nombre ?? '—'} · {fecha}
+                                                                    {ins.puntaje !== null && ins.puntaje !== undefined && (
+                                                                        <> · <span className={ins.puntaje >= 80 ? 'text-green-600' : ins.puntaje >= 60 ? 'text-amber-600' : 'text-red-600'}>{ins.puntaje}%</span></>
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {ins.tiene_fallas && (
+                                                                    <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50 text-[10px]">
+                                                                        Con fallas
+                                                                    </Badge>
+                                                                )}
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={ins.estado === 'COMPLETADO' ? 'text-green-600 border-green-200 bg-green-50' : 'text-gray-600'}
+                                                                >
+                                                                    {ins.estado ?? 'REGISTRADA'}
+                                                                </Badge>
+                                                            </div>
+                                                        </Link>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Informes de formatos (sistema nuevo) */}
+                                    <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2 flex items-center gap-1">
+                                        <FileCheck className="h-3 w-3" /> Informes Formatos WEB
+                                    </h4>
+                                    {informes.length === 0 ? (
+                                        <div className="text-center p-8 border border-dashed rounded bg-white text-gray-400 text-sm">
+                                            No hay informes para esta tarea.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {informes.map(i => (
+                                                <Link
+                                                    key={i.id}
+                                                    href={`/informes/${i.id}`}
+                                                    target="_blank"
+                                                    className="bg-white p-3 rounded border flex items-center justify-between shadow-sm hover:bg-gray-50"
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-gray-800 font-mono text-xs">
+                                                            {i.codigo_informe ?? 'sin correlativo'}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                            {i.formato_codigo} · {i.formato_nombre}
+                                                        </span>
+                                                    </div>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={
+                                                            i.estado === 'APROBADO'
+                                                                ? 'text-green-600 border-green-200 bg-green-50'
+                                                                : i.estado === 'RECHAZADO'
+                                                                ? 'text-red-600 border-red-200 bg-red-50'
+                                                                : i.estado === 'BORRADOR'
+                                                                ? 'text-gray-600'
+                                                                : 'text-blue-600 border-blue-200 bg-blue-50'
+                                                        }
+                                                    >
+                                                        {i.estado}
+                                                    </Badge>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    )}
+                            </section>
+
+                            <Separator />
+
+                            {/* SECCION 4: REPORTES */}
+                            <section className="space-y-6">
+                                <h3 className="font-semibold text-sm uppercase text-gray-500">4. Reportes</h3>
 
                                     {/* Encabezado de fecha cuando hay contexto de día */}
                                     {selectedDate && (
@@ -485,118 +582,9 @@ export function TareaDetailDialog({ tareaId, open, onOpenChange, personalList, m
                                             </div>
                                         )
                                     })()}
-
-                                </TabsContent>
-
-                                <TabsContent value="formatos" className="mt-0">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-semibold text-sm uppercase text-gray-600 flex items-center gap-2">
-                                            <FileCheck className="h-4 w-4" /> Informes (Formatos)
-                                        </h3>
-                                        <NuevoInformeDialog
-                                            plantillas={plantillas}
-                                            defaultTareaId={tareaId ?? undefined}
-                                            defaultTarea={tarea ? { id: tarea.id, codigo: tarea.codigo ?? null, titulo: tarea.titulo, cliente: tarea.cliente ? { id: tarea.cliente.id, razon_social: tarea.cliente.razon_social } : null } : undefined}
-                                        />
-                                    </div>
-
-                                    {/* Inspecciones técnicas (checklist de maquinaria) */}
-                                    {inspecciones.length > 0 && (
-                                        <div className="mb-4">
-                                            <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2 flex items-center gap-1">
-                                                <CheckCircle2 className="h-3 w-3" /> Inspecciones Técnicas ({inspecciones.length})
-                                            </h4>
-                                            <div className="space-y-2">
-                                                {inspecciones.map((ins: any) => {
-                                                    const maq: any = ins.maquinaria
-                                                    const fecha = ins.fecha_inspeccion
-                                                        ? new Date(ins.fecha_inspeccion).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
-                                                        : '—'
-                                                    return (
-                                                        <Link
-                                                            key={ins.id}
-                                                            href={`/inspecciones/${ins.id}`}
-                                                            target="_blank"
-                                                            className="bg-white p-3 rounded border flex items-center justify-between shadow-sm hover:bg-gray-50"
-                                                        >
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium text-gray-800 font-mono text-xs">
-                                                                    {ins.codigo_interno ?? ins.codigo ?? ins.id.slice(0, 8)}
-                                                                </span>
-                                                                <span className="text-xs text-gray-500">
-                                                                    {maq?.codigo_interno ?? maq?.nombre ?? '—'} · {fecha}
-                                                                    {ins.puntaje !== null && ins.puntaje !== undefined && (
-                                                                        <> · <span className={ins.puntaje >= 80 ? 'text-green-600' : ins.puntaje >= 60 ? 'text-amber-600' : 'text-red-600'}>{ins.puntaje}%</span></>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {ins.tiene_fallas && (
-                                                                    <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50 text-[10px]">
-                                                                        Con fallas
-                                                                    </Badge>
-                                                                )}
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className={ins.estado === 'COMPLETADO' ? 'text-green-600 border-green-200 bg-green-50' : 'text-gray-600'}
-                                                                >
-                                                                    {ins.estado ?? 'REGISTRADA'}
-                                                                </Badge>
-                                                            </div>
-                                                        </Link>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Informes de formatos (sistema nuevo) */}
-                                    <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2 flex items-center gap-1">
-                                        <FileCheck className="h-3 w-3" /> Informes Formatos WEB
-                                    </h4>
-                                    {informes.length === 0 ? (
-                                        <div className="text-center p-8 border border-dashed rounded bg-white text-gray-400 text-sm">
-                                            No hay informes para esta tarea.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {informes.map(i => (
-                                                <Link
-                                                    key={i.id}
-                                                    href={`/informes/${i.id}`}
-                                                    target="_blank"
-                                                    className="bg-white p-3 rounded border flex items-center justify-between shadow-sm hover:bg-gray-50"
-                                                >
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-gray-800 font-mono text-xs">
-                                                            {i.codigo_informe ?? 'sin correlativo'}
-                                                        </span>
-                                                        <span className="text-xs text-gray-500">
-                                                            {i.formato_codigo} · {i.formato_nombre}
-                                                        </span>
-                                                    </div>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={
-                                                            i.estado === 'APROBADO'
-                                                                ? 'text-green-600 border-green-200 bg-green-50'
-                                                                : i.estado === 'RECHAZADO'
-                                                                ? 'text-red-600 border-red-200 bg-red-50'
-                                                                : i.estado === 'BORRADOR'
-                                                                ? 'text-gray-600'
-                                                                : 'text-blue-600 border-blue-200 bg-blue-50'
-                                                        }
-                                                    >
-                                                        {i.estado}
-                                                    </Badge>
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    )}
-                                </TabsContent>
-                            </div>
-                        </ScrollArea>
-                    </Tabs>
+                            </section>
+                        </div>
+                    </ScrollArea>
                 </div>
             </DialogContent>
 
