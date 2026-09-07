@@ -70,15 +70,10 @@ test.describe('Reportes Personal — INTERNO via factory @pre-cutover', () => {
         if (await tareaRow.isVisible({ timeout: 8_000 })) {
             await tareaRow.click()
             await page.waitForTimeout(1_000)
-            // Ir al tab Reportes
-            const tabReportes = page.getByRole('tab', { name: /Reportes/i })
-                .or(page.locator('button[role="tab"]').filter({ hasText: /Reportes/i }))
-                .first()
-            if (await tabReportes.isVisible({ timeout: 5_000 })) {
-                await tabReportes.click()
-                await page.waitForTimeout(800)
-                await expect(page.locator('body')).not.toContainText('Application error')
-            }
+            // Post-Fase 1 UX: ya no hay tabs — la sección Reportes está
+            // siempre visible con scroll continuo, no hace falta click.
+            await page.waitForTimeout(800)
+            await expect(page.locator('body')).not.toContainText('Application error')
         }
     })
 })
@@ -162,13 +157,8 @@ test.describe('Reportes Personal — UI con toggle INTERNO/EXTERNO @pre-cutover'
         await tareaCard.click()
         await page.waitForTimeout(1_000)
 
-        // Ir al tab Reportes
-        const tabReportes = page.getByRole('tab', { name: /Reportes/i })
-            .or(page.locator('[role="tab"]').filter({ hasText: /Reportes/i }))
-            .first()
-        if (!await tabReportes.isVisible({ timeout: 5_000 })) return
-        await tabReportes.click()
-        await page.waitForTimeout(500)
+        // Post-Fase 1 UX: ya no hay tabs — la sección Reportes (con el botón
+        // "Agregar Reporte") está siempre visible con scroll continuo.
 
         // Click "Agregar Reporte" (Personal — primer botón)
         const addBtn = page.getByRole('button', { name: /Agregar Reporte/i }).first()
@@ -195,12 +185,8 @@ test.describe('Reportes Personal — UI con toggle INTERNO/EXTERNO @pre-cutover'
         await tareaCard.click()
         await page.waitForTimeout(1_000)
 
-        const tabReportes = page.getByRole('tab', { name: /Reportes/i })
-            .or(page.locator('[role="tab"]').filter({ hasText: /Reportes/i }))
-            .first()
-        if (!await tabReportes.isVisible({ timeout: 5_000 })) return
-        await tabReportes.click()
-        await page.waitForTimeout(500)
+        // Post-Fase 1 UX: ya no hay tabs — la sección Reportes (con el botón
+        // "Agregar Reporte") está siempre visible con scroll continuo.
 
         const addBtn = page.getByRole('button', { name: /Agregar Reporte/i }).first()
         if (!await addBtn.isVisible({ timeout: 5_000 })) return

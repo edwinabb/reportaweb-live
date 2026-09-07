@@ -116,12 +116,8 @@ test.describe('Maquinaria Alquiler — UI con selector tipo_uso @pre-cutover', (
         await tareaCard.click()
         await page.waitForTimeout(1_000)
 
-        const tabReportes = page.getByRole('tab', { name: /Reportes/i })
-            .or(page.locator('[role="tab"]').filter({ hasText: /Reportes/i }))
-            .first()
-        if (!await tabReportes.isVisible({ timeout: 5_000 })) return
-        await tabReportes.click()
-        await page.waitForTimeout(500)
+        // Post-Fase 1 UX: ya no hay tabs — la sección Reportes (con los
+        // botones "Agregar Reporte") está siempre visible con scroll continuo.
 
         const addMaqBtn = page.getByRole('button', { name: /Agregar Reporte/i })
             .or(page.getByRole('button', { name: /Nuevo Reporte.*Maquinaria/i }))
@@ -161,12 +157,8 @@ test.describe('Maquinaria Alquiler — UI con selector tipo_uso @pre-cutover', (
         await tareaCard.click()
         await page.waitForTimeout(1_000)
 
-        const tabReportes = page.getByRole('tab', { name: /Reportes/i })
-            .or(page.locator('[role="tab"]').filter({ hasText: /Reportes/i }))
-            .first()
-        if (!await tabReportes.isVisible({ timeout: 5_000 })) return
-        await tabReportes.click()
-        await page.waitForTimeout(500)
+        // Post-Fase 1 UX: ya no hay tabs — la sección Reportes (con los
+        // botones "Agregar Reporte") está siempre visible con scroll continuo.
 
         const addMaqBtn = page.getByRole('button', { name: /Agregar Reporte/i }).nth(1)
         if (!await addMaqBtn.isVisible({ timeout: 5_000 })) return
