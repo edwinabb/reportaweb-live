@@ -17,6 +17,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
 import { getTareaById, updateTareaIntervals } from "@/lib/actions/planificacion"
+import { parseFechaLocal } from "@/lib/utils/tz"
 import type { TareaWithRelations } from "@/types/planificacion"
 
 interface Props {
@@ -53,10 +54,10 @@ export function EditarFechasDialog({ tareaId, open, onOpenChange, onSaved }: Pro
                 const primer = t.fechas[0]
                 const dates: Date[] = []
                 if (primer.fechas_multiples && primer.fechas_multiples.length > 0) {
-                    dates.push(...primer.fechas_multiples.map((s) => new Date(s)))
+                    dates.push(...primer.fechas_multiples.map((s) => parseFechaLocal(s)))
                 } else if (primer.fecha_inicio && primer.fecha_fin) {
-                    const start = new Date(primer.fecha_inicio)
-                    const end = new Date(primer.fecha_fin)
+                    const start = parseFechaLocal(primer.fecha_inicio)
+                    const end = parseFechaLocal(primer.fecha_fin)
                     const cursor = new Date(start)
                     while (cursor <= end) {
                         dates.push(new Date(cursor))

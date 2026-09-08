@@ -894,6 +894,8 @@ export async function generateAprobacionToken(cotizacion_id: string) {
         .update({
             token_aprobacion: token,
             pin_aprobacion: pin,
+            pin_attempts: 0,
+            pin_locked_until: null,
             fecha_envio: new Date().toISOString(),
             estado: 'ENVIADA'
         })
@@ -957,6 +959,9 @@ export async function getCotizacionByToken(token: string) {
     return data
 }
 
+const PIN_MAX_INTENTOS = 3
+const PIN_BLOQUEO_MINUTOS = 15
+
 export async function validatePIN(token: string, pin: string) {
     const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -964,10 +969,9 @@ export async function validatePIN(token: string, pin: string) {
         { auth: { persistSession: false } }
     )
 
-    // Note: pin_attempts / pin_locked_until columns not yet in schema — basic validation only
     const { data } = await supabaseAdmin
         .from('cotizaciones')
-        .select('id, pin_aprobacion')
+        .select('id, pin_aprobacion, pin_attempts, pin_locked_until')
         .eq('token_aprobacion', token)
         .single()
 
@@ -975,8 +979,42 @@ export async function validatePIN(token: string, pin: string) {
         return { valid: false, message: 'Enlace de aprobación inválido' }
     }
 
+    if (data.pin_locked_until && new Date(data.pin_locked_until) > new Date()) {
+        const minutosRestantes = Math.ceil((new Date(data.pin_locked_until).getTime() - Date.now()) / 60_000)
+        return {
+            valid: false,
+            message: `Demasiados intentos fallidos. Volvé a intentar en ${minutosRestantes} minuto${minutosRestantes === 1 ? '' : 's'}.`,
+        }
+    }
+
     if (data.pin_aprobacion !== pin) {
+        const intentos = (data.pin_attempts ?? 0) + 1
+        const bloquear = intentos >= PIN_MAX_INTENTOS
+        await supabaseAdmin
+            .from('cotizaciones')
+            .update({
+                pin_attempts: bloquear ? 0 : intentos,
+                pin_locked_until: bloquear
+                    ? new Date(Date.now() + PIN_BLOQUEO_MINUTOS * 60_000).toISOString()
+                    : null,
+            })
+            .eq('id', data.id)
+
+        if (bloquear) {
+            return {
+                valid: false,
+                message: `Demasiados intentos fallidos. Volvé a intentar en ${PIN_BLOQUEO_MINUTOS} minutos.`,
+            }
+        }
         return { valid: false, message: 'PIN incorrecto. Verifica el código que recibiste.' }
+    }
+
+    // PIN correcto — resetear el contador de intentos
+    if ((data.pin_attempts ?? 0) > 0 || data.pin_locked_until) {
+        await supabaseAdmin
+            .from('cotizaciones')
+            .update({ pin_attempts: 0, pin_locked_until: null })
+            .eq('id', data.id)
     }
 
     return { valid: true, cotizacion_id: data.id }

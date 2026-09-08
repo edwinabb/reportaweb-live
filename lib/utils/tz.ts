@@ -41,6 +41,19 @@ export function buildLocalISO(dateStr: string, timeStr: string, timezone: string
 }
 
 /**
+ * Parses a YYYY-MM-DD date-only string as a local calendar date, never as
+ * UTC midnight. `new Date('2026-09-08')` is parsed as UTC per the ISO 8601
+ * spec — in a negative-offset timezone (e.g. America/Lima, UTC-5) that
+ * instant falls on the previous local day, so any code reading it back with
+ * local getters/setters (getDate/setDate, or a Calendar picker's local Date
+ * state) silently shows/saves one day earlier (TK-P8). Anchoring at noon
+ * keeps the same calendar day in every real-world timezone.
+ */
+export function parseFechaLocal(dateStr: string): Date {
+    return new Date(`${dateStr}T12:00:00`)
+}
+
+/**
  * Formats a UTC date/string for display in the given timezone.
  * Defaults to es-PE locale (Spanish, Peru).
  */

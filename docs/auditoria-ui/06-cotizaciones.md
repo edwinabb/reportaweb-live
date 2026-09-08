@@ -136,19 +136,19 @@ Bubble fusiona "Crear PDF" y "Enviar al Cliente" en un solo Paso 4; reportaweb3 
 |---|---|---|---|
 | TK-C1 | 🟡 MEDIA | Sin "Panel de Cotizaciones" (dashboard) ni "Descargar CSV" en el listado | Construir dashboard + export CSV, datos ya disponibles |
 | TK-C2 | 🟢 BAJA | Columna `cotizaciones.periodo_cantidad` muerta (0% de uso, dato real vive en `periodo`+`periodo_unidad`) | Confirmar que nada la lee y hacer `DROP COLUMN` |
-| TK-C3 | 🟡 MEDIA | 39 fechas de `tasas_cambio` faltantes para GRUAS (93,2% de cobertura) | Re-correr upsert idempotente por `bubble_id` |
-| TK-C4 | 🟢 BAJA | 4 tarjetas KPI clicables del listado Bubble (filtro rápido por estado) sin equivalente — el select de estado ya cubre la función | Opcional, UX |
-| TK-C5 | 🟢 BAJA | Botón "Filtrar" (panel de filtros avanzados) de Bubble no explorado a fondo por límite de tiempo de sesión | Reabrir sesión Bubble y confirmar que no hay un filtro real perdido |
+| TK-C3 | 🟢 CERRADO 2026-09-08 | 39 fechas de `tasas_cambio` faltantes para GRUAS (93,2% de cobertura) | Resuelto en la migración de Informes/Checklist Fase 4 (GRUAS 532→626 fechas, hasta 2026-09-03) |
+| TK-C4 | 🟢 BAJA (backlog, pendiente de mockup) | 4 tarjetas KPI clicables del listado Bubble (filtro rápido por estado) sin equivalente — el select de estado ya cubre la función | Opcional, UX |
+| ~~TK-C5~~ | — | ~~Botón "Filtrar" de Bubble sin explorar~~ | 🟢 Cerrado junto con DUDA-COT-001 — las columnas ordenables ya cubren la necesidad |
 
 ## DUDAs — actualizado 2026-09-08
 
 | ID | Pregunta | Resolución |
 |---|---|---|
 | DUDA-COT-000 | Redirect intermitente 307 en `/cotizaciones` (race de refresh de sesión) | 🟢 **Resuelto**: causa raíz confirmada en `utils/supabase/middleware.ts` — `getUser()` puede devolver `null` transitoriamente durante la rotación del access token en el edge. Fix: reintentar una vez si hay cookie de sesión presente. Desplegado a demo v3.12.2, probado con ráfaga de 80 requests concurrentes a rutas protegidas sin regresiones. Pendiente: reintento de prueba cerca del límite real de 1h del token (condición de carrera exacta, difícil de forzar de forma determinística) — programado ~12pm 2026-09-08. |
-| DUDA-COT-001 | Botón "Filtrar" en Bubble (Gestión y Servicios) — ¿tiene filtros reales no cubiertos por las columnas ordenables de reportaweb3? | 🟡 Abierto — no investigado aún, queda en backlog junto con TK-C5 (mismo tema) |
+| DUDA-COT-001 | Botón "Filtrar" en Bubble (Gestión y Servicios) — ¿tiene filtros reales no cubiertos por las columnas ordenables de reportaweb3? | 🟢 **Resuelto**: decisión del usuario, las columnas ordenables ya cubren la necesidad — se confirmó además que el botón Activos/Inactivos (toggle de tipo de dato mostrado) ya está configurado en las 3 sub-páginas (Gestión, Servicios, Tasas). Cierra también TK-C5. |
 | DUDA-COT-002 | reportaweb3 bloquea Editar sobre cotizaciones APROBADA/RECHAZADA; Bubble no. | 🟢 **Resuelto**: decisión del usuario, se mantiene el bloqueo tal cual — es un endurecimiento de integridad de datos intencional, sin cambio de código. |
 | DUDA-COT-003 | Columnas `token_aprobacion`/`pin_aprobacion` en `cotizaciones` — ¿flujo real o feature sin UI? | 🟢 **Resuelto**: confirmado en código — es un flujo real y completo (`/aprobacion/[token]` + `/preview`, genera token+PIN al enviar al cliente en `cotizacion-enviar-cliente.tsx`, valida PIN server-side en `lib/actions/cotizaciones.ts`, ruta pública en el middleware). Nota técnica menor encontrada de paso: el comentario en el código dice "pin_attempts / pin_locked_until columns not yet in schema — basic validation only" — sin límite de intentos de PIN implementado todavía (no es parte de esta duda, queda anotado como posible mejora de seguridad futura). |
 
 ## Cierre
 
-**Estado:** 🟡 Auditado — 3 de 4 DUDAs resueltas (COT-000, COT-002, COT-003). Queda abierta DUDA-COT-001 (junto con TK-C5, mismo tema) antes de poder cerrar 🟢 el módulo completo. Ninguna de las abiertas es bloqueante para operar. Datos verificados en vivo contra PROD; UI verificada en vivo contra Bubble (LIVE de version-test) y contra reportaweb3 (dev local, BD TEST — sin datos de cotizaciones en TEST, verificación de código + datos en PROD como sustituto, según lo ya aceptado para este proyecto).
+**Estado:** 🟢 **CERRADO 2026-09-08** — las 4 DUDAs resueltas (COT-000 a 003), TK-C3 resuelto (dato), TK-C5 cerrado. Quedan como backlog de UI, no bloqueantes, pendientes de mockup + plan de implementación: TK-C1 (Panel de Cotizaciones + Descargar CSV) y TK-C4 (tarjetas KPI clicables). TK-C2 (columna muerta) queda como limpieza técnica sin mockup (no tiene componente visual). Datos verificados en vivo contra PROD; UI verificada en vivo contra Bubble (LIVE de version-test) y contra reportaweb3 (dev local, BD TEST — sin datos de cotizaciones en TEST, verificación de código + datos en PROD como sustituto, según lo ya aceptado para este proyecto).

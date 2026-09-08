@@ -216,11 +216,12 @@ export async function saveTareaBorradorBasic(payload: {
             .eq('tenant_id', tenantId)
         oldFechaIds = (prevFechas ?? []).map((f) => f.id)
     } else {
-        const year = new Date().getFullYear()
-        const { count } = await adminClient.from('tareas')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', tenantId).gte('created_at', `${year}-01-01`)
-        const codigo = `T-${year}-${String((count || 0) + 1).padStart(4, '0')}`
+        // TK-P7: contador atómico (fn_siguiente_codigo_tarea) en vez de count()+1 --
+        // ese patrón tenía race condition entre inserts concurrentes.
+        const { data: codigo, error: errCodigo } = await adminClient.rpc('fn_siguiente_codigo_tarea', {
+            p_tenant_id: tenantId,
+        })
+        if (errCodigo || !codigo) return { success: false, message: `Error al generar código: ${errCodigo?.message}` }
 
         const { data: tarea, error: errIns } = await adminClient.from('tareas').insert({
             tenant_id: tenantId, created_by: user.id, codigo,
@@ -312,14 +313,12 @@ export async function createTarea(payload: CreateTareaPayload) {
         oldFechaIds = (prevFechas ?? []).map((f) => f.id)
         tareaDbId = payload.header.id
     } else {
-        // 1) código consecutivo T-YYYY-XXXX (por tenant + año)
-        const year = new Date().getFullYear()
-        const { count } = await adminClient
-            .from('tareas')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', tenantId)
-            .gte('created_at', `${year}-01-01`)
-        const codigo = `T-${year}-${String((count || 0) + 1).padStart(4, '0')}`
+        // 1) código consecutivo T-YYYY-XXXX (por tenant + año) -- TK-P7: contador
+        // atómico vía RPC, reemplaza el count()+1 racy anterior.
+        const { data: codigo, error: errCodigo } = await adminClient.rpc('fn_siguiente_codigo_tarea', {
+            p_tenant_id: tenantId,
+        })
+        if (errCodigo || !codigo) return { success: false as const, message: `Error al generar código: ${errCodigo?.message}` }
 
         // 2) insert header
         const { data: tarea, error: errHeader } = await adminClient
