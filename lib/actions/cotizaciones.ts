@@ -3,6 +3,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { ActionResponse, CotizacionEstado, HistoricalClientQuote, HistoricalSupplierOffer } from '@/types/cotizaciones'
 import { getSupabaseContext, safeRevalidatePath } from '@/lib/action-context'
+import { buildTiposPreciosMap } from '@/lib/actions/servicios'
 
 
 
@@ -1668,10 +1669,7 @@ export async function getCotizacionRespuesta(cotizacion_id: string) {
                     id, nombre, cantidad_precios,
                     precio_1_tipo, precio_1_valor,
                     precio_2_tipo, precio_2_valor,
-                    precio_3_tipo, precio_3_valor,
-                    tipo_p1:servicios_tipo_precios!precio_1_tipo(nombre),
-                    tipo_p2:servicios_tipo_precios!precio_2_tipo(nombre),
-                    tipo_p3:servicios_tipo_precios!precio_3_tipo(nombre)
+                    precio_3_tipo, precio_3_valor
                 )
             )
         `)
@@ -1681,15 +1679,17 @@ export async function getCotizacionRespuesta(cotizacion_id: string) {
 
     if (!cot) return null
 
-    // precio_tipo ya se guarda como nombre (snapshot inmutable) — enriquecer con tarea y aplanar tipo nombres
+    // precio_tipo ya se guarda como nombre (snapshot inmutable) — enriquecer con tarea y aplanar
+    // tipo nombres. Ver nota en lib/actions/servicios.ts: servicios.precio_N_tipo no tiene FK real
+    // hacia servicios_tipo_precios, así que se resuelve con un mapeo manual (buildTiposPreciosMap).
+    const tiposMap = await buildTiposPreciosMap(adminClient, tenantId)
     const detallesConTarea = await Promise.all(
         ((cot as any).detalles ?? []).map(async (d: any) => {
             // Flatten tipo names
             if (d.servicio) {
-                d.servicio.precio_1_tipo_nombre = d.servicio.tipo_p1?.nombre ?? null
-                d.servicio.precio_2_tipo_nombre = d.servicio.tipo_p2?.nombre ?? null
-                d.servicio.precio_3_tipo_nombre = d.servicio.tipo_p3?.nombre ?? null
-                delete d.servicio.tipo_p1; delete d.servicio.tipo_p2; delete d.servicio.tipo_p3
+                d.servicio.precio_1_tipo_nombre = d.servicio.precio_1_tipo ? (tiposMap.get(d.servicio.precio_1_tipo) ?? null) : null
+                d.servicio.precio_2_tipo_nombre = d.servicio.precio_2_tipo ? (tiposMap.get(d.servicio.precio_2_tipo) ?? null) : null
+                d.servicio.precio_3_tipo_nombre = d.servicio.precio_3_tipo ? (tiposMap.get(d.servicio.precio_3_tipo) ?? null) : null
             }
             if (!d.tarea_id) return { ...d, tarea: null }
             const { data: tarea } = await adminClient

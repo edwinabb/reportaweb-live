@@ -9,23 +9,34 @@ import { getSupabaseContext, safeRevalidatePath } from '@/lib/action-context'
 // SERVICIOS ACTIONS
 // ============================================
 
-const SERVICIOS_WITH_TIPOS = `
-    *,
-    tipo_p1:servicios_tipo_precios!precio_1_tipo(nombre),
-    tipo_p2:servicios_tipo_precios!precio_2_tipo(nombre),
-    tipo_p3:servicios_tipo_precios!precio_3_tipo(nombre)
-`
+// `servicios.precio_N_tipo` no tiene foreign key real hacia `servicios_tipo_precios`
+// (columnas `text` guardando el uuid como string, sin constraint -- confirmado en
+// TEST y PROD 2026-09-08, con cientos de referencias huérfanas en PROD). El embedded
+// join `!fkname` de PostgREST necesita un FK real, así que fallaba en silencio
+// (`getServicios`/`getServicioById` atrapan el error y devuelven vacío/null) apenas
+// se probó contra datos reales en PROD -- se resuelve con un mapeo manual en vez de
+// depender del join automático.
+export async function buildTiposPreciosMap(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    adminClient: any,
+    tenantId: string
+): Promise<Map<string, string>> {
+    const { data } = await adminClient
+        .from('servicios_tipo_precios')
+        .select('id, nombre')
+        .eq('tenant_id', tenantId)
+    const map = new Map<string, string>()
+    for (const row of data ?? []) map.set(row.id, row.nombre)
+    return map
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapTiposNombre(raw: any): Servicio {
+function mapTiposNombre(raw: any, tiposMap: Map<string, string>): Servicio {
     return {
         ...raw,
-        precio_1_tipo_nombre: raw.tipo_p1?.nombre ?? null,
-        precio_2_tipo_nombre: raw.tipo_p2?.nombre ?? null,
-        precio_3_tipo_nombre: raw.tipo_p3?.nombre ?? null,
-        tipo_p1: undefined,
-        tipo_p2: undefined,
-        tipo_p3: undefined,
+        precio_1_tipo_nombre: raw.precio_1_tipo ? (tiposMap.get(raw.precio_1_tipo) ?? null) : null,
+        precio_2_tipo_nombre: raw.precio_2_tipo ? (tiposMap.get(raw.precio_2_tipo) ?? null) : null,
+        precio_3_tipo_nombre: raw.precio_3_tipo ? (tiposMap.get(raw.precio_3_tipo) ?? null) : null,
     }
 }
 
@@ -39,7 +50,7 @@ export async function getServicios(
 
     let query = adminClient
         .from('servicios')
-        .select(SERVICIOS_WITH_TIPOS)
+        .select('*')
         .eq('tenant_id', tenantId)
 
     if (onlyActive) {
@@ -57,33 +68,39 @@ export async function getServicios(
 
     query = query.order('codigo', { ascending: true })
 
-    const { data, error } = await query
+    const [{ data, error }, tiposMap] = await Promise.all([
+        query,
+        buildTiposPreciosMap(adminClient, tenantId),
+    ])
 
     if (error) {
         console.error('Error fetching servicios:', error)
         return []
     }
 
-    return (data as any[]).map(mapTiposNombre)
+    return (data as any[]).map((row) => mapTiposNombre(row, tiposMap))
 }
 
 export async function getServicioById(id: string): Promise<Servicio | null> {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return null
 
-    const { data, error } = await adminClient
-        .from('servicios')
-        .select(SERVICIOS_WITH_TIPOS)
-        .eq('id', id)
-        .eq('tenant_id', tenantId)
-        .single()
+    const [{ data, error }, tiposMap] = await Promise.all([
+        adminClient
+            .from('servicios')
+            .select('*')
+            .eq('id', id)
+            .eq('tenant_id', tenantId)
+            .single(),
+        buildTiposPreciosMap(adminClient, tenantId),
+    ])
 
     if (error) {
         console.error('Error fetching servicio:', error)
         return null
     }
 
-    return mapTiposNombre(data)
+    return mapTiposNombre(data, tiposMap)
 }
 
 export async function createServicio(_prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
