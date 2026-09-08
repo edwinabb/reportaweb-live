@@ -7,6 +7,14 @@ Este documento detalla el paso a paso para migrar todos los módulos desde Bubbl
 1. **Configuración de Entorno**: Archivo `.env.local` con credenciales de Supabase y Bubble.
 2. **Orden de Ejecución**: Es vital respetar el orden de las fases para satisfacer las dependencias (Relaciones Foreign Key).
 3. **Idempotencia**: Todos los scripts pueden ejecutarse múltiples veces. Si un registro ya existe (identificado por `bubble_id`), se actualizará con la data más reciente.
+4. **⚠️ Corte de fecha (regla agregada 2026-09-08):** cualquier migración histórica desde Bubble, de
+   cualquier módulo, debe cortar en **2026-08-31 23:59:59** — no migrar datos con fecha `>= 2026-09-01
+   00:00:00`. Es una regla general hacia adelante; NO se aplicó retroactivamente a lo que ya estaba migrado
+   antes de esta fecha (ver nota en `docs/superpowers/plans/2026-09-07-migracion-historica-informes-checklist.md`
+   § "Regla de corte agregada 2026-09-08" para el detalle de qué quedó fuera del corte sin limpiar: 30 filas
+   de `formatos_informes` + sus respuestas, y 2 de `tasas_cambio`). Cualquier script nuevo que respete este
+   corte debe verificar explícitamente que no duplique esas filas ya existentes, no asumir que Supabase está
+   limpio de datos post-corte.
 
 ---
 

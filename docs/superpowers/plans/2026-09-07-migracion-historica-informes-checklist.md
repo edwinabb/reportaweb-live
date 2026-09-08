@@ -478,3 +478,28 @@ no de migración — se listan al final de esta fase como referencia, sin tareas
 - **Decisión de diseño explícita:** reusar `file_migration_log` (tabla ya existente de la migración de
   archivos de mayo) en vez de crear una tabla de log nueva — mantiene un solo historial unificado de todas
   las migraciones de archivos del proyecto, pasadas y presentes.
+
+---
+
+## ⚠️ Regla de corte agregada 2026-09-08 (posterior al cierre de Fases 0-4)
+
+**Decisión del usuario:** de acá en adelante, cualquier migración histórica desde Bubble a Supabase (de
+cualquier módulo, no solo Informes/Checklist) debe cortar en **2026-08-31 23:59:59** (el primer segundo de
+2026-09-01 queda excluido). Es una regla retroactiva en principio, pero el usuario decidió NO aplicarla
+hacia atrás sobre lo que ya está migrado en Supabase — solo rige para trabajo de migración futuro.
+
+**Estado real detectado al momento de esta nota (no se modificó nada en Supabase):**
+- `formatos_informes`: **30 filas** con `fecha_inicio >= 2026-09-01` (+ 1.059 filas en cascada en
+  `formatos_informes_respuestas`). **Se dejan como están**, decisión explícita del usuario.
+- `tasas_cambio`: **2 filas** de GRUAS con `fecha_vigencia >= 2026-09-01`. **Se dejan como están.**
+- Sus archivos (PDFs/fotos) en Supabase Storage también se dejan tal cual, sin limpiar.
+- Planificación/`tareas_fechas`: 0 filas afectadas (no hay fechas de septiembre 2026 entre CISE+GRUAS).
+
+**⚠️ Nota operativa para cualquier migración o delta-sync futuro sobre estos mismos datos:** como los 30
+informes de septiembre (y sus respuestas) y las 2 tasas de cambio de septiembre YA están en Supabase pese a
+caer fuera del nuevo corte, cualquier script futuro que vuelva a traer datos desde Bubble aplicando el corte
+2026-08-31 debe además **verificar explícitamente que no re-inserte ni duplique estas filas** — no asumir
+que "todo lo que hay en Supabase ya respeta el corte actual". El upsert idempotente por `bubble_id` ya
+protege contra duplicados exactos, pero si en el futuro se decide finalmente purgarlas, hacerlo con un
+`DELETE ... WHERE fecha_inicio >= '2026-09-01'` explícito (cascada automática vía FK a `_respuestas` y
+`_maquinarias`), no con un re-seed completo que podría dejarlas duplicadas si cambia el criterio de idempotencia.
