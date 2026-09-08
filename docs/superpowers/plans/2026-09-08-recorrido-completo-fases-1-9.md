@@ -30,12 +30,12 @@ cotizaciones y luego las fases de 7 a 9. Incluido las migraciones de informació
 
 | Fase | Módulo | Gap de datos | Delta-sync aplicado | CRUD/UX revisado | Estado |
 |---|---|---|---|---|---|
-| 1 | Usuarios y Perfiles | 🟡 gap confirmado: CISE -2 (103 vs 105), GRUAS -12 (224 vs 236). Sin tablas satélite propias (parche 1.a es un flag en `profiles`, no tabla nueva) | 🔲 | 🔲 | Investigado |
-| 2 | Catálogos del Sistema | 🟡 ver detalle abajo — mayormente al día, con 2 gaps reales (`bancos`, `servicios_tipos`→Fase 5) y gaps chicos en `plazos_pago`/`areas`/`maquinaria_modelos` | 🔲 | 🟡 ver detalle abajo | Investigado |
-| 3 | Terceros | 🟡 gap confirmado: GRUAS -6, CISE +41 (a explicar) | 🔲 | 🔲 | Pendiente |
-| 4 | Maquinaria | 🟡 gap confirmado, ver tabla abajo (CISE `maquinarias` +23 como Terceros, resto con gaps chicos) | 🔲 | 🔲 | Investigado |
-| 5 | Servicios | 🔴 `servicios_tipos` 100% sin migrar (0 filas vs 9 CISE/10 GRUAS en Bubble) — resto al día (`servicio`/`servicios_tipo_precios` casi exacto) | 🔲 | 🔲 | Investigado |
-| 6 | Cotizaciones | 🟢 investigado (fork 2026-09-08): GRUAS +6, CISE +103, +22/15 updates de estado | 🔲 (esperando fases 1-5 + reactivar key) | 🔲 | Investigado, bloqueado por orden de dependencias |
+| 1 | Usuarios y Perfiles | Confirmado CISE -2, GRUAS -12 (diff real por bubble_id: 6+13=19) | 🟢 **Aplicado 2026-09-08**: 17/19 creados (Auth+profile, patrón histórico `clave*2025`); 2 con email inválido (`ñ`, rechazado por Supabase Auth) quedan sin resolver, ver nota. GRUAS 224→236 (exacto). CISE 103→108. | 🔲 | 🟢 Cerrado (2 residuales documentados) |
+| 2 | Catálogos del Sistema | `plazos_pago`/`areas` con filas viejas sin `bubble_id` (no gap real de datos, solo de vínculo); `bancos` sin datos en Bubble tampoco (no existe la lista); `servicios_tipos`→ver Fase 5 | 🟢 **Aplicado**: `UNIQUE(bubble_id)` agregado a `areas`/`plazos_pago`/`bancos` (TEST+PROD). `areas` CISE→9, GRUAS→8 (backfill + 0 nuevas reales tras dedupe). `plazos_pago` CISE→53, GRUAS→21 (1 nueva: FACTURACION SEMANAL). `bancos`: confirmado que la lista "Bancos" **no existe en Bubble** — no hay nada que migrar, feature nunca usada en ningún sistema. | 🟡 ver detalle abajo | Cerrado |
+| 3 | Terceros | GRUAS -6 confirmado; CISE aparentaba +41 de superávit agregado pero igual tenía 6 bubble_ids puntuales faltantes (superávit y gap puntual no son excluyentes) | 🟢 **Aplicado**: script recuperado de git history (`delta-terceros.ts`, tipo Bubble `tercero` singular). CISE +6, GRUAS +6. GRUAS 232→238 (exacto). CISE 446→452. Confirmado con `bubble_id IS NULL`: el superávit de CISE (47 filas) son altas nativas reales en reportaweb3, no error — no se tocan. | 🔲 | Cerrado |
+| 4 | Maquinaria | Gaps chicos confirmados en las 3 tablas; CISE `maquinarias` aparentaba +23 de superávit pero igual tenía 2 bubble_ids puntuales faltantes (mismo patrón que Terceros) | 🟢 **Aplicado**: `maquinaria_modelos` CISE+2/GRUAS+7 (109/137, exacto). `maquinaria_tipos_docs` GRUAS+2 (18, exacto). `maquinarias` CISE+2/GRUAS+9 (155/149, GRUAS exacto). Confirmado con `bubble_id IS NULL` que el superávit CISE (25 filas) es altas nativas legítimas. | 🔲 | Cerrado |
+| 5 | Servicios | `servicios_tipos` 100% sin migrar (0 vs 19); `servicios` GRUAS -30 | 🟢 **Aplicado**: `servicios_tipos` migrado completo desde `configuraciones_opciones_listas` ("Tipos de Servicios") — CISE 9, GRUAS 10 (exacto). `servicios` GRUAS +30 (246, exacto), CISE sin cambios (232, ya exacto). `tipo_servicio`/`moneda` resueltos a texto vía el mismo catálogo genérico (antes de esto no había mapeo, se construyó `Map` bubble_id→label). | 🔲 | Cerrado (dato) |
+| 6 | Cotizaciones | 🟢 investigado (fork 2026-09-08): GRUAS +6, CISE +103, +22/15 updates de estado | 🔲 (**dependencias 1-5 ya cerradas — desbloqueado, listo para ejecutar**) | 🔲 | Investigado, listo para ejecutar |
 | 7 | Reportes Maquinaria | 🔲 | 🔲 | 🔲 | Pendiente |
 | 8 | Reportes Personal | 🔲 | 🔲 | 🔲 | Pendiente |
 | 9 | Facturación y Finanzas | 🔲 | 🔲 | 🔲 | Pendiente |
@@ -108,9 +108,18 @@ en esas filas de más antes de dar por cerrada la hipótesis.
 
 ## Hallazgos que no bloquean pero quedan anotados
 
-- **CISE Terceros: Supabase (446) > Bubble (405).** Sorprendente — hay 41 terceros de más en Supabase.
-  Hipótesis a confirmar en Fase 3: altas hechas directamente en reportaweb3 (CISE ya usa el sistema
-  activamente) sin `bubble_id`, no necesariamente un problema. Confirmar antes de asumir.
+- **CISE Terceros/Maquinarias: superávit confirmado como legítimo (2026-09-08).** `bubble_id IS NULL`
+  = 47 terceros y 25 maquinarias — altas nativas reales en reportaweb3 (CISE ya opera activamente en
+  el sistema nuevo). Cerrado, no requiere acción.
+- **Fase 1 — 2 usuarios sin migrar por email inválido:** `reynaldo.nuñez@gmail.com` (CISE) y
+  `luismadueño@gmail.com` (GRUAS) — Supabase Auth rechaza el carácter `ñ` en la parte local del email
+  ("Unable to validate email address: invalid format"), aunque Bubble lo permitía. Pendiente: pedirle
+  al usuario/cliente el email real de estas 2 personas (probablemente sin la ñ, ej. `nunez`/`madueno`)
+  para poder crear su cuenta — no se puede adivinar la corrección.
+- **`bancos`: decisión de no construir CRUD todavía.** Se agregó la columna `bubble_id` + constraint
+  único por consistencia de schema, pero como la lista "Bancos" no existe en Bubble (0 filas reales en
+  ningún lado), no se justifica construir `lib/actions/bancos.ts` sin un caso de uso real. Si el
+  negocio necesita este catálogo en el futuro, es una feature nueva, no una migración pendiente.
 - **Pendiente de la migración de Informes/Checklist (sesión 2026-09-07/08):** 30 informes + 1.059
   respuestas + 2 tasas_cambio de septiembre 2026 quedaron sin migrar por decisión explícita del
   usuario (no retroactivo) — documentado en el plan de Informes, no repetir la duda.
@@ -124,4 +133,14 @@ en esas filas de más antes de dar por cerrada la hipótesis.
 
 ## Próximo paso inmediato
 
-Fase 1 — Usuarios y Perfiles: contar gap real Supabase vs Bubble para CISE y GRUAS.
+Fases 1-5 (datos) cerradas 2026-09-08. Sigue: **Fase 6 — Cotizaciones**, ya investigada y ahora
+desbloqueada (dependencias al día). Ejecutar el delta-sync de Cotizaciones (GRUAS +6, CISE +103,
++22/15 updates de estado) + los 3 puntos de UI pendientes (TK-C1/C2/C4).
+
+**Nota de higiene:** `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_URL` de PROD siguen en `.env.local` para
+esta ejecución — el usuario/orquestador decide si las deja para encarar Fase 6 a continuación o las
+retira ahora.
+
+**Scripts entregables de esta ejecución** (en `scripts/`, no temporales): `sync-fase1-usuarios.ts`,
+`sync-fase2-catalogos.ts`, `sync-fase3-terceros.ts`, `sync-fase4-maquinaria.ts`,
+`sync-fase5-servicios.ts`. Todos idempotentes (re-correr no duplica).
