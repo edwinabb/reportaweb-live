@@ -36,7 +36,7 @@ cotizaciones y luego las fases de 7 a 9. Incluido las migraciones de informació
 | 4 | Maquinaria | Gaps chicos confirmados en las 3 tablas; CISE `maquinarias` aparentaba +23 de superávit pero igual tenía 2 bubble_ids puntuales faltantes (mismo patrón que Terceros) | 🟢 **Aplicado**: `maquinaria_modelos` CISE+2/GRUAS+7 (109/137, exacto). `maquinaria_tipos_docs` GRUAS+2 (18, exacto). `maquinarias` CISE+2/GRUAS+9 (155/149, GRUAS exacto). Confirmado con `bubble_id IS NULL` que el superávit CISE (25 filas) es altas nativas legítimas. | 🔲 | Cerrado |
 | 5 | Servicios | `servicios_tipos` 100% sin migrar (0 vs 19); `servicios` GRUAS -30 | 🟢 **Aplicado**: `servicios_tipos` migrado completo desde `configuraciones_opciones_listas` ("Tipos de Servicios") — CISE 9, GRUAS 10 (exacto). `servicios` GRUAS +30 (246, exacto), CISE sin cambios (232, ya exacto). `tipo_servicio`/`moneda` resueltos a texto vía el mismo catálogo genérico (antes de esto no había mapeo, se construyó `Map` bubble_id→label). | 🔲 | Cerrado (dato) |
 | 6 | Cotizaciones | 🟢 investigado (fork 2026-09-08): GRUAS +6, CISE +103, +22/15 updates de estado | 🟢 **Aplicado (script `scripts/sync-fase6-cotizaciones.ts`, paginado con `.range()` tras detectar falso-positivo por el cap de 1000 filas de Supabase JS sin paginar)**: GRUAS 230→237 (+7 cotizaciones, +13 detalle, +17 matriz). CISE 2376→2466 (+90 cotizaciones, +172 detalle, +1945 matriz). `fecha_vencimiento` default a `fecha_solicitud + 30 días` (Bubble no trae vencimiento explícito, mismo estándar que `terminos_condiciones`). **3 colisiones CISE resueltas 2026-09-08 (fork)**: cada `_id` de Bubble chocaba con una fila YA migrada distinta que compartía el mismo `Codigo` (no colisionaban entre sí) — por instrucción del usuario ("agregales una letra diferente al final a cada uno") se migraron como filas nuevas con `B` sufijado al `numero`: `CT 226-2025`→**`CT 226-2025B`** (id `6d0490cb-79b1-4605-bbda-71fa590a7e3c`, detalle=1, matriz=21), `CT067-2026`→**`CT067-2026B`** (id `34bb82ec-3d8e-4380-b047-0a99203ae254`, detalle=1, matriz=21), `CT068-2026`→**`CT068-2026B`** (id `261c2403-8e4a-44c6-994c-326674450178`, detalle=1, matriz=24). Verificado con conteos SQL post-migración (cotizaciones y matriz cuadran exacto). **PDFs migrados 2026-09-08 (fork)**: 108 `pdf_url` migrados desde `Archivo_web` de Bubble (bucket `cotizaciones`, mismo path que ya existía) de 416 filas candidatas (`pdf_url IS NULL AND bubble_id IS NOT NULL`, CISE+GRUAS); 307 sin fuente real en Bubble (cotización nunca enviada al cliente, no se inventó nada); 1 fallo genuino de dato corrupto en origen — `CT 233-2025` (bubble_id `1751671142615x551586952478457860`), el campo `Archivo_web` en Bubble vale literalmente el string `"pdf.pdf"` (no una URL), falla al parsear/descargar, queda documentado en `file_migration_log` con `status='error'`. | 🟡 TK-C2 preparado no aplicado (bloqueado por clasificador), TK-C4 pendiente, TK-C1 diferido por diseño — ver Cierre en `docs/auditoria-ui/06-cotizaciones.md` | 🟢 **Datos cerrados** / 🟡 **UI parcial** |
-| 7 | Reportes Maquinaria | 🔲 | 🔲 | 🔲 | Pendiente |
+| 7 | Reportes Maquinaria | 🟢 investigado (fork 2026-09-08): CISE -608, GRUAS -2.191 (mayor gap de todo el recorrido) | 🟢 **Aplicado (`scripts/migrate-fase7-reportes-maquinaria-delta.ts`, Bubble type `Maquinaria_reporte_horas_new`, mapping recuperado de `migrate-reportes-mig6.ts` en git history)**: CISE +555 (23 filtradas por cutoff, 31 sin `maquinaria_id` resoluble), GRUAS +1.962 (122 filtradas por cutoff, 107 sin `maquinaria_id` resoluble) = **2.517 filas nuevas**, 24.352→26.869. `UNIQUE(bubble_id)` ya existía (índice plano, no constraint formal — no se tocó). **Archivos migrados 2026-09-08 (fork, `scripts/migrate-fase7-reportes-maquinaria-archivos.ts`, mismo patrón `migrarArchivo`/`file_migration_log`)**: de las URLs crudas de Bubble que quedaron en las filas nuevas — `pdf_url` 2.474/2.475 (bucket `reporte-maquinaria`), `foto_actividad_url` 237/237, `foto_reporte_escrito_url` 2.566/2.566, `firma_cliente_url` 510/510 (bucket `reporta-maquinaria-fotos`, todos con path `{slug}/{año}/{fecha}-{id8}-{sufijo}.{ext}`, mismo estándar que el histórico). Verificado con query: 0 filas con URL fuera de `supabase.co` salvo 1 residual real (ver abajo). **Bug de proyecto Supabase equivocado: NO encontrado en esta tabla** (0 filas con `wioozisskjjgjjybsoqo` antes y después). **1 residual real, no inventado:** fila `id=8f2005cc-c0ea-47c5-ae6a-4d47806ea412` (GRUAS, bubble_id `1761075518309x906513819682209800`) tiene en Bubble el literal `"It wasn't possible to find the uploaded file URL"` en vez de una URL — dato corrupto en el origen, mismo patrón que `CT 233-2025` en Fase 6; queda documentado en `file_migration_log` (`status='error'`), no se puede recuperar. | 🟡 ver hallazgo de paginación abajo | 🟢 **Datos y archivos cerrados** |
 | 8 | Reportes Personal | 🔲 | 🔲 | 🔲 | Pendiente |
 | 9 | Facturación y Finanzas | 🔲 | 🔲 | 🔲 | Pendiente |
 
@@ -129,6 +129,23 @@ en esas filas de más antes de dar por cerrada la hipótesis.
   mencionado en `ventas.ts`/`opciones.ts`/`onboarding.ts` pero no rastreado a fondo por tiempo). Con 19 filas
   reales esperando en Bubble (9+10), es el gap de datos más claro de todo este relevamiento.
 
+### CRUD/UX — Fase 7 (Reportes Maquinaria)
+
+- **🔴 Gap de paginación confirmado en `getAllReportesMaquinaria` (`lib/actions/reportes.ts:200-217`):** la
+  query no tiene `.range()`/`.limit()`, así que depende del máximo default de PostgREST (1.000 filas). Con
+  GRUAS ahora en ~20.500 filas y CISE en ~6.370, la página `/informes/maquinaria` va a mostrar únicamente
+  las ~1.000 más recientes de cada tenant y truncar en silencio el resto — mismo patrón de "cap de 1.000
+  filas" que causó un falso-positivo en Fase 6. No se corrigió (fuera de scope de esta fork, solo
+  investigación/CRUD-UX), pero es candidato claro a ticket: agregar paginación real o filtro de rango de
+  fechas por defecto.
+- **CRUD confirmado:** existe alta/edición (`ReporteMaquinariaSection` + `ReporteMaquinariaDialog`), no se
+  vio botón de borrado/papelera en la sección revisada — no confirmado a fondo si existe soft-delete en
+  otro lugar de la UI.
+- **Deuda ya conocida y explícitamente fuera de scope de este delta-sync:** `valorizacion_compra_id`/
+  `valorizacion_venta_id` con 0 backfill matches (IDs del campo TEXT de Bubble no coinciden con
+  `valorizaciones.bubble_id`) — documentado desde 2026-05-25 en la guía de migración, requiere
+  investigación aparte.
+
 ## Hallazgos que no bloquean pero quedan anotados
 
 - **CISE Terceros/Maquinarias: superávit confirmado como legítimo (2026-09-08).** `bubble_id IS NULL`
@@ -156,9 +173,10 @@ en esas filas de más antes de dar por cerrada la hipótesis.
 
 ## Próximo paso inmediato
 
-Fases 1-5 (datos) cerradas 2026-09-08. Sigue: **Fase 6 — Cotizaciones**, ya investigada y ahora
-desbloqueada (dependencias al día). Ejecutar el delta-sync de Cotizaciones (GRUAS +6, CISE +103,
-+22/15 updates de estado) + los 3 puntos de UI pendientes (TK-C1/C2/C4).
+Fases 1-7 (datos + archivos) cerradas 2026-09-08. Sigue: **Fase 8 — Reportes Personal**, siguiendo el
+mismo patrón (investigar gap real vs Bubble, confirmar/crear `UNIQUE(bubble_id)`, delta-sync con cutoff
+2026-08-31, migrar archivos asociados sin dejar huérfanos, revisar CRUD/UX). Luego **Fase 9 — Facturación
+y Finanzas**.
 
 **Nota de higiene:** `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_URL` de PROD siguen en `.env.local` para
 esta ejecución — el usuario/orquestador decide si las deja para encarar Fase 6 a continuación o las
@@ -166,4 +184,5 @@ retira ahora.
 
 **Scripts entregables de esta ejecución** (en `scripts/`, no temporales): `sync-fase1-usuarios.ts`,
 `sync-fase2-catalogos.ts`, `sync-fase3-terceros.ts`, `sync-fase4-maquinaria.ts`,
-`sync-fase5-servicios.ts`. Todos idempotentes (re-correr no duplica).
+`sync-fase5-servicios.ts`, `sync-fase6-cotizaciones.ts`, `migrate-fase7-reportes-maquinaria-delta.ts`,
+`migrate-fase7-reportes-maquinaria-archivos.ts`. Todos idempotentes (re-correr no duplica).
