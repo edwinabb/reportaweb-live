@@ -23,7 +23,9 @@ function esBorrador(r: Reporte): boolean {
     return !tienePersona || r.jornada1_inicio == null
 }
 
-export function ReportesPersonalSection({ reportes }: { reportes: Reporte[] }) {
+export function ReportesPersonalSection({
+    reportes, count, page, pageSize,
+}: { reportes: Reporte[]; count: number; page: number; pageSize: number }) {
     const router = useRouter()
     const [dialogOpen, setDialogOpen] = React.useState(false)
     const [editId, setEditId] = React.useState<string>()
@@ -32,12 +34,15 @@ export function ReportesPersonalSection({ reportes }: { reportes: Reporte[] }) {
     const openEdit = (id: string) => { setEditId(id); setDialogOpen(true) }
     const onSuccess = () => router.refresh()
 
+    const totalPages = Math.max(1, Math.ceil(count / pageSize))
+    const goToPage = (p: number) => router.push(`/informes/personal?page=${p}`)
+
     return (
         <>
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-xl font-bold">Reportes de Personal</h1>
-                    <p className="text-sm text-muted-foreground">{reportes.length} registros</p>
+                    <p className="text-sm text-muted-foreground">{count} registros — página {page} de {totalPages}</p>
                 </div>
                 <Button onClick={openNuevo} className="bg-orange-600 hover:bg-orange-700">
                     <Plus className="mr-2 h-4 w-4" /> Nuevo reporte
@@ -102,6 +107,14 @@ export function ReportesPersonalSection({ reportes }: { reportes: Reporte[] }) {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}>Anterior</Button>
+                    <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+                    <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => goToPage(page + 1)}>Siguiente</Button>
+                </div>
+            )}
 
             <ReportePersonalDialog open={dialogOpen} onOpenChange={setDialogOpen} reporteId={editId} onSuccess={onSuccess} />
         </>

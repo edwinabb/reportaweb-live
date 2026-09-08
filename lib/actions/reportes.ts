@@ -178,23 +178,27 @@ export async function getReportesCombustible(tareaId: string) {
 
 // --- LISTADOS GLOBALES (sin filtro por tarea) ---
 
-export async function getAllReportesPersonal() {
+export async function getAllReportesPersonal({ page = 1, limit = 50 }: { page?: number; limit?: number } = {}) {
     const { adminClient, tenantId } = await getSupabaseContext()
-    if (!adminClient || !tenantId) return []
+    if (!adminClient || !tenantId) return { data: [], count: 0 }
 
-    const { data } = await adminClient
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data, count } = await adminClient
         .from('reportes_personal')
         .select(`
             id, fecha_reporte, id_documento_interno, total_horas, gasto_total, pdf_url, tipo_personal, jornada1_inicio, created_at,
             tarea:tareas(codigo, titulo),
             personal:profiles!reportes_personal_personal_id_fkey(first_name, last_name),
             tercero_personal:terceros_personal!reportes_personal_tercero_personal_id_fkey(nombres, apellidos, cargo)
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('fecha_reporte', { ascending: false })
+        .range(from, to)
 
-    return data || []
+    return { data: data || [], count: count || 0 }
 }
 
 export async function getAllReportesMaquinaria({ page = 1, limit = 50 }: { page?: number; limit?: number } = {}) {
