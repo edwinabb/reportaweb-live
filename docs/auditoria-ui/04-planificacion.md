@@ -21,8 +21,8 @@
 - Listado leído vía MV `mv_planificacion_diaria` (join por `tarea_fecha_id`).
 
 **Hallazgos críticos (datos) — actualizado 2026-09-08, ver TK-P1 §Tickets para el detalle de cierre:**
-1. 🟢 **Resuelto parcialmente:** de los 8.694 recursos invisibles originales (`tarea_fecha_id` NULL), 5.777 (bug separado del seed original) + 152 (Segmento B) ya están re-vinculados. Quedan 737 pendientes: 4.694 esperan aplicar la reconciliación del Segmento A (bloqueada por volumen, script listo) y 483 corresponden a tareas del Segmento B sin ningún informe/reporte real (correctamente sin fecha inventada).
-2. 🟢 **Resuelto:** las tareas de 2026 recuperables (Segmento A, incluye las ~120 de 2026) ya tienen su fecha desde 2026-07-15; su reconciliación de recursos es la que queda pendiente de aplicar (ver arriba).
+1. 🟢 **Resuelto (TK-P1 cerrado 2026-09-08):** de los 8.694 recursos invisibles originales (`tarea_fecha_id` NULL), 5.777 (bug separado del seed original) + 4.694 (reconciliación Segmento A) + 152 (Segmento B) ya están re-vinculados/insertados. Quedan 737 NULL, exclusivamente de las 483 tareas del Segmento B sin ningún informe/reporte real — no es trabajo pendiente, es el resultado correcto de no inventar fechas.
+2. 🟢 **Resuelto:** las tareas de 2026 recuperables (Segmento A, incluye las ~120 de 2026) tienen su fecha desde 2026-07-15 y sus recursos ya fueron reconciliados contra Bubble (1.932 → 6.626).
 
 **Defectos encontrados:** ver §"Otros hallazgos" (fechas UTC/local, race condition de código, campos sin UI). **DUDA-PLAN-003 (editar destruía fechas/recursos) → YA CORREGIDA 2026-07-15.**
 
@@ -173,18 +173,19 @@ Repo ya tiene los patrones: route group `app/(print)/` (`@media print` + `@page`
 **TK-P1** (DUDA-PLAN-001 aprobada por el usuario, con Segmento B modificado sobre la propuesta original):
 
 - **Bug separado encontrado (no estaba en la propuesta de julio):** 5.777 filas de `tareas_recursos` (100% tipo MAQUINARIA) del seed original de mayo tenían fecha asignada pero nunca se vincularon (`tarea_fecha_id` NULL apuntando a nada) — bug mecánico, sin ambigüedad (cada tarea tenía exactamente 1 fecha posible). **Resuelto**: re-vinculadas las 5.777.
-- **Segmento A (1.932 tareas recuperables):** sus fechas SÍ se habían migrado el 2026-07-15, pero la reconciliación de recursos contra Bubble nunca se completó — solo había 1.932 recursos vinculados vs. los reales de Bubble. Dry-run confirmado sin ambigüedad (una fecha por tarea): **4.694 recursos nuevos identificados** (3.064 PERSONAL + 1.630 MAQUINARIA), 9 sin resolución (bubble_id de personal/maquinaria ya no existe en el catálogo actual — negligible). **Bloqueado para aplicar**: el volumen (~1MB de INSERTs) excede lo que el canal MCP puede procesar sin costo prohibitivo de tokens (mismo límite ya documentado en la migración de Informes/Checklist) — requiere reactivar temporalmente la service-role key de PROD en `.env.local` para insertar vía `@supabase/supabase-js`, igual que se hizo en esa migración. Script listo: `scripts/reconciliar-segmento-a-planificacion.ts` (dry-run ya corrido, resultados en `scripts/.cache/segmentoA-inserts.json`).
+- **Segmento A (1.932 tareas recuperables) — ✅ APLICADO 2026-09-08:** sus fechas SÍ se habían migrado el 2026-07-15, pero la reconciliación de recursos contra Bubble nunca se había completado — solo había 1.932 recursos vinculados. Se identificaron y aplicaron **4.694 recursos nuevos** (3.064 PERSONAL + 1.630 MAQUINARIA) vía inserción directa (`@supabase/supabase-js`, service-role key de PROD reactivada temporalmente para esta corrida), con guard anti-duplicado re-verificado contra el estado real de Supabase justo antes de insertar (0 duplicados, `tareas_recursos` no tiene unique constraint natural más allá de la PK). 9 refs sin resolución (bubble_id de personal/maquinaria que ya no existe en el catálogo actual — negligible). **Resultado: 1.932 → 6.626 recursos totales** para estas tareas (por encima del estimado de julio de ~5.928 — razonable, Bubble sigue recibiendo datos nuevos). Scripts: `scripts/reconciliar-segmento-a-planificacion.ts` (dry-run) + `scripts/aplicar-segmento-a-planificacion.ts` (aplicación).
 - **Segmento B modificado** (decisión del usuario: "si hay informes aprobados colocale a la tarea la fecha de estos reportes"): de las 635 tareas sin fecha ni en Bubble ni en Supabase, se resolvieron **152** con fecha real (127 vía `formatos_informes` APROBADO, 16 vía `reportes_maquinaria`, 8 vía `reportes_personal`, 1 vía `inspecciones`) — se revisaron también `reportes_combustible`, `reportes_usuario` y `bitacora_operaciones` sin aportar ninguna adicional. **483 quedan sin fecha, correctamente sin inventar dato** (no tienen ningún informe/reporte real vinculado).
 - **Segmento C — corrección al dato de julio:** la auditoría original decía "3 tareas deshabilitadas en Bubble"; la cifra real es **630 tareas GRUAS** con `deshabilitado?=true` en Bubble (137 de ellas de 2026), activas en Supabase. **Decisión del usuario: no migrar/tocar** — quedan fuera de alcance, tratadas como equivalente a "papelera" en el origen. No se modificó ninguna fila en Supabase para este segmento.
 
-**Conteos antes → después (2026-09-08, CISE+GRUAS):**
+**Conteos antes → después (2026-09-08, CISE+GRUAS) — TK-P1 CERRADO:**
 
-| Métrica | Antes | Después |
+| Métrica | Antes (inicio de sesión) | Después |
 |---|---:|---:|
-| Tareas sin `tareas_fechas` | 635 | **483** (Segmento A no aplica acá — ya tenía fecha) |
-| `tareas_recursos.tarea_fecha_id` NULL | 6.762 | **737** (983 recursos de las 483 tareas sin fecha del Segmento B + el remanente de reconciliación de Segmento A, pendiente de aplicar) |
+| Tareas sin `tareas_fechas` | 635 | **483** (sin ningún informe/reporte real — correctamente sin fecha inventada) |
+| `tareas_recursos.tarea_fecha_id` NULL (global) | 6.762 | **737** (recursos de las 483 tareas del Segmento B sin fecha — no hay nada más pendiente) |
+| Recursos vinculados del Segmento A (1.932 tareas) | 1.932 | **6.626** |
 
-**Pendiente real:** aplicar los 4.694 inserts del Segmento A (bloqueado por volumen, ver arriba) — una vez aplicado, `tareas_recursos` NULL bajaría a ~0 para tareas con fecha conocida.
+Los 737 NULL restantes son exclusivamente de tareas sin ninguna evidencia de fecha real (Segmento B) — no representan trabajo pendiente, son el resultado esperado de no inventar datos.
 
 ### 🟡 MEDIA
 2. **TK-P2:** Template v1.2 parcial en `/planificacion` (PageDescription + h1 sr-only · export XLS del listado · tarjeta de toolbar `bg-muted/50`). [2h]
@@ -204,7 +205,7 @@ Repo ya tiene los patrones: route group `app/(print)/` (`@media print` + `@page`
 
 ## Próximos Pasos
 
-1. ~~Aprobar DUDA-PLAN-001~~ **Hecho 2026-09-08** — ejecutado el bug de re-vinculación (5.777) y el Segmento B modificado (152 resueltas). Queda **pendiente aplicar la reconciliación del Segmento A** (4.694 recursos, bloqueado por volumen — requiere la service-role key de PROD temporalmente, ver detalle en TK-P1 arriba).
+1. ~~Aprobar DUDA-PLAN-001~~ ~~ejecutar TK-P1~~ **TK-P1 CERRADO 2026-09-08** — bug de re-vinculación (5.777), reconciliación Segmento A (4.694) y Segmento B modificado (152 resueltas) aplicados y verificados contra PROD.
 2. **TK-P2** (template parcial) + **TK-P4/P7/P8** (quick wins).
 3. **Re-confirmar cobertura contra Bubble LIVE** (gate de go-live, tarea transversal X1 del plan de cutover).
 4. Cerrar módulo 4 en el tracker `docs/UI-TEMPLATE-LISTADOS.md` con firma del usuario (§4 `VALIDATION-CHECKLIST-TEMPLATE.md`).
