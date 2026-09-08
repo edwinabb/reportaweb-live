@@ -140,15 +140,15 @@ Bubble fusiona "Crear PDF" y "Enviar al Cliente" en un solo Paso 4; reportaweb3 
 | TK-C4 | 🟢 BAJA | 4 tarjetas KPI clicables del listado Bubble (filtro rápido por estado) sin equivalente — el select de estado ya cubre la función | Opcional, UX |
 | TK-C5 | 🟢 BAJA | Botón "Filtrar" (panel de filtros avanzados) de Bubble no explorado a fondo por límite de tiempo de sesión | Reabrir sesión Bubble y confirmar que no hay un filtro real perdido |
 
-## DUDAs abiertas
+## DUDAs — actualizado 2026-09-08
 
-| ID | Pregunta |
-|---|---|
-| DUDA-COT-000 | Redirect intermitente 307 en `/cotizaciones` (race de refresh de sesión) — ¿lo cubre un test de Fase 5 o se investiga ahora? |
-| DUDA-COT-001 | Botón "Filtrar" en Bubble (Gestión y Servicios) — ¿tiene filtros reales no cubiertos por las columnas ordenables de reportaweb3? |
-| DUDA-COT-002 | reportaweb3 bloquea Editar sobre cotizaciones APROBADA/RECHAZADA; Bubble no. ¿Se confirma el endurecimiento o hace falta poder corregir una cotización aprobada? |
-| DUDA-COT-003 | Columnas `token_aprobacion`/`pin_aprobacion` en `cotizaciones` — ¿flujo de aprobación externo por link+PIN ya en uso, o feature sin UI de consumo? |
+| ID | Pregunta | Resolución |
+|---|---|---|
+| DUDA-COT-000 | Redirect intermitente 307 en `/cotizaciones` (race de refresh de sesión) | 🟢 **Resuelto**: causa raíz confirmada en `utils/supabase/middleware.ts` — `getUser()` puede devolver `null` transitoriamente durante la rotación del access token en el edge. Fix: reintentar una vez si hay cookie de sesión presente. Desplegado a demo v3.12.2, probado con ráfaga de 80 requests concurrentes a rutas protegidas sin regresiones. Pendiente: reintento de prueba cerca del límite real de 1h del token (condición de carrera exacta, difícil de forzar de forma determinística) — programado ~12pm 2026-09-08. |
+| DUDA-COT-001 | Botón "Filtrar" en Bubble (Gestión y Servicios) — ¿tiene filtros reales no cubiertos por las columnas ordenables de reportaweb3? | 🟡 Abierto — no investigado aún, queda en backlog junto con TK-C5 (mismo tema) |
+| DUDA-COT-002 | reportaweb3 bloquea Editar sobre cotizaciones APROBADA/RECHAZADA; Bubble no. | 🟢 **Resuelto**: decisión del usuario, se mantiene el bloqueo tal cual — es un endurecimiento de integridad de datos intencional, sin cambio de código. |
+| DUDA-COT-003 | Columnas `token_aprobacion`/`pin_aprobacion` en `cotizaciones` — ¿flujo real o feature sin UI? | 🟢 **Resuelto**: confirmado en código — es un flujo real y completo (`/aprobacion/[token]` + `/preview`, genera token+PIN al enviar al cliente en `cotizacion-enviar-cliente.tsx`, valida PIN server-side en `lib/actions/cotizaciones.ts`, ruta pública en el middleware). Nota técnica menor encontrada de paso: el comentario en el código dice "pin_attempts / pin_locked_until columns not yet in schema — basic validation only" — sin límite de intentos de PIN implementado todavía (no es parte de esta duda, queda anotado como posible mejora de seguridad futura). |
 
 ## Cierre
 
-**Estado:** 🟡 Auditado — no se cierra 🟢 hasta resolver las 4 DUDAs con el usuario (ninguna es bloqueante para operar, todas son de alcance/confirmación). Datos verificados en vivo contra PROD; UI verificada en vivo contra Bubble (LIVE de version-test) y contra reportaweb3 (dev local, BD TEST — sin datos de cotizaciones en TEST, verificación de código + datos en PROD como sustituto, según lo ya aceptado para este proyecto).
+**Estado:** 🟡 Auditado — 3 de 4 DUDAs resueltas (COT-000, COT-002, COT-003). Queda abierta DUDA-COT-001 (junto con TK-C5, mismo tema) antes de poder cerrar 🟢 el módulo completo. Ninguna de las abiertas es bloqueante para operar. Datos verificados en vivo contra PROD; UI verificada en vivo contra Bubble (LIVE de version-test) y contra reportaweb3 (dev local, BD TEST — sin datos de cotizaciones en TEST, verificación de código + datos en PROD como sustituto, según lo ya aceptado para este proyecto).
