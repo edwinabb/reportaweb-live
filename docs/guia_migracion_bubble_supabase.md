@@ -15,6 +15,12 @@ Este documento detalla el paso a paso para migrar todos los módulos desde Bubbl
    de `formatos_informes` + sus respuestas, y 2 de `tasas_cambio`). Cualquier script nuevo que respete este
    corte debe verificar explícitamente que no duplique esas filas ya existentes, no asumir que Supabase está
    limpio de datos post-corte.
+5. **⚠️ Excepción al corte para datos operativos (agregada 2026-09-08, Fase 7):** el corte del punto 4
+   aplica a datos **históricos/de checklist** (Informes, Cotizaciones) donde tiene sentido una línea de
+   corte fija. Para módulos de **reporte operativo continuo** (`reportes_maquinaria`, y por el mismo
+   criterio `reportes_personal`) el usuario pidió explícitamente NO cortar en agosto — sincronizar
+   `>= 2026-09-01` también, porque son datos de trabajo real en curso, no un histórico a congelar. Al
+   tocar estos dos módulos, sincronizar todo lo disponible en Bubble sin el corte de fecha.
 
 ---
 
