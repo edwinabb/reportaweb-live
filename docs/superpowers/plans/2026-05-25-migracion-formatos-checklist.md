@@ -1,6 +1,19 @@
 # Plan de Migración: Formatos / Checklist — Templates (Bubble → Supabase)
 ## Para revisión — NO implementar aún
 
+> ⚠️ **NOTA 2026-09-08 — este plan quedó histórico, no vigente.** Su ejecución (mayo 2026, ver §7
+> "Checklist pre-cutover", todo marcado `[x]`) sí se completó con éxito, pero el resultado
+> (6.507 informes + respuestas) se perdió el **2026-05-26** en un reset completo de PROD (evidencia:
+> `list_migrations` muestra que todo el schema se reaplicó ese día). El orquestador de recuperación
+> del cutover real (`docs/superpowers/plans/2026-05-29-cutover-plan.md`, `scripts/migrate-all-prod.ts`)
+> nunca incluyó una fase de formatos/informes, así que la migración nunca se volvió a correr — hasta
+> que se detectó el gap en la auditoría UI del 2026-09-07 (`docs/auditoria-ui/07-informes.md`, TK-I1).
+> El **re-trabajo completo** (catalogación ampliada a 8 formatos + 13.402 informes + archivos) está en
+> `docs/superpowers/plans/2026-09-07-migracion-historica-informes-checklist.md` — ese es el plan
+> vigente para este dominio. Este documento queda solo como referencia histórica de la estructura
+> Bubble original (mapeos de campos, reglas de skip, grupo de opciones SI/NO/NO-APLICA), que siguió
+> siendo válida y se reusó en el re-trabajo.
+
 **Fecha de preparación:** 2026-05-25  
 **Contexto:** Cutover programado ~2026-05-31
 

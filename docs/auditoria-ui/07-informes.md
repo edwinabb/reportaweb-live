@@ -10,7 +10,14 @@
 
 ## Resumen Ejecutivo
 
+🟢 **TK-I1 CERRADO (2026-09-08):** el hallazgo crítico original (checklists sin migrar) fue investigado, ampliado y resuelto en `docs/superpowers/plans/2026-09-07-migracion-historica-informes-checklist.md`. Causa raíz confirmada: los 6.507 informes migrados el 2026-05-25 se perdieron en un reset completo de PROD del 2026-05-26, y el orquestador de recuperación del cutover (30-may) nunca incluyó una fase de formatos/informes. Además, el catálogo real de Bubble no eran 2 formatos sino **8** (4 formatos nuevos + 2 versiones adicionales de los 2 ya conocidos) — se catalogaron todos (Fase 0), se migraron **13.402 informes Finalizado** con sus respuestas (solo para `fecha_reporte >= 2026-01-01`, por decisión explícita del usuario; años anteriores llevan cabecera+PDF completos sin respuestas) (Fase 1), y se migraron **14.196/14.197 archivos** (PDFs + fotos + evidencias de planes de acción) a Supabase Storage con las columnas de URL actualizadas (Fase 2). Detalle completo de conteos en `docs/superpowers/plans/2026-09-07-migracion-historica-informes-checklist.md` § Fase 3.
+
+<details>
+<summary>Hallazgo original (2026-09-07), para contexto histórico</summary>
+
 🔴 **Hallazgo crítico — el primero de esta magnitud en la auditoría (módulos 1-7):** el sistema de "Formatos" (checklists dinámicos) que sostiene el submenú **Informes** de Bubble tiene su **catálogo/schema migrado pero CERO informes reales migrados**. Bubble muestra **3.532 checklists** para el solo tenant GRUAS (73 en proceso + 22 suspendidos + 14 cancelados + 3.423 finalizados); en PROD, `formatos_informes` (y sus tablas satélite `_respuestas`/`_maquinarias`/`_personal`/`_comentarios`) están en **0 filas** para los dos tenants — y en general (`select count(*) from formatos_informes` = 0 sin filtrar tenant). Solo el catálogo de plantillas (`formatos`, 2 filas) y sus preguntas (`formatos_preguntas`, 136 filas) sí se migraron.
+
+</details>
 
 En contraste, **R. Maquinaria** y **R. Personal** (que en Bubble viven bajo el mismo submenú pero corresponden a un sistema de datos completamente distinto, `reportes_maquinaria`/`reportes_personal`) están en excelente estado: 24.352 y 27.170 filas respectivamente, ya confirmado en auditorías previas (Fase 2 módulo 5) que generan PDF correctamente. **R. Gastos** de reportaweb3 (`reportes_combustible`) también está en 0 filas — pendiente de aclarar con el usuario si tiene equivalente real en Bubble (ver DUDA-INF-002).
 
@@ -47,20 +54,23 @@ En contraste, **R. Maquinaria** y **R. Personal** (que en Bubble viven bajo el m
 
 `components/informes/informe-fill-form.tsx` (wizard de llenado dinámico, coincide con el patrón SI/NO/NO APLICA de Bubble) + `informe-read-view.tsx` (vista de solo lectura) + `signature-canvas.tsx` (captura de firma — **no vista en la sesión de Bubble auditada**, DUDA-INF-003: ¿la firma es una mejora nueva o Bubble la tiene en otro paso no alcanzado?) + `lib/actions/formatos-informes.ts` (CRUD completo contra las 6 tablas del modelo). El código está construido con la misma arquitectura de "formato dinámico" que Bubble (preguntas parametrizadas por plantilla, no hardcodeadas) — **la estructura es correcta, el problema es exclusivamente de datos**.
 
-### 1.3 Cobertura de datos (PROD) — el hallazgo
+### 1.3 Cobertura de datos (PROD) — actualizado 2026-09-08, post cierre TK-I1
 
-| Tabla | Filas (global, no solo CISE/GRUAS) | Status |
+| Tabla | Filas (CISE+GRUAS) | Status |
 |---|---:|---|
-| `formatos` (catálogo de plantillas) | 2 | ✅ migrado |
-| `formatos_preguntas` (ítems por plantilla) | 136 | ✅ migrado |
+| `formatos` (catálogo de plantillas) | 6 (2 originales + 4 nuevos) | ✅ migrado |
+| `formatos_versiones` | 8 (incluye 2 versiones adicionales de formatos ya existentes) | ✅ migrado |
+| `formatos_preguntas` | ~354 (8 formatos) | ✅ migrado |
 | `config_checklist` (config por tenant) | 14 (CISE+GRUAS) | ✅ migrado |
-| **`formatos_informes`** (cabecera de cada checklist llenado) | **0** | 🔴 **sin migrar** — Bubble tiene 3.532 solo para GRUAS |
-| `formatos_informes_respuestas` | 0 | 🔴 sin migrar |
-| `formatos_informes_maquinarias` | 0 | 🔴 sin migrar |
-| `formatos_informes_personal` | 0 | 🔴 sin migrar |
-| `formatos_informes_comentarios` | 0 | 🔴 sin migrar |
+| **`formatos_informes`** (cabecera de cada checklist llenado) | **13.402** | ✅ migrado (100% de los `Finalizado` en Bubble para los 8 formatos) |
+| `formatos_informes_respuestas` | ~55.342 | ✅ migrado (solo informes con `fecha_reporte >= 2026-01-01`, por decisión explícita del usuario — años anteriores no llevan respuestas, solo cabecera+PDF) |
+| `formatos_informes_maquinarias` | ~4.449 | ✅ migrado (solo cuando Bubble traía `id_maquinaria` en el informe) |
+| `formatos_informes_personal` | 0 | — sin campo de origen en Bubble para los 8 formatos migrados (no es un gap, se confirmó que no existe el vínculo en el modelo de datos de origen) |
+| `formatos_informes_comentarios` | 0 | fuera de alcance de esta migración (no tiene equivalente confirmado en Bubble) |
+| PDFs re-subidos a Supabase Storage (`formatos_informes.pdf_url`) | 12.906/12.906 (menos 1 archivo irrecuperable, ver nota) | ✅ |
+| Fotos de respuestas re-subidas (`formatos_informes_respuestas.valor_foto_url`) | 1.258/1.258 | ✅ |
 
-**TK-I1 (CRÍTICA):** migrar el histórico de `formatos_informes` + tablas satélite desde Bubble Data API (patrón ya usado en el resto del proyecto: script `tsx` idempotente por `bubble_id`). Volumen estimado: **miles de registros** (3.532 solo en GRUAS; falta contar CISE). Esto bloquea que cualquier cliente vea su historial de checklists al cortar Bubble — es, hasta ahora, el gap de datos más grande encontrado en toda la auditoría (módulos 1-7).
+**TK-I1 CERRADO.** Único residual: 1 PDF de 2021 (`INF-2189`) cuyo archivo original en el S3 de Bubble ya no existe (devuelve un error HTML, no el PDF) — el informe conserva todos sus datos y respuestas, solo sin PDF descargable. No se considera bloqueante.
 
 ---
 
@@ -102,7 +112,7 @@ No se pudo confirmar el conteo exacto de Bubble para estas dos pantallas por lí
 
 | ID | Severidad | Descripción | Acción |
 |---|---|---|---|
-| TK-I1 | 🔴 CRÍTICA | `formatos_informes` y tablas satélite (respuestas/maquinarias/personal/comentarios) en 0 filas — 3.532+ checklists históricos de GRUAS (falta contar CISE) nunca migrados | Migrar desde Bubble Data API, mismo patrón idempotente por `bubble_id` ya usado en el resto del proyecto |
+| TK-I1 | 🟢 CERRADO 2026-09-08 | `formatos_informes` y tablas satélite estaban en 0 filas (causa: reset de PROD 2026-05-26 borró la migración de mayo, nunca re-corrida) | Migrado: 13.402 informes + ~55.342 respuestas (solo 2026+) + ~4.449 vínculos de maquinaria + 12.906 PDFs + 1.258 fotos re-subidos a Supabase Storage. Ver plan `2026-09-07-migracion-historica-informes-checklist.md` |
 | TK-I2 | 🔴/🟢 según respuesta de DUDA-INF-002/③ | `reportes_combustible` en 0 filas | Confirmar con el usuario si hay datos reales de Bubble para migrar |
 | TK-I3 | 🟢 BAJA | Sin herramienta de "Exportar CSV" por formato completo | Depende de TK-I1; construir después |
 | TK-MAQ-HORAS (ya existía, confirmado aquí) | 🟡 MEDIA | `maquinaria_horas` (1.917 filas CISE, 0 GRUAS) sigue sin ningún consumidor en código — ni Maquinaria ni Informes la usan | Ver `docs/TECHNICAL_DEBTS.md` DUDA-MAQ-HORAS — este módulo confirma que la deuda sigue abierta, "Horas Maquinaria" usa `reportes_maquinaria`, no esta tabla |
@@ -118,4 +128,4 @@ No se pudo confirmar el conteo exacto de Bubble para estas dos pantallas por lí
 
 ## Cierre
 
-**Estado:** 🔴 **NO se cierra** — hallazgo crítico de datos (TK-I1) requiere decisión y priorización del usuario antes de continuar. R. Maquinaria y R. Personal están en buen estado (✅), pero el módulo como conjunto no puede marcarse verde mientras el checklist (la funcionalidad más usada según el volumen — 3.532 solo en GRUAS) no tenga sus datos históricos.
+**Estado:** 🟢 **CERRADO 2026-09-08** — TK-I1 (el hallazgo crítico de datos) resuelto: 13.402 informes históricos migrados con respuestas (2026+), archivos re-subidos a Supabase Storage. R. Maquinaria y R. Personal ya estaban en buen estado (✅). Quedan abiertos como no bloqueantes: TK-I2 (`reportes_combustible` en 0 filas, pendiente confirmar con el usuario si tiene origen en Bubble), TK-I3 (sin herramienta de Exportar CSV por formato) y las DUDAs INF-001 a 004 (UI, no de datos).
