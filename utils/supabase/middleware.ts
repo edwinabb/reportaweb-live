@@ -68,7 +68,25 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
+    let { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        // getUser() puede devolver null de forma transitoria durante la rotación del
+        // access token (race de refresh en el edge) aunque la sesión siga vigente en
+        // el navegador. Si todavía hay una cookie de sesión de Supabase presente,
+        // reintentamos una vez antes de tratar esto como logout real — evita el
+        // 307 /login→/planificacion intermitente reportado en DUDA-COT-000
+        // (docs/auditoria-ui/06-cotizaciones.md). Un usuario realmente sin sesión
+        // no tiene esta cookie, así que el camino rápido (sin reintento) no cambia.
+        const hasAuthCookie = request.cookies
+            .getAll()
+            .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))
+
+        if (hasAuthCookie) {
+            const retry = await supabase.auth.getUser()
+            user = retry.data.user
+        }
+    }
 
     if (!user) {
         // Limpiar cookies de permisos y timezone al cerrar sesión
