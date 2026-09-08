@@ -30,7 +30,7 @@ cotizaciones y luego las fases de 7 a 9. Incluido las migraciones de informació
 
 | Fase | Módulo | Gap de datos | Delta-sync aplicado | CRUD/UX revisado | Estado |
 |---|---|---|---|---|---|
-| 1 | Usuarios y Perfiles | Confirmado CISE -2, GRUAS -12 (diff real por bubble_id: 6+13=19) | 🟢 **Aplicado 2026-09-08**: 17/19 creados (Auth+profile, patrón histórico `clave*2025`); 2 con email inválido (`ñ`, rechazado por Supabase Auth) quedan sin resolver, ver nota. GRUAS 224→236 (exacto). CISE 103→108. | 🔲 | 🟢 Cerrado (2 residuales documentados) |
+| 1 | Usuarios y Perfiles | Confirmado CISE -2, GRUAS -12 (diff real por bubble_id: 6+13=19) | 🟢 **Cerrado 2026-09-08**: 19/19 creados (Auth+profile, patrón histórico `clave*2025`). Los 2 residuales por `ñ` en el email (rechazado por Supabase Auth) se resolvieron a mano reemplazando ñ→n: `reynaldo.nunez@gmail.com` (CISE), `luismadueno@gmail.com` (GRUAS). CISE 103→109. GRUAS 224→237 (1 más que el total Bubble de 236 — mismo patrón benigno de superávit ya confirmado en Terceros/Maquinaria, no investigado a fondo por ser a favor, no en contra). | 🔲 | 🟢 **Cerrado** |
 | 2 | Catálogos del Sistema | `plazos_pago`/`areas` con filas viejas sin `bubble_id` (no gap real de datos, solo de vínculo); `bancos` sin datos en Bubble tampoco (no existe la lista); `servicios_tipos`→ver Fase 5 | 🟢 **Aplicado**: `UNIQUE(bubble_id)` agregado a `areas`/`plazos_pago`/`bancos` (TEST+PROD). `areas` CISE→9, GRUAS→8 (backfill + 0 nuevas reales tras dedupe). `plazos_pago` CISE→53, GRUAS→21 (1 nueva: FACTURACION SEMANAL). `bancos`: confirmado que la lista "Bancos" **no existe en Bubble** — no hay nada que migrar, feature nunca usada en ningún sistema. | 🟡 ver detalle abajo | Cerrado |
 | 3 | Terceros | GRUAS -6 confirmado; CISE aparentaba +41 de superávit agregado pero igual tenía 6 bubble_ids puntuales faltantes (superávit y gap puntual no son excluyentes) | 🟢 **Aplicado**: script recuperado de git history (`delta-terceros.ts`, tipo Bubble `tercero` singular). CISE +6, GRUAS +6. GRUAS 232→238 (exacto). CISE 446→452. Confirmado con `bubble_id IS NULL`: el superávit de CISE (47 filas) son altas nativas reales en reportaweb3, no error — no se tocan. | 🔲 | Cerrado |
 | 4 | Maquinaria | Gaps chicos confirmados en las 3 tablas; CISE `maquinarias` aparentaba +23 de superávit pero igual tenía 2 bubble_ids puntuales faltantes (mismo patrón que Terceros) | 🟢 **Aplicado**: `maquinaria_modelos` CISE+2/GRUAS+7 (109/137, exacto). `maquinaria_tipos_docs` GRUAS+2 (18, exacto). `maquinarias` CISE+2/GRUAS+9 (155/149, GRUAS exacto). Confirmado con `bubble_id IS NULL` que el superávit CISE (25 filas) es altas nativas legítimas. | 🔲 | Cerrado |
@@ -39,6 +39,27 @@ cotizaciones y luego las fases de 7 a 9. Incluido las migraciones de informació
 | 7 | Reportes Maquinaria | 🔲 | 🔲 | 🔲 | Pendiente |
 | 8 | Reportes Personal | 🔲 | 🔲 | 🔲 | Pendiente |
 | 9 | Facturación y Finanzas | 🔲 | 🔲 | 🔲 | Pendiente |
+
+## Hallazgo 2026-09-08: bug de "proyecto Supabase equivocado" es más amplio de lo pensado
+
+El bug ya conocido de `companies.logo_url` de GRUAS apuntando a `wioozisskjjgjjybsoqo.supabase.co`
+(proyecto Supabase viejo/equivocado, no el actual `fqwhagryqkkhbgznxtwf`) **no es un caso aislado**.
+Confirmado el mismo patrón en 6 URLs de 2 tablas:
+
+| Tabla.columna | Filas afectadas | Estado |
+|---|---:|---|
+| `companies.logo_url` | 2 (CISE + GRUAS) | 🔴 sin corregir |
+| `cotizaciones_configuracion.imagen_banco` | 2 (CISE + GRUAS) | 🟢 CISE corregida 2026-09-08 (imagen real recuperada de Bubble, re-subida a Supabase correcto). GRUAS: 🔴 sin fuente real en Bubble (el campo no existe en el registro actual de Bubble) — no se puede recuperar, hay que preguntarle al cliente si tiene el archivo. |
+| `cotizaciones_configuracion.imagen_firma` | 2 (CISE + GRUAS) | 🔴 sin corregir — CISE sí tiene fuente real en Bubble (`imagen_firma`, firma del gerente), GRUAS no |
+
+Además, `cotizaciones_configuracion.banco` (texto) en CISE tenía el placeholder literal **"Banco migrado"**
+(nunca reemplazado por un dato real) — se limpió a `NULL` el 2026-09-08 porque Bubble no tiene ningún
+campo de texto equivalente (solo la imagen). Si el negocio necesita el nombre del banco en texto, hay
+que pedírselo al cliente, no está en ningún lado del sistema origen.
+
+**Pendiente:** recuperar `companies.logo_url` (2) y `cotizaciones_configuracion.imagen_firma` CISE (1)
+desde Bubble y re-subir a Supabase correcto — no se hizo en esta sesión por foco en el recorrido de
+fases, queda anotado para retomar.
 
 ## Detalle Fase 2, 4, 5 (relevamiento 2026-09-08, fork)
 
