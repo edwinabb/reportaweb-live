@@ -51,16 +51,17 @@ Confirmado el mismo patrón en 6 URLs de 2 tablas:
 | `companies.logo_url` | 2 (CISE + GRUAS) | 🟢 **Corregidas 2026-09-08 (fork)** — fuente real encontrada en Bubble tipo `Empresas` (campo `Logo`), ambos tenants tenían logo. CISE: `//s3.amazonaws.com/appforest_uf/f1597240188822x666026003519381200/Logo%20CISE.jpg` → re-subido a bucket `logos` en proyecto correcto. GRUAS: `//8428c6c969d6879682e93c6dcf54fba0.cdn.bubble.io/f1732930605289x183419862275448160/gruas%20del%20pacifico.png` → re-subido. `companies.logo_url` actualizado en ambas filas (no solo `file_migration_log`), verificado por query. |
 | `cotizaciones_configuracion.imagen_banco` | 2 (CISE + GRUAS) | 🟢 CISE corregida 2026-09-08 (imagen real recuperada de Bubble, re-subida a Supabase correcto). GRUAS: 🔴 sin fuente real en Bubble (el campo no existe en el registro actual de Bubble) — no se puede recuperar, hay que preguntarle al cliente si tiene el archivo. |
 | `cotizaciones_configuracion.imagen_firma` | 2 (CISE + GRUAS) | 🟢 **CISE corregida 2026-09-08 (fork)** — fuente real en Bubble (`//s3.amazonaws.com/appforest_uf/f1622422757426x402641575778759360/Firma%20Gerente%20General.jpg`, registro `cotizaciones_configuracion` `_id=1596739476957x373529478922312450`), re-subida a `cotizaciones/tenant_1cb97ec7/firma/firma_2026-09-08.jpg`, columna actualizada y verificada. GRUAS: 🔴 sin fuente real en Bubble — no se inventó nada, queda pendiente pedirle el archivo al cliente. |
-| `cotizaciones.pdf_url` | **🔴 1.000 de 2.703 filas (CISE+GRUAS)** — hallazgo nuevo 2026-09-08 (fork) | 🔴 **sin corregir, fuera de alcance de esta tarea** — mismo bug (URL apuntando a `wioozisskjjgjjybsoqo.supabase.co` en vez de `fqwhagryqkkhbgznxtwf`), pero a escala mucho mayor que los 6 casos de imágenes ya conocidos. De 2.703 cotizaciones CISE+GRUAS: 1.395 con `pdf_url` correcto, 1.000 apuntando al proyecto viejo, 308 `NULL`. Requiere su propia tarea de remediación dedicada (re-descargar+re-subir 1.000 PDFs desde el proyecto viejo o desde Bubble, luego `UPDATE` masivo) — no se tocó en este fork por estar fuera del alcance de la directiva (que cubría solo `companies.logo_url` y `cotizaciones_configuracion.imagen_firma`). |
+| `cotizaciones.pdf_url` | 1.000 de 2.703 filas (CISE+GRUAS) | 🟢 **Corregidas 2026-09-08 (fork dedicado)** — el proyecto viejo (`wioozisskjjgjjybsoqo.supabase.co`) ya no resuelve DNS (confirmado, dominio muerto), así que se recuperó cada PDF real desde Bubble (`Cotizaciones.Archivo_web`) reusando el path exacto ya guardado en la URL vieja (todo lo posterior a `/cotizaciones/`) para no reconstruir la convención de slugs a mano. 1.000/1.000 re-subidas y `pdf_url` actualizado (verificado: 0 filas con `wioozisskjjgjjybsoqo` restantes, 2.395 = 1.395 previas + 1.000 nuevas, exacto). 1 fallo transitorio de upload (error HTML en vez de JSON, típico hiccup de rate-limit) resuelto en el reintento del mismo lote. |
 
 Además, `cotizaciones_configuracion.banco` (texto) en CISE tenía el placeholder literal **"Banco migrado"**
 (nunca reemplazado por un dato real) — se limpió a `NULL` el 2026-09-08 porque Bubble no tiene ningún
 campo de texto equivalente (solo la imagen). Si el negocio necesita el nombre del banco en texto, hay
 que pedírselo al cliente, no está en ningún lado del sistema origen.
 
-**Pendiente:** `cotizaciones_configuracion.imagen_firma` de GRUAS (sin fuente en Bubble, preguntar al
-cliente) y, sobre todo, el hallazgo nuevo de **1.000 `cotizaciones.pdf_url` en el proyecto Supabase
-equivocado** — este último es el próximo bug grande a remediar, no descubierto hasta hoy.
+**Pendiente real (bajo, no bloqueante):** `cotizaciones_configuracion.imagen_firma` de GRUAS y
+`imagen_banco` de GRUAS — ninguna tiene fuente real en Bubble, hay que pedirle el archivo al cliente
+directamente, no hay forma de recuperarlo del sistema origen. **El bug de "proyecto Supabase
+equivocado" queda 100% cerrado** en las 7 URLs conocidas (6 imágenes + 1.000 PDFs).
 
 ## Detalle Fase 2, 4, 5 (relevamiento 2026-09-08, fork)
 
