@@ -102,8 +102,6 @@ test.describe('Cotizaciones — Admin @critical', () => {
         await expect(kpiAprobadas).toBeVisible()
         await kpiAprobadas.click()
 
-        await expect(page.locator('[role="combobox"]', { hasText: /Aprobada/i })).toBeVisible()
-
         const sinResultados = await page.getByText('No hay resultados.').isVisible().catch(() => false)
         if (!sinResultados) {
             const rows = page.locator('table tbody tr')
@@ -111,6 +109,19 @@ test.describe('Cotizaciones — Admin @critical', () => {
             for (let i = 0; i < count; i++) {
                 await expect(rows.nth(i)).toContainText(/APROBADA/i)
             }
+        }
+    })
+
+    test('embudo de la columna Estado muestra las 6 opciones', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const estadoFilterButton = page.locator('th', { hasText: /Estado/i }).getByRole('button', { name: /Filtrar por estado/i })
+        await expect(estadoFilterButton).toBeVisible()
+        await estadoFilterButton.click()
+
+        for (const label of ['Borrador', 'Enviada', 'Aprobada', 'Rechazada', 'Vencida', 'Aplazada']) {
+            await expect(page.getByRole('menuitemcheckbox', { name: label })).toBeVisible()
         }
     })
 })

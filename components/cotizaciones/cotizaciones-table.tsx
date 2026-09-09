@@ -1,7 +1,8 @@
 "use client"
 
+import { useMemo } from "react"
 import { DataTable } from "@/components/ui/data-table"
-import { columns } from "./cotizaciones-columns"
+import { getColumns } from "./cotizaciones-columns"
 import { CotizacionWithRelations } from "@/types/cotizaciones"
 import { CotizacionHeaderActions } from "@/components/cotizaciones/cotizacion-header-actions"
 import { Input } from "@/components/ui/input"
@@ -10,18 +11,25 @@ import { Card, CardContent } from "@/components/ui/card"
 import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import { exportToExcel } from "@/lib/utils/export-excel"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import type { ColumnFilterOption } from "@/components/ui/column-filter-header"
 
 interface CotizacionesTableProps {
     data: CotizacionWithRelations[]
     estadoCounts?: Record<string, number> | null
 }
+
+const ESTADO_OPTIONS: ColumnFilterOption[] = [
+    { label: 'Borrador', value: 'BORRADOR' },
+    { label: 'Enviada', value: 'ENVIADA' },
+    { label: 'Aprobada', value: 'APROBADA' },
+    { label: 'Rechazada', value: 'RECHAZADA' },
+    { label: 'Vencida', value: 'VENCIDA' },
+    { label: 'Aplazada', value: 'APLAZADA' },
+]
+
+const toOptions = (values: (string | undefined)[]): ColumnFilterOption[] =>
+    Array.from(new Set(values.filter(Boolean) as string[]))
+        .sort().map(v => ({ label: v, value: v }))
 
 function KpiCards({
     data,
@@ -75,6 +83,22 @@ function KpiCards({
 }
 
 export function CotizacionesTable({ data, estadoCounts }: CotizacionesTableProps) {
+    const servicioOptions = useMemo(() => toOptions(
+        data.flatMap((c) => {
+            const detalles = c.detalles as unknown as { servicio: { nombre: string } }[]
+            return (detalles ?? []).map(d => d.servicio?.nombre)
+        })
+    ), [data])
+
+    const proveedorOptions = useMemo(() => toOptions(
+        data.flatMap((c) => {
+            const original = c as unknown as { ofertas: { proveedor_nombre?: string; proveedor: { razon_social: string } }[] }
+            return (original.ofertas ?? []).map(o => o.proveedor?.razon_social || o.proveedor_nombre)
+        })
+    ), [data])
+
+    const columns = getColumns({ estadoOptions: ESTADO_OPTIONS, servicioOptions, proveedorOptions })
+
     return (
         <DataTable
             columns={columns}
@@ -102,7 +126,7 @@ export function CotizacionesTable({ data, estadoCounts }: CotizacionesTableProps
                         <KpiCards
                             data={data}
                             estadoCounts={estadoCounts}
-                            onSelect={(estado) => table.getColumn("estado")?.setFilterValue(estado)}
+                            onSelect={(estado) => table.getColumn("estado")?.setFilterValue([estado])}
                         />
                         <div className="flex items-center gap-2">
                             <Input
@@ -113,25 +137,6 @@ export function CotizacionesTable({ data, estadoCounts }: CotizacionesTableProps
                                 }
                                 className="h-8 w-[150px] lg:w-[250px]"
                             />
-                            <Select
-                                value={(table.getColumn("estado")?.getFilterValue() as string) ?? "ALL"}
-                                onValueChange={(value) =>
-                                    table.getColumn("estado")?.setFilterValue(value === "ALL" ? "" : value)
-                                }
-                            >
-                                <SelectTrigger className="h-8 w-[150px]">
-                                    <SelectValue placeholder="Estado" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">Todos los Estados</SelectItem>
-                                    <SelectItem value="BORRADOR">Borrador</SelectItem>
-                                    <SelectItem value="ENVIADA">Enviada</SelectItem>
-                                    <SelectItem value="APROBADA">Aprobada</SelectItem>
-                                    <SelectItem value="RECHAZADA">Rechazada</SelectItem>
-                                    <SelectItem value="VENCIDA">Vencida</SelectItem>
-                                    <SelectItem value="APLAZADA">Aplazada</SelectItem>
-                                </SelectContent>
-                            </Select>
                             <Button
                                 variant="outline"
                                 size="sm"
