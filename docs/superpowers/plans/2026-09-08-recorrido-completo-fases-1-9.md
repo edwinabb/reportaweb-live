@@ -264,3 +264,34 @@ inventados):**
 `migrate-fase7-reportes-maquinaria-archivos.ts`, `fase8-reportes-personal-delta.ts`,
 `fase8-reportes-personal-archivos.ts`, `fase9-finanzas-delta.ts`, `fase9-finanzas-archivos.ts`. Todos
 idempotentes (re-correr no duplica).
+
+## 📋 Plan de seguimiento — pendientes reales (2026-09-09)
+
+Checklist de los residuales genuinos listados arriba, para no perderlos de vista. Ninguno es
+bloqueante para el cutover ya cerrado; se resuelven a medida que aparezca la oportunidad (dato del
+cliente, siguiente ronda de auditoría UI, etc.).
+
+- [ ] **Pedirle a GRUAS** `cotizaciones_configuracion.imagen_banco` e `imagen_firma` (no recuperables
+      de Bubble, hay que pedir el archivo directo al cliente).
+- [ ] **685 PDFs de facturación** (Fase 9: `facturas_venta.pdf_valorizacion`/`pdf_factura_url` +
+      `facturas_compra.pdf_factura`/`pdf_valorizacion`) sin fuente real en Bubble — documentado en
+      `file_migration_log`, no recuperable salvo que el cliente tenga copia propia.
+- [ ] **149 filas de `reportes_maquinaria`** (Fase 7) con `maquinaria_id` no resoluble contra el
+      catálogo de Bubble — huérfanos reales del origen.
+- [ ] **3.327 + 2.527 items de facturación + 6 pagos de venta huérfanos** (Fase 9) sin FK padre
+      resoluble vía `lista_items`/`lista_cobros` en Bubble — mismo patrón, dato del origen sin vínculo.
+- [ ] `CT 233-2025` (Fase 6) y 1 fila de `reportes_maquinaria` (Fase 7): literal de texto corrupto en
+      el campo de archivo de Bubble en vez de una URL — sin fix posible sin el archivo original.
+- [ ] **TK-C1/TK-C4 de Cotizaciones** (dashboard + KPI cards clicables) — diferidos por diseño, ver
+      `docs/auditoria-ui/06-cotizaciones.md`.
+- [ ] **Escalar auditoría de template UI v1.2** a los módulos 5-15 — piloto "Cargos" corrido (v1 del
+      checklist, 6 ambigüedades detectadas + 1 implementación huérfana eliminada), v2/v3 del checklist
+      no iterado todavía; no re-ejecutar el piloto, iterar sobre lo ya encontrado.
+- [ ] **Rotar `SUPABASE_SERVICE_ROLE_KEY` de PROD** (`DUDA-SEC-001`, `docs/TECHNICAL_DEBTS.md`) — ya
+      retirada de `.env.local` tras el cierre de Fase 9 (2026-09-09); falta la rotación real de la key
+      en el dashboard de Supabase.
+- [ ] **Regenerar `types/supabase.ts`** (`npm run types:supabase`, hoy hand-edit) + build local antes
+      del próximo deploy grande.
+- [ ] Confirmar deploy de v3.12.4 en `demo.reportar.app` y `reportar.app` (pushes hechos 2026-09-09;
+      verificar en el dashboard de Cloudflare Workers Builds que ambos builds terminaron OK — el
+      entorno de `reportar.app` podría no estar creado todavía, ver `docs/ARCHITECTURE.md`).
