@@ -69,6 +69,20 @@ test.describe('Cotizaciones — Admin @critical', () => {
         await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
         await expect(page.locator('body')).not.toContainText('Application error')
     })
+
+    test('botón Descargar Excel visible y descarga un archivo', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const downloadBtn = page.locator('button[title*="Descargar Excel" i], button', { hasText: /Descargar Excel/i })
+        await expect(downloadBtn.first()).toBeVisible()
+
+        const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 10_000 }),
+            downloadBtn.first().click(),
+        ])
+        expect(download.suggestedFilename()).toMatch(/^COTIZACIONES-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.xls$/)
+    })
 })
 
 test.describe('Cotizaciones — Viewer (solo lectura) @roles', () => {
