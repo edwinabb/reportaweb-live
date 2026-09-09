@@ -11,6 +11,7 @@ export type NotificacionReceptor = {
     nombre: string
     frecuencia: string
     dia_semana: number | null
+    tipo_destinatario: 'TO' | 'CC'
     is_active: boolean
     created_at: string
 }
@@ -35,6 +36,7 @@ export async function createNotificacionReceptor(input: {
     nombre: string
     frecuencia: string
     dia_semana?: number | null
+    tipo_destinatario?: 'TO' | 'CC'
 }): Promise<{ success: boolean; message?: string }> {
     const { adminClient, tenantId } = await getTenantContext()
     if (!adminClient || !tenantId) return { success: false, message: 'No autorizado' }
@@ -46,6 +48,7 @@ export async function createNotificacionReceptor(input: {
         nombre: input.nombre.trim().toUpperCase(),
         frecuencia: input.frecuencia,
         dia_semana: input.frecuencia === 'SEMANAL' ? (input.dia_semana ?? null) : null,
+        tipo_destinatario: input.tipo_destinatario ?? 'TO',
     })
 
     if (error) return { success: false, message: error.message }

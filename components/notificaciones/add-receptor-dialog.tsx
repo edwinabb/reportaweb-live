@@ -16,6 +16,7 @@ import { createNotificacionReceptor } from '@/lib/actions/notificaciones'
 const TIPOS = [
     { value: 'DOCUMENTOS_MAQUINARIA_VENCIDOS', label: 'Maquinaria — Documentos Vencidos' },
     { value: 'DOCUMENTOS_PERSONAL_VENCIDOS',   label: 'Personal — Documentos Vencidos' },
+    { value: 'COTIZACIONES_CONFIG_INCOMPLETA', label: 'Cotizaciones — Configuración Incompleta' },
 ]
 
 const DIAS = [
@@ -37,6 +38,7 @@ export function AddReceptorDialog() {
         nombre: '',
         frecuencia: 'DIARIA',
         dia_semana: '1',
+        tipo_destinatario: 'TO',
     })
     const [error, setError] = useState('')
 
@@ -50,13 +52,14 @@ export function AddReceptorDialog() {
                 nombre: form.nombre,
                 frecuencia: form.frecuencia,
                 dia_semana: form.frecuencia === 'SEMANAL' ? Number(form.dia_semana) : null,
+                tipo_destinatario: form.tipo_destinatario as 'TO' | 'CC',
             })
             if (!res.success) {
                 setError(res.message ?? 'Error al guardar')
                 return
             }
             setOpen(false)
-            setForm({ tipo_correo: 'DOCUMENTOS_MAQUINARIA_VENCIDOS', email: '', nombre: '', frecuencia: 'DIARIA', dia_semana: '1' })
+            setForm({ tipo_correo: 'DOCUMENTOS_MAQUINARIA_VENCIDOS', email: '', nombre: '', frecuencia: 'DIARIA', dia_semana: '1', tipo_destinatario: 'TO' })
         })
     }
 
@@ -119,6 +122,16 @@ export function AddReceptorDialog() {
                             </Select>
                         </div>
                     )}
+                    <div>
+                        <Label>Tipo de Destinatario</Label>
+                        <Select value={form.tipo_destinatario} onValueChange={v => setForm(f => ({ ...f, tipo_destinatario: v }))}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="TO">Destinatario (Para)</SelectItem>
+                                <SelectItem value="CC">Copia (CC)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                     {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button type="submit" disabled={isPending} className="w-full">
                         {isPending ? 'Guardando...' : 'Guardar'}
