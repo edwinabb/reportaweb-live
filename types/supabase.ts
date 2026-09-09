@@ -2376,6 +2376,7 @@ export type Database = {
       }
       bancos: {
         Row: {
+          bubble_id: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -2388,6 +2389,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          bubble_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2400,6 +2402,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          bubble_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -3316,7 +3319,6 @@ export type Database = {
           pdf_generado_at: string | null
           pdf_url: string | null
           periodo: string | null
-          periodo_cantidad: number | null
           periodo_unidad: string | null
           pin_aprobacion: string | null
           pin_attempts: number | null
@@ -3370,7 +3372,6 @@ export type Database = {
           pdf_generado_at?: string | null
           pdf_url?: string | null
           periodo?: string | null
-          periodo_cantidad?: number | null
           periodo_unidad?: string | null
           pin_aprobacion?: string | null
           pin_attempts?: number | null
@@ -3424,7 +3425,6 @@ export type Database = {
           pdf_generado_at?: string | null
           pdf_url?: string | null
           periodo?: string | null
-          periodo_cantidad?: number | null
           periodo_unidad?: string | null
           pin_aprobacion?: string | null
           pin_attempts?: number | null
@@ -6997,48 +6997,63 @@ export type Database = {
         Row: {
           attempts: number
           bucket: string
+          callback_url: string | null
           created_at: string
+          doc_category: string | null
           entity_id: string
           entity_type: string
           html_snapshot: string | null
           id: string
           last_error: string | null
           max_attempts: number
+          next_retry_at: string
+          payload: Json | null
           pdf_url: string | null
           status: string
           storage_path: string
+          template_key: string | null
           tenant_id: string
           updated_at: string
         }
         Insert: {
           attempts?: number
           bucket: string
+          callback_url?: string | null
           created_at?: string
+          doc_category?: string | null
           entity_id: string
           entity_type: string
           html_snapshot?: string | null
           id?: string
           last_error?: string | null
           max_attempts?: number
+          next_retry_at?: string
+          payload?: Json | null
           pdf_url?: string | null
           status?: string
           storage_path: string
+          template_key?: string | null
           tenant_id: string
           updated_at?: string
         }
         Update: {
           attempts?: number
           bucket?: string
+          callback_url?: string | null
           created_at?: string
+          doc_category?: string | null
           entity_id?: string
           entity_type?: string
           html_snapshot?: string | null
           id?: string
           last_error?: string | null
           max_attempts?: number
+          next_retry_at?: string
+          payload?: Json | null
           pdf_url?: string | null
           status?: string
           storage_path?: string
+          template_key?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -9553,6 +9568,45 @@ export type Database = {
           },
         ]
       }
+      system_document_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          storage_path: string
+          tenant_id: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          storage_path: string
+          tenant_id: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          storage_path?: string
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       tareas: {
         Row: {
           asignado_a: string | null
@@ -9672,6 +9726,32 @@ export type Database = {
             columns: ["sitio_id"]
             isOneToOne: false
             referencedRelation: "terceros_sitios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tareas_codigo_contador: {
+        Row: {
+          anio: number
+          contador: number
+          tenant_id: string
+        }
+        Insert: {
+          anio: number
+          contador?: number
+          tenant_id: string
+        }
+        Update: {
+          anio?: number
+          contador?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tareas_codigo_contador_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -11369,6 +11449,15 @@ export type Database = {
       }
     }
     Functions: {
+      activar_plantilla: {
+        Args: {
+          p_id: string
+          p_tenant_id: string
+          p_tipo: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       asignar_correlativo_formato_informe: {
         Args: { p_informe_id: string }
         Returns: string
@@ -11389,6 +11478,10 @@ export type Database = {
       }
       current_tenant_id: { Args: never; Returns: string }
       fn_refresh_planificacion_if_pending: { Args: never; Returns: undefined }
+      fn_siguiente_codigo_tarea: {
+        Args: { p_anio?: number; p_tenant_id: string }
+        Returns: string
+      }
       generate_epp_alerts: {
         Args: { p_tenant_id?: string }
         Returns: {
@@ -11465,12 +11558,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11494,11 +11587,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11519,11 +11612,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11544,11 +11637,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -11561,11 +11654,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
