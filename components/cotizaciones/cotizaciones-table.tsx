@@ -20,15 +20,35 @@ import {
 
 interface CotizacionesTableProps {
     data: CotizacionWithRelations[]
+    estadoCounts?: Record<string, number> | null
 }
 
-function KpiCards({ data, onSelect }: { data: CotizacionWithRelations[]; onSelect: (estado: string) => void }) {
-    const counts = {
-        BORRADOR: data.filter((c) => c.estado === 'BORRADOR').length,
-        ENVIADA_APLAZADA: data.filter((c) => c.estado === 'ENVIADA' || c.estado === 'APLAZADA').length,
-        RECHAZADA: data.filter((c) => c.estado === 'RECHAZADA').length,
-        APROBADA: data.filter((c) => c.estado === 'APROBADA').length,
-    }
+function KpiCards({
+    data,
+    estadoCounts,
+    onSelect,
+}: {
+    data: CotizacionWithRelations[]
+    estadoCounts?: Record<string, number> | null
+    onSelect: (estado: string) => void
+}) {
+    // `estadoCounts` viene de un COUNT exacto en DB (getCotizacionesEstadoCounts),
+    // no truncado por el cap de 1000 filas de `getCotizaciones`. Si no está
+    // disponible, se cae al conteo sobre `data` (comportamiento previo) como
+    // fallback defensivo — puede subreportar si `data` está truncado.
+    const counts = estadoCounts
+        ? {
+              BORRADOR: estadoCounts.BORRADOR ?? 0,
+              ENVIADA_APLAZADA: (estadoCounts.ENVIADA ?? 0) + (estadoCounts.APLAZADA ?? 0),
+              RECHAZADA: estadoCounts.RECHAZADA ?? 0,
+              APROBADA: estadoCounts.APROBADA ?? 0,
+          }
+        : {
+              BORRADOR: data.filter((c) => c.estado === 'BORRADOR').length,
+              ENVIADA_APLAZADA: data.filter((c) => c.estado === 'ENVIADA' || c.estado === 'APLAZADA').length,
+              RECHAZADA: data.filter((c) => c.estado === 'RECHAZADA').length,
+              APROBADA: data.filter((c) => c.estado === 'APROBADA').length,
+          }
     const cards = [
         { key: 'BORRADOR', label: 'En Desarrollo', value: counts.BORRADOR, estado: 'BORRADOR' },
         { key: 'ENVIADA_APLAZADA', label: 'Enviada / Aplazada', value: counts.ENVIADA_APLAZADA, estado: 'ENVIADA' },
@@ -54,7 +74,7 @@ function KpiCards({ data, onSelect }: { data: CotizacionWithRelations[]; onSelec
     )
 }
 
-export function CotizacionesTable({ data }: CotizacionesTableProps) {
+export function CotizacionesTable({ data, estadoCounts }: CotizacionesTableProps) {
     return (
         <DataTable
             columns={columns}
@@ -81,6 +101,7 @@ export function CotizacionesTable({ data }: CotizacionesTableProps) {
                     <div className="flex flex-col gap-3 w-full">
                         <KpiCards
                             data={data}
+                            estadoCounts={estadoCounts}
                             onSelect={(estado) => table.getColumn("estado")?.setFilterValue(estado)}
                         />
                         <div className="flex items-center gap-2">

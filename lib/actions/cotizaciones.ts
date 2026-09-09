@@ -57,6 +57,34 @@ export async function getCotizaciones(
     return data
 }
 
+// Conteos exactos por estado usando `count: 'exact', head: true` — a diferencia
+// de `getCotizaciones` (sin `.range()`, truncado a 1000 filas por el cap
+// default de PostgREST), esta función NO trae filas, solo cuenta, por lo que
+// no sufre el truncamiento. Usado para las KPI cards del panel de Cotizaciones,
+// que antes contaban sobre el array truncado de `getCotizaciones`.
+export async function getCotizacionesEstadoCounts() {
+    const { adminClient, tenantId } = await getSupabaseContext()
+    if (!adminClient || !tenantId) return null
+
+    const estados: CotizacionEstado[] = ['BORRADOR', 'ENVIADA', 'APLAZADA', 'RECHAZADA', 'APROBADA']
+    const counts = await Promise.all(
+        estados.map(async (estado) => {
+            const { count, error } = await adminClient
+                .from('cotizaciones')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true)
+                .eq('estado', estado)
+            if (error) {
+                console.error(`Error counting cotizaciones estado=${estado}:`, error)
+                return [estado, 0] as const
+            }
+            return [estado, count ?? 0] as const
+        })
+    )
+    return Object.fromEntries(counts) as Record<CotizacionEstado, number>
+}
+
 export async function getCotizacionesDashboardStats({ month }: { month?: number } = {}) {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return null
@@ -136,12 +164,19 @@ export async function getCotizacionesDashboardStats({ month }: { month?: number 
         }
     })
 
-    const toRow = (c: typeof listasData[number]) => ({
-        id: c.id,
-        numero: c.numero,
-        cliente: c.cliente?.[0]?.razon_social ?? 'Sin cliente',
-        fecha_solicitud: c.fecha_solicitud,
-    })
+    const toRow = (c: typeof listasData[number]) => {
+        // El embed `cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)`
+        // es una relación to-one — PostgREST devuelve un OBJETO, no un array,
+        // aunque TypeScript a veces infiera tipo array. Mismo patrón defensivo
+        // que en getHistoricalClientQuotes.
+        const cli = Array.isArray(c.cliente) ? c.cliente[0] : c.cliente
+        return {
+            id: c.id,
+            numero: c.numero,
+            cliente: cli?.razon_social ?? 'Sin cliente',
+            fecha_solicitud: c.fecha_solicitud,
+        }
+    }
 
     return {
         year,
