@@ -175,9 +175,18 @@ bien (b) limpiar el campo a `NULL` para que la UI deje de mostrar un enlace roto
 
 ## Decisión pendiente
 
-_(sección dejada en blanco intencionalmente — a completar por el controller/usuario tras recibir
-este reporte; no se decide aquí si contactar al cliente para solicitar los PDFs faltantes, limpiar
-los campos a `NULL`, o dejarlos como están)_
+🟢 **Resuelto 2026-09-09 — Opción B: residual aceptado como cerrado.** El usuario decidió no
+contactar a CISE/GRUAS para pedir copias propias de estas 685 facturas/valorizaciones — se acepta
+como no recuperable, no bloqueante. No se ejecuta ninguna acción adicional de datos sobre estas
+685 filas.
+
+**Nota dejada para el usuario, no accionada:** las 685 URLs siguen apuntando al proyecto Supabase
+viejo/muerto (`wioozisskjjgjjybsoqo.supabase.co`) — igual que se hizo con
+`imagen_banco`/`imagen_firma` de GRUAS (ver
+`docs/auditoria-ui/residuales-gruas-imagen-banco-firma.md`), podrían limpiarse a `NULL` para que la
+UI de facturación no muestre un enlace de descarga roto en vez de "sin PDF". No se hizo en esta
+tarea porque no fue parte de la decisión — si se quiere, es un `UPDATE` de una sola sentencia sobre
+las mismas 685 filas ya identificadas arriba, a pedido explícito.
 
 ## Verificación de no-destructividad
 
