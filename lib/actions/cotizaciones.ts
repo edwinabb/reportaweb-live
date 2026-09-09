@@ -57,6 +57,77 @@ export async function getCotizaciones(
     return data
 }
 
+export async function getCotizacionesDashboardStats({ month }: { month?: number } = {}) {
+    const { adminClient, tenantId } = await getSupabaseContext()
+    if (!adminClient || !tenantId) return null
+
+    const now = new Date()
+    const year = now.getFullYear()
+    const selectedMonth = month && month >= 1 && month <= 12 ? month : now.getMonth() + 1
+
+    const { data, error } = await adminClient
+        .from('cotizaciones')
+        .select(`
+            id,
+            numero,
+            estado,
+            fecha_solicitud,
+            cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)
+        `)
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .gte('fecha_solicitud', `${year}-01-01`)
+        .lte('fecha_solicitud', `${year}-12-31`)
+        .order('fecha_solicitud', { ascending: false })
+
+    if (error || !data) {
+        console.error('Error fetching cotizaciones dashboard stats:', error)
+        return null
+    }
+
+    const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    const monthly = MESES.map((mes, idx) => {
+        const rows = data.filter((c) => c.fecha_solicitud && new Date(c.fecha_solicitud).getMonth() === idx)
+        return {
+            mes,
+            enviadas: rows.filter((c) => c.estado === 'ENVIADA').length,
+            rechazadas: rows.filter((c) => c.estado === 'RECHAZADA').length,
+            aprobadas: rows.filter((c) => c.estado === 'APROBADA').length,
+        }
+    })
+
+    const daysInMonth = new Date(year, selectedMonth, 0).getDate()
+    const daily = Array.from({ length: daysInMonth }, (_, i) => i + 1).map((dia) => {
+        const rows = data.filter((c) => {
+            if (!c.fecha_solicitud) return false
+            const d = new Date(c.fecha_solicitud)
+            return d.getMonth() === selectedMonth - 1 && d.getDate() === dia
+        })
+        return {
+            dia,
+            enviadas: rows.filter((c) => c.estado === 'ENVIADA').length,
+            rechazadas: rows.filter((c) => c.estado === 'RECHAZADA').length,
+            aprobadas: rows.filter((c) => c.estado === 'APROBADA').length,
+        }
+    })
+
+    const toRow = (c: typeof data[number]) => ({
+        id: c.id,
+        numero: c.numero,
+        cliente: c.cliente?.[0]?.razon_social ?? 'Sin cliente',
+        fecha_solicitud: c.fecha_solicitud,
+    })
+
+    return {
+        year,
+        selectedMonth,
+        monthly,
+        daily,
+        pendientesPorEnviar: data.filter((c) => c.estado === 'BORRADOR').slice(0, 50).map(toRow),
+        enviadas: data.filter((c) => c.estado === 'ENVIADA').slice(0, 50).map(toRow),
+    }
+}
+
 export async function getCotizacionesByClienteId(clienteId: string) {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return []

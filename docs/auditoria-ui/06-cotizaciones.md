@@ -134,7 +134,7 @@ Bubble fusiona "Crear PDF" y "Enviar al Cliente" en un solo Paso 4; reportaweb3 
 
 | ID | Severidad | Descripción | Acción |
 |---|---|---|---|
-| TK-C1 | 🟡 MEDIA | Sin "Panel de Cotizaciones" (dashboard) ni "Descargar CSV" en el listado | Construir dashboard + export CSV, datos ya disponibles |
+| TK-C1 | 🟢 implementado 2026-09-09 | Panel con gráfico mensual (año actual) + gráfico diario (mes seleccionable) + listas Pendientes por enviar/Enviadas, `recharts@3.10.1` | `app/(dashboard)/cotizaciones/panel/page.tsx` + Descargar Excel/KPI cards ya en `cotizaciones-table.tsx` |
 | TK-C2 | 🟢 BAJA | Columna `cotizaciones.periodo_cantidad` muerta (0% de uso, dato real vive en `periodo`+`periodo_unidad`) | Confirmar que nada la lee y hacer `DROP COLUMN` |
 | TK-C3 | 🟢 CERRADO 2026-09-08 | 39 fechas de `tasas_cambio` faltantes para GRUAS (93,2% de cobertura) | Resuelto en la migración de Informes/Checklist Fase 4 (GRUAS 532→626 fechas, hasta 2026-09-03) |
 | TK-C4 | 🟢 BAJA (backlog, pendiente de mockup) | 4 tarjetas KPI clicables del listado Bubble (filtro rápido por estado) sin equivalente — el select de estado ya cubre la función | Opcional, UX |
@@ -158,4 +158,4 @@ Bubble fusiona "Crear PDF" y "Enviar al Cliente" en un solo Paso 4; reportaweb3 
 - **Archivos PDF de cotizaciones (`pdf_url`/`Archivo_nombre`) NO migrados** — quedó fuera de alcance por tiempo, pendiente aplicar el patrón `migrarArchivo`/`file_migration_log` ya usado en otras fases.
 - **TK-C2:** 🟢 **aplicada en TEST y PROD (confirmado 2026-09-09)** — `supabase/migrations/20260908160000_drop_cotizaciones_periodo_cantidad.sql` autorizada explícitamente por el usuario y verificada por query directa: `SELECT column_name FROM information_schema.columns WHERE table_name='cotizaciones' AND column_name='periodo_cantidad'` devuelve 0 filas en ambos proyectos (`oyrokyyaeaeqzlsgxtto` y `fqwhagryqkkhbgznxtwf`). `types/supabase.ts` regenerado el mismo día ya no incluye la columna, y `npm run build` compila limpio.
 - **TK-C4:** no implementado, sigue en backlog pendiente de mockup — sin cambios respecto al cierre original.
-- **TK-C1:** explícitamente no implementado (Panel + CSV requieren mockup/diseño aprobado antes de tocar código), sin cambios.
+- **TK-C1:** 🟢 **implementado 2026-09-09** — Panel con gráfico mensual (año actual) + gráfico diario (mes seleccionable) + listas Pendientes por enviar/Enviadas, `recharts@3.10.1`. (Descargar Excel y las 4 tarjetas KPI del listado ya se habían agregado antes en `components/cotizaciones/cotizaciones-table.tsx`; el dashboard `/cotizaciones/panel` era la última pieza pendiente de este ticket.)
