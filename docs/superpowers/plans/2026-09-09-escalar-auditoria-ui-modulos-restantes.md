@@ -162,6 +162,13 @@ Perfil de Usuario y Opciones Internas son los de menor riesgo, van al final):
    para tenant o solo admin?) — resolverla es parte de este módulo.
 6. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
 7. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
+   **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
+   `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
+   separada, `reporta-admin` (`C:\Proyectos\reporta-admin`, deploy `admin.reporta.la`, rol
+   `reporta_admin`, ver `docs/superpowers/plans/2026-09-06-reporta-admin.md`). La auditoría de este
+   módulo cubre **ambos**: lo que sigue viviendo en `/sistema` de reportaweb3 (solo visible para
+   `reporta_admin`) + lo que ahora vive en `reporta-admin` — comparando cada uno contra su
+   equivalente real en Bubble, no asumir que todo mapea a un solo lado.
 
 ## Plantilla por módulo (mismo formato que `06-cotizaciones.md`, ya validado)
 
