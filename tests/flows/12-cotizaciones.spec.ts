@@ -93,6 +93,26 @@ test.describe('Cotizaciones — Admin @critical', () => {
             expect(download.suggestedFilename()).toMatch(/^COTIZACIONES-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.xls$/)
         }
     })
+
+    test('tarjeta KPI "Aprobadas" filtra el listado por estado', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const kpiAprobadas = page.locator('[data-kpi-estado="APROBADA"]')
+        await expect(kpiAprobadas).toBeVisible()
+        await kpiAprobadas.click()
+
+        await expect(page.locator('[role="combobox"]', { hasText: /Aprobada/i })).toBeVisible()
+
+        const sinResultados = await page.getByText('No hay resultados.').isVisible().catch(() => false)
+        if (!sinResultados) {
+            const rows = page.locator('table tbody tr')
+            const count = await rows.count()
+            for (let i = 0; i < count; i++) {
+                await expect(rows.nth(i)).toContainText(/APROBADA/i)
+            }
+        }
+    })
 })
 
 test.describe('Cotizaciones — Viewer (solo lectura) @roles', () => {
