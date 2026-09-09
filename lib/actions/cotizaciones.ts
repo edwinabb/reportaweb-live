@@ -79,9 +79,34 @@ export async function getCotizacionesDashboardStats({ month }: { month?: number 
         .gte('fecha_solicitud', `${year}-01-01`)
         .lte('fecha_solicitud', `${year}-12-31`)
         .order('fecha_solicitud', { ascending: false })
+        .range(0, 9999)
 
     if (error || !data) {
         console.error('Error fetching cotizaciones dashboard stats:', error)
+        return null
+    }
+
+    // Pendientes por enviar / Enviadas no deben acotarse al año actual (a
+    // diferencia de los gráficos) — una cotización BORRADOR de diciembre del
+    // año pasado sin enviar todavía debe seguir apareciendo. Query separada,
+    // sin filtro de fecha.
+    const { data: listasData, error: listasError } = await adminClient
+        .from('cotizaciones')
+        .select(`
+            id,
+            numero,
+            estado,
+            fecha_solicitud,
+            cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)
+        `)
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .in('estado', ['BORRADOR', 'ENVIADA'])
+        .order('fecha_solicitud', { ascending: false })
+        .range(0, 9999)
+
+    if (listasError || !listasData) {
+        console.error('Error fetching cotizaciones pendientes/enviadas:', listasError)
         return null
     }
 
@@ -111,7 +136,7 @@ export async function getCotizacionesDashboardStats({ month }: { month?: number 
         }
     })
 
-    const toRow = (c: typeof data[number]) => ({
+    const toRow = (c: typeof listasData[number]) => ({
         id: c.id,
         numero: c.numero,
         cliente: c.cliente?.[0]?.razon_social ?? 'Sin cliente',
@@ -123,8 +148,8 @@ export async function getCotizacionesDashboardStats({ month }: { month?: number 
         selectedMonth,
         monthly,
         daily,
-        pendientesPorEnviar: data.filter((c) => c.estado === 'BORRADOR').slice(0, 50).map(toRow),
-        enviadas: data.filter((c) => c.estado === 'ENVIADA').slice(0, 50).map(toRow),
+        pendientesPorEnviar: listasData.filter((c) => c.estado === 'BORRADOR').slice(0, 50).map(toRow),
+        enviadas: listasData.filter((c) => c.estado === 'ENVIADA').slice(0, 50).map(toRow),
     }
 }
 
