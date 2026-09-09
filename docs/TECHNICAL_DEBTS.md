@@ -1,15 +1,17 @@
 # Technical Debts & DUDAs — Reporta Web 3
 
-**Última revisión:** 2026-07-23 (cutover CISE/GRUAS: re-migración de campos Terceros aplicada a PROD — ver [HANDOFF-2026-07-23.md](./HANDOFF-2026-07-23.md))
+**Última revisión:** 2026-09-09 (cierre del recorrido completo Fases 1-9 de `docs/guia_migracion_bubble_supabase.md` — ver resumen ejecutivo en `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`)
 
 | ID | Tema | Prioridad | Estado |
 |----|------|-----------|--------|
+| DT-RES-001 | Residuales sin fuente real en Bubble del recorrido Fases 1-9: GRUAS `cotizaciones_configuracion.imagen_banco`/`imagen_firma` (pedir archivo al cliente); 685 PDFs de `facturas_venta`/`facturas_compra`; 149 `reportes_maquinaria` con `maquinaria_id` no resoluble; `CT 233-2025` + 1 `reportes_maquinaria` con literal de texto corrupto en vez de URL en Bubble; 3.327+2.527 items de facturación + 6 pagos de venta huérfanos en Bubble (sin FK padre) | BAJA | 🟡 Documentado, no recuperable del origen |
+| DT-UI-V12 | Auditoría de estándar UI v1.2: piloto "Cargos" corrió el checklist v1 (encontró implementación huérfana/duplicada + 6 ambigüedades del checklist) — falta iterar a v2/v3 antes de escalar a los módulos 5-15 | MEDIA | 🟡 Piloto corrido, no escalado |
 | DT-TYPES-001 | Regenerar `types/supabase.ts` desde la BD (`npm run types:supabase`) — hoy quedó hand-edit tras el rename `estadosunat`/`condicionsunat` + drops en `terceros` | MEDIA | 🟡 Pendiente |
 | DT-BUILD-001 | Correr `npm run build` local ANTES de deployar a demo — el rename de columnas rompió el build por un tipo de dominio (`types/terceros.ts`) que el hand-edit de `types/supabase.ts` no cubría | BAJA | 🟡 Proceso |
 | DT-CAT-001 | `personal_cargos` sin editor central en `/settings` (solo alta inline en `personal-dialog`); inconsistente con el resto de catálogos (que tienen tab en settings) | BAJA | 🟡 Pendiente |
 | DT-CAT-002 | `terceros_tipos` = catálogo muerto: la UI usa enum fijo cliente/proveedor/ambos, el catálogo (5 valores, incl. Socio/Subcontratista) no se usa (DUDA-TER-001) | BAJA | 🟡 Pendiente |
 | DT-VAL-001 | FK valorizaciones en `reportes_maquinaria` (X2): 758 valorizaciones ~2021 huérfanas; backfill opcional Supabase-side `WHERE v.id_maquinaria_horas = rm.bubble_id`. Bajo impacto, no bloquea cutover (ver guia_migracion §Diagnóstico X2) | BAJA | 🟡 Opcional |
-| DT-MIG-DELTA | Delta-sync final desde Bubble LIVE antes del cutover (Bubble sigue en uso: ~25.7k reportes maq. live vs ~20.7k migrados) — re-correr migraciones idempotentes | ALTA | 🟡 Pendiente |
+| DT-MIG-DELTA | Delta-sync final desde Bubble LIVE antes del cutover | ALTA | 🟢 **Cerrado 2026-09-08** — recorrido completo Fases 1-9 (ver `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`). Bubble sigue en uso por los clientes hasta el cutover real, así que puede volver a abrir gap; re-correr los scripts idempotentes en `scripts/` si pasa mucho tiempo antes del corte final |
 | DUDA-SEC-001 | Rotar SERVICE_ROLE_KEY de PROD (estuvo en git) | ALTA | 🟢 En progreso (anon→`sb_publishable` ✅ v3.11.5; falta `sb_secret_` en worker + deshabilitar legacy) |
 | DUDA-SEC-002 | Tokens Bubble filtrados a git + 4 docs (rotar + limpiar) | ALTA | 🟡 Pendiente |
 | DUDA-SEC-003 | Revocar en dashboard PATs Supabase ya removidos de settings | ALTA | 🟡 Pendiente |

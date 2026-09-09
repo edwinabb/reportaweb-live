@@ -6,7 +6,7 @@
 
 | Repo | Ruta | Stack | Versión |
 |------|------|-------|---------|
-| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.12.3** |
+| Web admin | `c:\Proyectos\reportaweb3` | Next.js 16, React 19, TypeScript, Tailwind, Radix | **3.12.4** |
 | App móvil | `c:\Proyectos\reporta-app` | Expo 54, expo-router, SQLite/Drizzle, React Native | **1.8.14** |
 | DB / Backend | Supabase test `oyrokyyaeaeqzlsgxtto` (Brazil) / prod `fqwhagryqkkhbgznxtwf` (Brazil) | PostgreSQL + Auth + Storage | — |
 
@@ -22,15 +22,20 @@
 
 ## Estado Actual
 
-**Date:** 2026-09-06  
-**Web Version:** v3.12.3 — fix(cotizaciones/servicios): `servicios.precio_N_tipo` nunca tuvo FK real hacia `servicios_tipo_precios` (columna `text` sin constraint, con cientos de referencias huérfanas en PROD) — el join embebido de PostgREST fallaba en silencio y devolvía listas vacías. Detectado recién ahora porque TEST no tiene datos reales de Cotizaciones/Servicios para ejercitar el bug. Corregido con mapeo manual en `lib/actions/servicios.ts` + `lib/actions/cotizaciones.ts` (sin tocar datos ni agregar el FK, que tiene ~670 registros huérfanos que requieren limpieza aparte).
-**Web Version anterior:** v3.12.2 — fix(auth): reintentar `getUser()` en `utils/supabase/middleware.ts` ante race de refresh de sesión (evita el 307 intermitente `/login`→`/planificacion`, DUDA-COT-000 de `docs/auditoria-ui/06-cotizaciones.md`). Ya desplegado y verificado en demo y en PROD (`reportaweb-live.ancient-block-882d.workers.dev`).
-**Web Version anterior a esa:** v3.12.1 — Fase 0 del plan ampliado de cutover: endpoint bridge de PDF para Bubble (`/api/bubble/pdf/generate`, reemplazo de docmaker.co) + cola de reintentos por `doc_category` + webhook a Bubble. Deploy a demo en curso; **pendiente:** smoke test desplegado (lectura de plantillas `.docx` vía `fs` bajo Cloudflare Workers, sin verificar) antes de habilitar Bubble real. Ver `docs/superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md`.  
+**Date:** 2026-09-09  
+**Web Version:** v3.12.4 — cierre del **recorrido completo Fases 1-9** (delta-sync + estándar CRUD/UX de todo `docs/guia_migracion_bubble_supabase.md`, 2026-09-08). Detonado al detectar que Cotizaciones nunca tuvo delta-sync desde el cutover de mayo por falta de `UNIQUE(bubble_id)`; se recorrieron las 9 fases en orden de dependencias en vez de parchear solo Cotizaciones. Resumen ejecutivo completo en `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`. Hallazgos y fixes de código de esta ejecución:
+  - **Bug sistémico "proyecto Supabase equivocado"** (URLs apuntando al proyecto viejo/muerto `wioozisskjjgjjybsoqo.supabase.co` en vez de `fqwhagryqkkhbgznxtwf`): encontrado en 11 columnas/6 tablas (`companies.logo_url`, `cotizaciones_configuracion.imagen_banco`/`imagen_firma`, `cotizaciones.pdf_url`, `facturas_venta.pdf_valorizacion`/`pdf_factura_url`, `facturas_compra.pdf_factura`/`pdf_valorizacion`) — **~5.545 archivos recuperados desde Bubble y re-subidos al proyecto correcto**, ~690 residuales sin fuente real en el origen (no inventados, documentados abajo).
+  - **Paginación truncada a 1.000 filas** (cap default de PostgREST sin `.range()`) en `getAllReportesMaquinaria`/`getAllReportesPersonal` (`lib/actions/reportes.ts`) — GRUAS tenía 18.514 reportes de maquinaria reales mostrando solo 1.000. Fix: `{page, limit}` + `count:'exact'` + `.range()`, mismo patrón que `getGlobalMaquinariaDocumentsPaged`.
+  - Delta-sync aplicado en las 9 fases (Usuarios +19, Terceros +12, Maquinaria +20, Servicios: `servicios_tipos` 0→19 + `servicios` GRUAS +30, Cotizaciones +97/+185 detalle/+1.962 matriz + 108 PDFs, Reportes Maquinaria +2.651 filas + ~3.647 archivos, Reportes Personal +3.655 filas + 3.514 PDFs, Facturación +196/+112 facturas + 3.013/435 items + 3.854 PDFs recuperados).
+  - `UNIQUE(bubble_id)` agregado donde faltaba (`areas`/`plazos_pago`/`bancos`, y confirmado en las tablas de Cotizaciones) — causa raíz del delta-sync roto.
+  - TK-C2 (Cotizaciones): `ALTER TABLE cotizaciones DROP COLUMN periodo_cantidad` aplicado a TEST+PROD (columna muerta).
+  - **`SUPABASE_SERVICE_ROLE_KEY` de PROD retirada de `.env.local`** (comentada) — ya no hay escrituras pesadas pendientes tras cerrar Fase 9.
+**Web Version anterior:** v3.12.3 — fix(cotizaciones/servicios): `servicios.precio_N_tipo` nunca tuvo FK real hacia `servicios_tipo_precios` (columna `text` sin constraint, con cientos de referencias huérfanas en PROD) — el join embebido de PostgREST fallaba en silencio y devolvía listas vacías. Corregido con mapeo manual en `lib/actions/servicios.ts` + `lib/actions/cotizaciones.ts`.
+**Web Version anterior a esa:** v3.12.2 — fix(auth): reintentar `getUser()` en `utils/supabase/middleware.ts` ante race de refresh de sesión (DUDA-COT-000). Verificado en demo y PROD.
 **App Version:** v1.8.14  
-**Plan ampliado (2026-09-06):** `docs/superpowers/specs/2026-09-06-plan-migracion-cutover-fase2-design.md` — Fase 0 (PDF bridge, en curso) → Fase 0b (dominios reporta.la/Postmark) → Fase 1 (fix UX Planificación) → Fase 2 (auditoría exhaustiva módulos 5-15) → Fase 3 (costos infra) → Fase 4 (email) → Fase 5 (E2E + gate final).  
-**Foco activo previo (2026-07-23):** 🔀 **Cutover CISE/GRUAS (Bubble → v3)** — sacar a los 2 únicos clientes reales de Bubble. Plan: [docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md](./docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md) · handoff del día: [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md). Migración ~95% a nivel tabla; bloqueante = **gaps de migración a nivel campo** que revela la auditoría UI. Acceso a Bubble LIVE confirmado (token de `.env.local` funciona). **Growth Engine PAUSADO** (specs+planes A–E ✅; ver [PLAN-GROWTH-ENGINE-JOURNEY.md](./docs/PLAN-GROWTH-ENGINE-JOURNEY.md) + [HANDOFF-2026-07-18.md](./docs/HANDOFF-2026-07-18.md) para retomar).  
-**Auditoría UI:** Módulo **4/15** (Planificación) ✅ matriz en [docs/auditoria-ui/04-planificacion.md](./docs/auditoria-ui/04-planificacion.md) (DUDAs resueltas; DUDA-PLAN-001 espera aprobación para TK-P1). **Terceros (3/15): CERRADO en PROD** — esquema (`estadosunat`/`condicionsunat`) + re-migración de campos aplicada (rubro/ubicación/SUNAT/cargo-área/sitios·código/tipo/geodata) vía Management API (03-terceros.md).  
-**Template listados:** v1.2 aplicado a Usuarios, Maquinaria y Terceros  
+**Foco activo previo (2026-07-23):** 🔀 **Cutover CISE/GRUAS (Bubble → v3)** — sacar a los 2 únicos clientes reales de Bubble. Plan: [docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md](./docs/superpowers/plans/2026-07-22-cutover-cise-gruas.md) · handoff del día: [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md). **Con el recorrido Fases 1-9 cerrado, el gap de datos a nivel campo/delta-sync queda saneado en las 9 fases del plan maestro** — bloqueante residual = auditoría exhaustiva de estándar UI v1.2 (piloto "Cargos" corrido, ver pendientes abajo). **Growth Engine PAUSADO** (specs+planes A–E ✅; ver [PLAN-GROWTH-ENGINE-JOURNEY.md](./docs/PLAN-GROWTH-ENGINE-JOURNEY.md) + [HANDOFF-2026-07-18.md](./docs/HANDOFF-2026-07-18.md) para retomar).  
+**Auditoría UI:** Módulo **4/15** (Planificación) ✅ matriz en [docs/auditoria-ui/04-planificacion.md](./docs/auditoria-ui/04-planificacion.md). **Terceros (3/15): CERRADO en PROD**. **Cotizaciones (6/15): datos + PDFs cerrados** (ver recorrido arriba); TK-C1/TK-C4 (dashboard + KPI cards) diferidos por diseño — `docs/auditoria-ui/06-cotizaciones.md`.  
+**Template listados:** v1.2 aplicado a Usuarios, Maquinaria y Terceros. Piloto "Cargos" corrido para refinar el checklist de auditoría exhaustiva (v1 con 6 ambigüedades detectadas, encontró además una implementación huérfana/duplicada a eliminar) — v2/v3 del checklist no iterado todavía, no re-ejecutar el piloto, iterar sobre lo ya encontrado.  
 **E2E Suite:** ⚠️ desactualizada tras template v1.2 + cambio personal externo (DUDA-E2E-001 · TESTING.md § TEST-003)
 
 **Deploy demo (pipeline funcionando):**
@@ -40,7 +45,7 @@
 - Secrets del worker (dashboard): `SUPABASE_SERVICE_ROLE_KEY` (TEST)
 - **reportar.app** (prod): ⚠️ entorno Cloudflare AÚN NO creado (falta importar repo `reportaweb-live` a Workers Builds + secret `sb_secret_` + bindear apex). Rebinding pendiente: `demo.reportar.app`→`dev.reportar.app`.
 
-**Próximo paso:** regenerar `types/supabase.ts` (`npm run types:supabase`, hoy hand-edit) + build local antes de deploy · aprobar DUDA-PLAN-001 → TK-P1 Planificación · seguir auditoría módulos 5–15 (faltan screenshots) · delta-sync final desde Bubble LIVE. Detalle en [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md).  
+**Próximo paso:** decidir si construir mockups/CRUD para los residuales del recorrido (pedir a GRUAS `imagen_banco`/`imagen_firma`; TK-C1/TK-C4 Cotizaciones) · retomar y escalar la auditoría de estándar UI v1.2 (v2 del checklist "Cargos") a los módulos 5–15 · regenerar `types/supabase.ts` (`npm run types:supabase`, hoy hand-edit) + build local antes de deploy. Detalle del recorrido en `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md` (resumen ejecutivo final) y en [HANDOFF-2026-07-23.md](./docs/HANDOFF-2026-07-23.md).  
 **Deudas técnicas:** [docs/TECHNICAL_DEBTS.md](./docs/TECHNICAL_DEBTS.md) (rotar key PROD = ALTA)
 
 ---
