@@ -22,17 +22,17 @@ reordenó sobre la marcha según prioridad de negocio. Confirmado por archivo ex
 | `07-informes.md` | Informes | 🟢 Cerrado (TK-I1 cerrado 2026-09-08) |
 | `08-epp.md` | Gestión EPP | 🟢 **Cerrado 2026-09-09** — gap crítico de datos encontrado y resuelto (módulo construido sin fase de migración, GRUAS tenía 0 filas migradas en 3 tipos Bubble; migrados 16 catálogo + 4 entregas + 14 items desde Bubble producción). TK-E1/E2/E3 (listado de entregas, columna código, filtro+export en catálogo) también cerrados el mismo día. |
 | `10-planes-accion.md` | Planes de Acción | 🟢 **Cerrado 2026-09-09** — a diferencia de EPP, este módulo SÍ tenía datos migrados (406 filas con bubble_id); se encontró y cerró un delta-sync chico (GRUAS 386→414, exacto vs Bubble). TK-PA1-5 en backlog de UI, no bloquean. |
+| `11-ventas.md` | Ventas (Valoraciones + Facturas) | 🟢 **Cerrado 2026-09-10** — datos ya reconciliados (0 gap, re-confirmado con re-ejecución de `fase9-finanzas-delta.ts`); 3 hallazgos de UI (TK-V1/V2/V3: sort-button en Fecha, sin exportar Excel, filtro Cliente client-side engañoso) corregidos en PR [#1](https://github.com/edwinabb/reportaweb3/pull/1) (pendiente de merge por el usuario). Sin sesión en vivo contra Bubble — ver nota de alcance en `11-ventas.md`. |
 
-**9 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
+**10 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
 ya cubrió "Sitios", que en el roadmap original era un módulo aparte — se folded correctamente, no
 hace falta re-auditarlo).
 
-**Quedan 5 módulos genuinamente sin auditar:**
+**Quedan 4 módulos genuinamente sin auditar:**
 
 | # roadmap original | Módulo | Archivo a crear |
 |---|---|---|
 | 8 | Gestión Formatos | `09-formatos.md` |
-| 11 | Ventas | `11-ventas.md` |
 | 12 | Compras | `12-compras.md` |
 | 14 | Perfil de Usuario | `13-perfil-usuario.md` |
 | 15 | Opciones Internas | `14-opciones-internas.md` |
@@ -149,21 +149,21 @@ No se asume ninguna de las 2 — se pregunta al usuario al arrancar el primer m�
 
 ---
 
-## Roadmap de ejecución — 5 módulos restantes
+## Roadmap de ejecución — 4 módulos restantes
 
 Cada módulo es su propia sesión (mismo criterio que el roadmap original: ~6h por módulo,
 2/semana). Orden propuesto por impacto de negocio (Perfil de Usuario y Opciones Internas son los
 de menor riesgo, van al final):
 
-1. **Ventas** (`11-ventas.md`) — ya tiene Panel/Valoraciones/Facturas en reportaweb3. **Verificar
-   primero si tiene historial de commits de "migración" antes de asumir que ya tiene datos**
-   (lección de EPP: una feature nueva puede tener UI completa y 0 datos migrados; Planes de Acción
-   confirmó que no siempre es así, pero sigue siendo el primer chequeo obligatorio de cada módulo).
-2. **Compras** (`12-compras.md`) — mismo patrón que Ventas, probablemente comparten componentes.
-3. **Gestión Formatos** (`09-formatos.md`) — DUDA D-02 de `00-sidebar.md` sigue abierta (¿visible
+1. **Compras** (`12-compras.md`) — mismo patrón que Ventas (ver `11-ventas.md`, cerrado
+   2026-09-10), probablemente comparten componentes. **Verificar primero si tiene historial de
+   commits de "migración" antes de asumir que ya tiene datos** (lección de EPP: una feature nueva
+   puede tener UI completa y 0 datos migrados; Planes de Acción y Ventas confirmaron que no
+   siempre es así, pero sigue siendo el primer chequeo obligatorio de cada módulo).
+2. **Gestión Formatos** (`09-formatos.md`) — DUDA D-02 de `00-sidebar.md` sigue abierta (¿visible
    para tenant o solo admin?) — resolverla es parte de este módulo.
-4. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
-5. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
+3. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
+4. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
    **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
    `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
    separada, `reporta-admin` (`C:\Proyectos\reporta-admin`, deploy `admin.reporta.la`, rol
