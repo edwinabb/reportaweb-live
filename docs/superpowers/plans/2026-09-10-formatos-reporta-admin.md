@@ -133,7 +133,9 @@ Leer `C:\Proyectos\reportaweb3\utils\supabase\admin.ts` y replicar el patrón ex
 
 - [ ] **Paso 3: `requestFormatosPin`**
 
-Genera código de 6 dígitos (`Math.floor(100000 + Math.random() * 900000)`), lo hashea (ej. `crypto.createHash('sha256')`), inserta fila con `expires_at = now() + 10 minutos` vía el cliente service-role, envía email vía Resend (`resend.emails.send`, mismo patrón que reportaweb3 use en cualquier server action que ya mande mail — buscar un ejemplo en `lib/actions/*.ts` de reportaweb3 con `resend.emails.send` para copiar la estructura del cliente Resend) al email del usuario autenticado (`(await supabase.auth.getUser()).data.user?.email`). Asunto: "Código de verificación — Gestión de Formatos". Cuerpo: el código de 6 dígitos, texto plano, menciona que expira en 10 minutos.
+**Corrección 2026-09-10:** reportaweb3 migró su envío de correo de Resend a Postmark (`lib/email.ts`), pero `POSTMARK_API_KEY` NO está configurado en este entorno — hoy todo el envío de esa app cae al fallback de consola (no manda nada real). `RESEND_API_KEY` sigue presente y poblado en `.env.local` (dominio `reportar.app` ya verificado en Resend según `CLAUDE.md`), y no lo usa ningún código actualmente — es el canal que SÍ funciona hoy. Para este feature nuevo, usar el SDK `resend` (`npm install resend` en reporta-admin) directo, NO Postmark — es standalone, no depende de que `lib/email.ts` de reportaweb3 quede resuelto.
+
+Genera código de 6 dígitos (`Math.floor(100000 + Math.random() * 900000)`), lo hashea (ej. `crypto.createHash('sha256')`), inserta fila con `expires_at = now() + 10 minutos` vía el cliente service-role, envía email vía `new Resend(process.env.RESEND_API_KEY).emails.send({ from: 'Reporta Admin <noreply@reportar.app>', to, subject, html })` al email del usuario autenticado (`(await supabase.auth.getUser()).data.user?.email`). Asunto: "Código de verificación — Gestión de Formatos". Cuerpo: el código de 6 dígitos, texto plano/HTML simple, menciona que expira en 10 minutos.
 
 - [ ] **Paso 4: `verifyFormatosPin`**
 
