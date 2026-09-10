@@ -186,10 +186,11 @@ diferencia de `sst_epp_config` que sí la tenía desde su creación).
 
 | ID | Severidad | Descripción | Acción |
 |---|---|---|---|
-| TK-E1 | 🟡 MEDIA | Sin listado de "Documentos de Entrega EPP" (solo existe el formulario de alta) | Construir `/epp/entrega` listado, dato ya disponible en `sst_epp_entrega` |
-| TK-E2 | 🟢 BAJA | Columna `codigo` no se muestra en la tabla del catálogo (dato y schema ya están) | Agregar `<TableHead>`/`<TableCell>` en `catalogo/page-client.tsx` |
-| TK-E3 | 🟢 BAJA | Catálogo sin exportar a Excel ni filtro embudo por Tipo | Aplicar mismo patrón que Cotizaciones/Maquinaria (`exportToExcel` + `ColumnFilterHeader`) |
+| TK-E1 | 🟡 MEDIA | Sin listado de "Documentos de Entrega EPP" (solo existe el formulario de alta) | 🟢 **cerrado 2026-09-09** — creado `/epp/entrega` (server component `page.tsx` + client `entrega-listado-client.tsx`), consume `listEntregas()` ya existente en `lib/actions/epp.ts`. Columnas Colaborador (link a `/epp/colaborador/[id]`)/Fecha de entrega/Ítems/Estado (Badge ACTIVO=verde, BORRADOR=gris, ANULADO=rojo)/PDF (link "Ver PDF" si `pdf_url` existe). Buscador por nombre + botón Excel (`exportToExcel`, hoja "ENTREGAS EPP"). Link "Entregas" agregado al menú (`lib/config/menu.ts`) antes de "Nueva entrega". **Diferido a un ticket nuevo (TK-E5):** generar el PDF desde el listado cuando `pdf_url` es null — se decidió no conectar `generateEppEntregaPdf` acá para no agregar complejidad (manejo de loading/error por fila) fuera del alcance de esta tarea; hoy el listado solo muestra el link cuando el PDF ya existe. |
+| TK-E2 | 🟢 BAJA | Columna `codigo` no se muestra en la tabla del catálogo (dato y schema ya están) | 🟢 **cerrado 2026-09-09** — agregada columna "Código" en `catalogo/page-client.tsx` (`row.codigo \|\| '—'`), entre el checkbox/inicio y "Nombre". |
+| TK-E3 | 🟢 BAJA | Catálogo sin exportar a Excel ni filtro embudo por Tipo | 🟢 **cerrado 2026-09-09** — agregado `ColumnFilterHeader` en la columna Tipo (options EPP/Equipo de emergencia, mismo patrón que `document-types-table.tsx`) + botón "Descargar Excel" (`exportToExcel`, hoja "CATALOGO EPP", columnas Código/Nombre/Tipo/Vida útil/Nivel riesgo/Activo) sobre las filas filtradas. |
 | TK-E4 | 🟢 BAJA | 3 documentos de entrega huérfanos en Bubble (sin receptor) | No accionable — dato incompleto en el origen, documentado |
+| TK-E5 | 🟢 BAJA | Generar PDF de entrega desde el listado `/epp/entrega` cuando `pdf_url` es null | Nuevo, surgido al cerrar TK-E1 — conectar `generateEppEntregaPdf(entregaId)` (ya existe en `lib/actions/epp.ts`) a un botón por fila en `entrega-listado-client.tsx`, con manejo de loading/error/refresh. No implementado en esta tarea por alcance. |
 
 ## DUDAs
 

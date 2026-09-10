@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -11,9 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { createCatalogoEpp, updateCatalogoEpp, toggleCatalogoEppActive } from '@/lib/actions/epp'
 import { CatalogoEppDialog } from './catalogo-epp-dialog'
+import { ColumnFilterHeader } from '@/components/ui/column-filter-header'
+import { exportToExcel } from '@/lib/utils/export-excel'
 
 type Row = {
     id: string
+    codigo?: string | null
     epp_nombre: string | null
     tipo: string | null
     dias_renovacion: number | null
@@ -24,13 +27,27 @@ type Row = {
 export function CatalogoEppClient({ initialData }: { initialData: Row[] }) {
     const router = useRouter()
     const [filter, setFilter] = useState('')
+    const [tipoFilter, setTipoFilter] = useState<string[]>([])
     const [editing, setEditing] = useState<Row | null>(null)
     const [creating, setCreating] = useState(false)
     const [, startTransition] = useTransition()
 
     const filtered = initialData.filter((r) =>
-        !filter || (r.epp_nombre || '').toLowerCase().includes(filter.toLowerCase()),
+        (!filter || (r.epp_nombre || '').toLowerCase().includes(filter.toLowerCase())) &&
+        (tipoFilter.length === 0 || tipoFilter.includes(r.tipo || '')),
     )
+
+    const handleExcel = () => {
+        const rows = filtered.map((r) => ({
+            'Código': r.codigo || '—',
+            'Nombre': r.epp_nombre || '',
+            'Tipo': r.tipo === 'EE' ? 'Equipo de emergencia' : 'EPP',
+            'Vida útil (días)': r.dias_renovacion ?? '',
+            'Nivel riesgo': r.nivel_riesgo || '—',
+            'Activo': r.is_active ? 'Sí' : 'No',
+        }))
+        if (!exportToExcel('CATALOGO EPP', rows)) toast.error('No hay registros para exportar')
+    }
 
     const handleToggle = async (row: Row, next: boolean) => {
         const res = await toggleCatalogoEppActive(row.id, next)
@@ -65,6 +82,9 @@ export function CatalogoEppClient({ initialData }: { initialData: Row[] }) {
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                 />
+                <Button variant="outline" title="Descargar Excel (lo filtrado)" onClick={handleExcel}>
+                    <FileText className="h-4 w-4 text-green-600" />
+                </Button>
                 <Button onClick={() => setCreating(true)}>
                     <Plus className="h-4 w-4 mr-2" /> Agregar EPP
                 </Button>
@@ -74,8 +94,19 @@ export function CatalogoEppClient({ initialData }: { initialData: Row[] }) {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead>Código</TableHead>
                             <TableHead>Nombre</TableHead>
-                            <TableHead>Tipo</TableHead>
+                            <TableHead>
+                                <ColumnFilterHeader
+                                    title="Tipo"
+                                    options={[
+                                        { label: 'EPP', value: 'EPP' },
+                                        { label: 'Equipo de emergencia', value: 'EE' },
+                                    ]}
+                                    selected={tipoFilter}
+                                    onChange={setTipoFilter}
+                                />
+                            </TableHead>
                             <TableHead>Vida útil</TableHead>
                             <TableHead>Nivel riesgo</TableHead>
                             <TableHead>Activo</TableHead>
@@ -85,12 +116,13 @@ export function CatalogoEppClient({ initialData }: { initialData: Row[] }) {
                     <TableBody>
                         {filtered.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                                     {initialData.length === 0 ? 'Sin EPPs registrados. Agregá el primero.' : 'Sin coincidencias.'}
                                 </TableCell>
                             </TableRow>
                         ) : filtered.map((row) => (
                             <TableRow key={row.id}>
+                                <TableCell className="text-xs text-muted-foreground">{row.codigo || '—'}</TableCell>
                                 <TableCell className="font-medium">{row.epp_nombre}</TableCell>
                                 <TableCell>
                                     <Badge variant="outline">{row.tipo === 'EE' ? 'Equipo emergencia' : 'EPP'}</Badge>
