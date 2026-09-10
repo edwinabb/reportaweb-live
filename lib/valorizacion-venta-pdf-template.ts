@@ -64,6 +64,8 @@ export type ValorizacionVentaPdfData = {
         logo_url?: string | null
     }
     config: ConfigValorizacionVenta
+    partyLabel?: string
+    titulo?: string
 }
 
 function escapeHtml(s: string | null | undefined): string {
@@ -122,7 +124,7 @@ export function renderValorizacionVentaHtml(data: ValorizacionVentaPdfData): str
             subtotal, igv_monto, detraccion_monto, total_facturar,
             horas_totales, total_facturar_horas,
             preparado_por, preparado_fecha, ultima_edicion_por, ultima_edicion_fecha,
-            company, config } = data
+            company, config, partyLabel, titulo } = data
 
     const igvPct = igv_porcentaje ?? config.igv_default
     const detrPct = detraccion_porcentaje ?? config.detraccion_default
@@ -184,7 +186,7 @@ export function renderValorizacionVentaHtml(data: ValorizacionVentaPdfData): str
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Valorización de Servicios ${escapeHtml(consecutivo)}</title>
+<title>${escapeHtml(titulo ?? 'VALORIZACIÓN DE SERVICIOS')} ${escapeHtml(consecutivo)}</title>
 <style>
   * { box-sizing: border-box; }
   @page { size: A4 landscape; margin: 0.4in 0.3in; }
@@ -214,7 +216,7 @@ export function renderValorizacionVentaHtml(data: ValorizacionVentaPdfData): str
 
 <div class="header">
   ${logoBlock}
-  <div class="title">VALORIZACIÓN DE SERVICIOS</div>
+  <div class="title">${escapeHtml(titulo ?? 'VALORIZACIÓN DE SERVICIOS')}</div>
   <div class="format-info">
     ${escapeHtml(config.codigo_formato)}<br />
     ${escapeHtml(config.version_formato)}<br />
@@ -227,7 +229,7 @@ export function renderValorizacionVentaHtml(data: ValorizacionVentaPdfData): str
     <tr>
       <th>CONSECUTIVO</th>
       <th>FECHA</th>
-      <th>CLIENTE</th>
+      <th>${escapeHtml(partyLabel ?? 'CLIENTE')}</th>
       <th>RUC</th>
     </tr>
   </thead>

@@ -1,4 +1,5 @@
 import { getValoracionesComprasData, ValoracionesComprasParams } from "@/lib/actions/compras";
+import { getTercerosForSelect } from "@/lib/actions/terceros";
 import { ValoracionesComprasTable } from "@/components/compras/valoraciones/valoraciones-table";
 import { columns } from "@/components/compras/valoraciones/valoraciones-columns";
 import { Metadata } from "next";
@@ -14,7 +15,10 @@ export default async function ValoracionesComprasPage({
     searchParams: Promise<ValoracionesComprasParams>;
 }) {
     const params = await searchParams;
-    const data = await getValoracionesComprasData(params);
+    const [data, proveedores] = await Promise.all([
+        getValoracionesComprasData(params),
+        getTercerosForSelect(),
+    ]);
 
     return (
         <div className="flex flex-col gap-6 p-6">
@@ -23,6 +27,7 @@ export default async function ValoracionesComprasPage({
                     columns={columns}
                     data={data.data}
                     pageCount={Math.ceil(data.total / (data.limit || 20))}
+                    proveedores={proveedores}
                 />
             </div>
         </div>

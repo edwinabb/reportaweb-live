@@ -3,8 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ArrowUpDown } from "lucide-react"
 import { ValoracionCompraItem } from "@/lib/actions/compras"
 import { ValoracionCompraRowActions } from "./valoracion-row-actions"
 import { format } from "date-fns"
@@ -52,12 +50,7 @@ export const columns: ColumnDef<ValoracionCompraItem>[] = [
     },
     {
         accessorKey: "fecha_reporte",
-        header: ({ column }) => (
-            <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                Fecha
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-            </Button>
-        ),
+        header: "Fecha",
         cell: ({ row }) => format(new Date(row.getValue("fecha_reporte")), "dd-MMM-yy", { locale: es }),
     },
     {

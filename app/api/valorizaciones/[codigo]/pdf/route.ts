@@ -6,6 +6,7 @@ import {
     type ValorizacionVentaItem,
     type ConfigValorizacionVenta,
 } from '@/lib/valorizacion-venta-pdf-template'
+import { renderValorizacionCompraHtml } from '@/lib/valorizacion-compra-pdf-template'
 import { tryServeFromCache, saveToStorage } from '@/lib/pdf-cache'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { enqueuePdfJob, queuedPdfResponse } from '@/lib/pdf-queue'
@@ -23,6 +24,7 @@ export async function GET(
     ctx: { params: Promise<{ codigo: string }> },
 ) {
     const { codigo } = await ctx.params
+    const esCompra = codigo.startsWith('C-')
 
     const cronSecret = _req.headers.get('x-cron-pdf-secret')
     const isCronCall = !!cronSecret && cronSecret === process.env.CRON_SECRET
@@ -52,7 +54,7 @@ export async function GET(
     // 1. Filas de la valorización
     const { data: valoraciones, error: vErr } = await adminClient
         .from('valorizaciones')
-        .select('pdf_url, *, reporte:reportes_maquinaria!valorizaciones_reporte_maquinaria_id_fkey(id, id_documento_interno, fecha_reporte, jornada1_inicio, jornada1_fin, jornada2_inicio, jornada2_fin, horas_recorrido, horas_trabajadas, trabajo_realizado, tonelaje_solicitado, cliente_id, maquinaria:maquinarias!reportes_maquinaria_maquinaria_id_fkey(nombre, placa, codigo_interno))')
+        .select('pdf_url, *, reporte:reportes_maquinaria!valorizaciones_reporte_maquinaria_id_fkey(id, id_documento_interno, fecha_reporte, jornada1_inicio, jornada1_fin, jornada2_inicio, jornada2_fin, horas_recorrido, horas_trabajadas, trabajo_realizado, tonelaje_solicitado, cliente_id, proveedor_id, maquinaria:maquinarias!reportes_maquinaria_maquinaria_id_fkey(nombre, placa, codigo_interno))')
         .eq('tenant_id', tenantId)
         .eq('codigo', codigo)
         .order('fecha', { ascending: true })
@@ -79,38 +81,47 @@ export async function GET(
             horas_trabajadas: number | null
             tonelaje_solicitado: number | null
             cliente_id: string | null
+            proveedor_id: string | null
             maquinaria: { nombre: string | null; placa: string | null; codigo_interno: string | null } | null
         } | null
     }
     const rows = valoraciones as unknown as ValRow[]
 
-    const clienteId = rows[0]?.reporte?.cliente_id
+    const partyId = esCompra ? rows[0]?.reporte?.proveedor_id : rows[0]?.reporte?.cliente_id
     const moneda = (rows[0]?.moneda as 'PEN' | 'USD') || 'USD'
     const fechaValorizacion = rows[0]?.fecha || new Date().toISOString().slice(0, 10)
 
-    // 2. Cliente
-    const { data: cliente } = clienteId
+    // 2. Cliente / Proveedor
+    const { data: party } = partyId
         ? await adminClient
               .from('terceros')
               .select('razon_social, ruc')
-              .eq('id', clienteId)
+              .eq('id', partyId)
               .maybeSingle()
         : { data: null }
 
     // 3. Config tenant
     const { data: cfg } = await adminClient
-        .from('config_valorizacion_venta')
+        .from(esCompra ? 'config_valorizacion_compra' : 'config_valorizacion_venta')
         .select('codigo_formato, version_formato, fecha_formato, igv_default, detraccion_default')
         .eq('tenant_id', tenantId)
         .maybeSingle()
 
-    const config: ConfigValorizacionVenta = {
-        codigo_formato: cfg?.codigo_formato || 'G.PAC-04',
-        version_formato: cfg?.version_formato || 'V.05',
-        fecha_formato: cfg?.fecha_formato || 'Sept-2025',
-        igv_default: Number(cfg?.igv_default ?? 18),
-        detraccion_default: Number(cfg?.detraccion_default ?? 10),
-    }
+    const config: ConfigValorizacionVenta = esCompra
+        ? {
+              codigo_formato: cfg?.codigo_formato || 'G.PAC-05',
+              version_formato: cfg?.version_formato || 'V.01',
+              fecha_formato: cfg?.fecha_formato || 'Abr-2026',
+              igv_default: Number(cfg?.igv_default ?? 18),
+              detraccion_default: Number(cfg?.detraccion_default ?? 10),
+          }
+        : {
+              codigo_formato: cfg?.codigo_formato || 'G.PAC-04',
+              version_formato: cfg?.version_formato || 'V.05',
+              fecha_formato: cfg?.fecha_formato || 'Sept-2025',
+              igv_default: Number(cfg?.igv_default ?? 18),
+              detraccion_default: Number(cfg?.detraccion_default ?? 10),
+          }
 
     // 4. Company (tenant)
     const { data: company } = await adminClient
@@ -159,13 +170,9 @@ export async function GET(
     const cached = tryServeFromCache(firstRow?.pdf_url)
     if (cached) return cached
 
-    const html = renderValorizacionVentaHtml({
+    const commonPdfData = {
         consecutivo: consecutivoLabel,
         fecha_valorizacion: fechaValorizacion,
-        cliente: {
-            razon_social: cliente?.razon_social ?? null,
-            ruc: cliente?.ruc ?? null,
-        },
         items,
         moneda,
         igv_porcentaje: config.igv_default,
@@ -184,7 +191,23 @@ export async function GET(
             logo_url: company?.logo_url ?? null,
         },
         config,
-    })
+    }
+
+    const html = esCompra
+        ? renderValorizacionCompraHtml({
+              ...commonPdfData,
+              proveedor: {
+                  razon_social: party?.razon_social ?? null,
+                  ruc: party?.ruc ?? null,
+              },
+          })
+        : renderValorizacionVentaHtml({
+              ...commonPdfData,
+              cliente: {
+                  razon_social: party?.razon_social ?? null,
+                  ruc: party?.ruc ?? null,
+              },
+          })
 
     try {
         const pdf = await renderPdfFromHtml(html)
