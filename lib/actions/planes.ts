@@ -90,7 +90,29 @@ export async function getPlanesAccion(filter: PlanesFilter = {}): Promise<PlanAc
         return []
     }
 
-    return (data || []) as unknown as PlanAccion[]
+    const planes = (data || []) as unknown as PlanAccion[]
+
+    // `cliente_id` no tiene FK formal hacia `terceros` (mismo patrón que
+    // `maquinaria_id`/`plantilla_id` en esta tabla), así que PostgREST no puede
+    // embeberlo directamente — se resuelve con un segundo select por catálogo.
+    const clienteIds = [...new Set(planes.map((p) => p.cliente_id).filter((id): id is string => !!id))]
+    if (clienteIds.length > 0) {
+        const { data: terceros, error: tercerosError } = await adminClient
+            .from('terceros')
+            .select('id, razon_social')
+            .in('id', clienteIds)
+
+        if (tercerosError) {
+            console.error('[getPlanesAccion] error resolviendo clientes:', tercerosError)
+        } else {
+            const clienteMap = new Map((terceros || []).map((t) => [t.id, t]))
+            for (const plan of planes) {
+                plan.cliente = plan.cliente_id ? clienteMap.get(plan.cliente_id) || null : null
+            }
+        }
+    }
+
+    return planes
 }
 
 export async function getPlanAccionById(id: string): Promise<PlanAccion | null> {
@@ -125,8 +147,8 @@ export async function updatePlanAccion(id: string, updates: Partial<PlanAccion>)
     if (!adminClient || !tenantId) return { success: false, message: 'No autorizado' }
 
     // Strip relational fields that can't be updated directly
-    const { maquinaria, plantilla, responsables, ...patch } = updates as Record<string, unknown>
-    void maquinaria; void plantilla; void responsables
+    const { maquinaria, plantilla, responsables, cliente, ...patch } = updates as Record<string, unknown>
+    void maquinaria; void plantilla; void responsables; void cliente
 
     const { error } = await adminClient
         .from('planes_accion')

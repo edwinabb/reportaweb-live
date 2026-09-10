@@ -94,7 +94,7 @@ latente — anotarlo para cuando se traten los tickets de UI de este módulo.
 | TK-PA3 | 🟢 BAJA | Exportar a Excel no confirmado |
 | TK-PA4 | 🟡 MEDIA (preventivo) | `getPlanesAccion()` sin `.range()` — mismo patrón de bug ya visto en otros módulos, no manifestado aún (414 < 1.000) |
 | TK-PA5 | 🟢 BAJA | `lista_avance` de los 28 planes nuevos de GRUAS no migrado (tipo Bubble no identificado) |
-| TK-PA6 | 🔵 DATO (nuevo, 2026-09-09) | `cliente_id`/`cantidad` de Bubble (`id_cliente`/`cantidad` en `Plan_de_accion`) nunca se migraron como columnas propias en `planes_accion` — decisión de negocio/alcance pendiente: agregar las columnas + backfill desde Bubble, o aceptar el residual. No se resuelve en TK-PA1, solo se documenta. |
+| TK-PA6 | ✅ CERRADO 2026-09-10 | `cliente_id`/`cantidad` de Bubble (`id_cliente`/`cantidad` en `Plan_de_accion`) nunca se migraron como columnas propias en `planes_accion`. Migración `20260910050000_planes_accion_cliente_cantidad.sql` agregó ambas columnas + backfill (434/434 filas: GRUAS 414 con ambos campos, CISE 20 con `cliente_id` parcial y `cantidad` siempre `NULL` — dato real ausente en el origen para CISE, no un error). Columnas Cliente/Cantidad agregadas al listado (`components/planes/planes-columns.tsx` + Excel export). |
 
 ## Cierre (actualización 2026-09-09 — TK-PA2/PA3/PA4 + parcial TK-PA1)
 
@@ -146,4 +146,28 @@ latente — anotarlo para cuando se traten los tickets de UI de este módulo.
 mapea 1:1 en estructura. TK-PA2/PA3/PA4 cerrados y TK-PA1 parcialmente cerrado (Fecha Creación +
 Informe agregadas; Autor y Tarea/Fecha Tarea documentados como no viables hoy) en esta pasada
 (2026-09-09, ver arriba). TK-PA5 ya resuelto sin acción (Bubble no tiene avances para los 28 planes
-nuevos de GRUAS). TK-PA6 abierto como decisión de negocio/alcance pendiente.
+nuevos de GRUAS).
+
+## Cierre TK-PA6 (actualización 2026-09-10)
+
+- Migración `supabase/migrations/20260910050000_planes_accion_cliente_cantidad.sql` aplicada en
+  TEST+PROD: agrega `cliente_id uuid` (referencia conceptual a `terceros.id`, sin FK constraint
+  formal — mismo patrón que `maquinaria_id`/`plantilla_id` en esta misma tabla, confirmado vía MCP
+  Supabase read-only que ninguna de las 3 tiene constraint) y `cantidad integer`.
+- Backfill `scripts/backfill-planes-accion-cliente-cantidad.ts`: 434/434 filas (GRUAS 414 con ambos
+  campos, CISE 20 con `cliente_id` parcial y `cantidad` siempre `NULL` — Bubble nunca trajo
+  `cantidad` para CISE, dato real ausente en el origen, no un error de migración).
+- `lib/actions/planes.ts` (`getPlanesAccion()`): como `cliente_id` no tiene FK formal, el embed
+  PostgREST `cliente:terceros!cliente_id(...)` no es resoluble por schema cache — se resuelve con
+  un segundo `select` a `terceros` por los `cliente_id` distintos de la página actual (mismo patrón
+  usado en otras partes del código para catálogos sin FK), y se anexa `plan.cliente` en memoria.
+- `types/formatos.ts`: `PlanAccion.cliente_id`, `PlanAccion.cantidad` y la relación opcional
+  `PlanAccion.cliente`.
+- `components/planes/planes-columns.tsx`: columna **Cliente** (cerca de Maquinaria, con fallback
+  `—`) y columna **Cantidad** (cerca de Código, número o `—` si `null`).
+- `components/planes/planes-table.tsx`: Excel export (`handleDownloadExcel`) incluye `Cantidad` y
+  `Cliente`.
+
+**TK-PA6:** 🟢 **CERRADO 2026-09-10** — columnas + backfill + UI cerrados. Único residual conocido:
+`cantidad` seguirá en `—` para los 20 planes de CISE porque Bubble nunca tuvo ese dato (documentado,
+no es un bug).

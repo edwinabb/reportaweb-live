@@ -85,6 +85,18 @@ export const getColumns = (filters: ColumnFilterOptions): ColumnDef<PlanAccion>[
         ),
     },
     {
+        accessorKey: 'cantidad',
+        header: 'Cantidad',
+        cell: ({ row }) => {
+            const cantidad = row.original.cantidad
+            return (
+                <span className="text-sm">
+                    {cantidad === null || cantidad === undefined ? '—' : cantidad}
+                </span>
+            )
+        },
+    },
+    {
         id: 'problema',
         header: 'Problema / Hallazgo',
         accessorFn: (row) =>
@@ -122,6 +134,19 @@ export const getColumns = (filters: ColumnFilterOptions): ColumnDef<PlanAccion>[
                         <p className="text-xs text-muted-foreground">{m.codigo_interno}</p>
                     )}
                 </div>
+            )
+        },
+    },
+    {
+        id: 'cliente',
+        header: 'Cliente',
+        accessorFn: (row) => row.cliente?.razon_social || '',
+        cell: ({ row }) => {
+            const nombre = row.original.cliente?.razon_social
+            return (
+                <span className="text-sm truncate max-w-[160px] inline-block">
+                    {nombre || '—'}
+                </span>
             )
         },
     },

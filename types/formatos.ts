@@ -146,6 +146,7 @@ export interface PlanAccion {
     reporte_maquinaria_id: string | null
     plantilla_id: string | null
     maquinaria_id: string | null
+    cliente_id: string | null
 
     // Contenido
     titulo: string | null
@@ -153,6 +154,7 @@ export interface PlanAccion {
     accion_correctiva_propuesta: string | null
     pregunta_ref: PreguntaRef | null
     lista_fotos: string[] | null
+    cantidad: number | null
 
     origen: string | null
 
@@ -180,6 +182,7 @@ export interface PlanAccion {
         id: string
         nombre: string | null
     } | null
+    cliente?: { id: string; razon_social: string | null } | null
     responsables?: PlanAccionResponsable[]
 }
 

@@ -70,6 +70,8 @@ export function PlanesTable({
             return {
                 'Código': p.codigo ?? '-',
                 'Problema / Hallazgo': p.titulo || p.descripcion_problema || p.pregunta_ref?.titulo || '-',
+                'Cantidad': p.cantidad ?? '-',
+                'Cliente': p.cliente?.razon_social ?? '-',
                 'Maquinaria': p.maquinaria?.nombre ?? '-',
                 'Prioridad': p.prioridad ?? '-',
                 'Estado': p.estado ?? '-',
