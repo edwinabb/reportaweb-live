@@ -1,7 +1,6 @@
 'use client'
 
 import {
-    ColumnDef,
     flexRender,
     getCoreRowModel,
     getPaginationRowModel,
@@ -21,20 +20,34 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { FileText } from 'lucide-react'
+import { toast } from 'sonner'
 import { NuevoPlanDialog } from './nuevo-plan-dialog'
+import { getColumns } from './planes-columns'
+import { exportToExcel } from '@/lib/utils/export-excel'
+import { formatDateInTZ } from '@/lib/utils/tz'
+import type { PlanAccion } from '@/types/formatos'
+import type { ColumnFilterOption } from '@/components/ui/column-filter-header'
 
-interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
+interface DataTableProps {
+    data: PlanAccion[]
+    estadoOptions: ColumnFilterOption[]
+    prioridadOptions: ColumnFilterOption[]
 }
 
-export function PlanesTable<TData, TValue>({
-    columns,
+export function PlanesTable({
     data,
-}: DataTableProps<TData, TValue>) {
+    estadoOptions,
+    prioridadOptions,
+}: DataTableProps) {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    const columns = useMemo(
+        () => getColumns({ estadoOptions, prioridadOptions }),
+        [estadoOptions, prioridadOptions],
+    )
 
     const table = useReactTable({
         data,
@@ -51,6 +64,21 @@ export function PlanesTable<TData, TValue>({
         },
     })
 
+    const handleDownloadExcel = () => {
+        const rows = table.getFilteredRowModel().rows.map((r) => {
+            const p = r.original
+            return {
+                'Código': p.codigo ?? '-',
+                'Problema / Hallazgo': p.titulo || p.descripcion_problema || p.pregunta_ref?.titulo || '-',
+                'Maquinaria': p.maquinaria?.nombre ?? '-',
+                'Prioridad': p.prioridad ?? '-',
+                'Estado': p.estado ?? '-',
+                'Fecha Límite': p.fecha_limite ? formatDateInTZ(p.fecha_limite + 'T12:00:00', 'America/Lima') : '-',
+            }
+        })
+        if (!exportToExcel('PLANES DE ACCION', rows)) toast.error('No hay registros para exportar')
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between py-4">
@@ -62,7 +90,18 @@ export function PlanesTable<TData, TValue>({
                     }
                     className="max-w-sm"
                 />
-                <NuevoPlanDialog />
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadExcel}
+                        title="Descargar Excel (lo filtrado)"
+                    >
+                        <FileText className="h-4 w-4 text-green-600 mr-1" />
+                        Descargar Excel
+                    </Button>
+                    <NuevoPlanDialog />
+                </div>
             </div>
             <div className="rounded-md border bg-white">
                 <Table>

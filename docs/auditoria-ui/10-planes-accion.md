@@ -94,8 +94,56 @@ latente — anotarlo para cuando se traten los tickets de UI de este módulo.
 | TK-PA3 | 🟢 BAJA | Exportar a Excel no confirmado |
 | TK-PA4 | 🟡 MEDIA (preventivo) | `getPlanesAccion()` sin `.range()` — mismo patrón de bug ya visto en otros módulos, no manifestado aún (414 < 1.000) |
 | TK-PA5 | 🟢 BAJA | `lista_avance` de los 28 planes nuevos de GRUAS no migrado (tipo Bubble no identificado) |
+| TK-PA6 | 🔵 DATO (nuevo, 2026-09-09) | `cliente_id`/`cantidad` de Bubble (`id_cliente`/`cantidad` en `Plan_de_accion`) nunca se migraron como columnas propias en `planes_accion` — decisión de negocio/alcance pendiente: agregar las columnas + backfill desde Bubble, o aceptar el residual. No se resuelve en TK-PA1, solo se documenta. |
 
-## Cierre
+## Cierre (actualización 2026-09-09 — TK-PA2/PA3/PA4 + parcial TK-PA1)
+
+- **TK-PA2 (CERRADO):** `components/planes/planes-columns.tsx` migrado a `getColumns(filters)`
+  (mismo patrón que Cotizaciones/Maquinaria); `Estado` y `Prioridad` ahora usan
+  `ColumnFilterHeader` con `filterFn` propio. Opciones fijas: Estado = `PENDIENTE`, `EN_PROCESO`,
+  `REVISION`, `CERRADO`, `VERIFICADO`, `RECHAZADO` (6 valores — nota: `RECHAZADO` se usa en
+  `estadoClass()`/`PlanRowActions` y la columna es `text` sin CHECK constraint en DB, pero **no**
+  está en el union type `PlanAccionEstado` de `types/formatos.ts`, que solo tiene 5 valores — se
+  incluyó igual en las opciones de filtro porque es un valor real y alcanzable desde la UI, pero
+  queda como inconsistencia de tipos preexistente, no corregida en esta tarea por estar fuera de
+  alcance). Prioridad = `CRITICA`, `ALTA`, `MEDIA`, `BAJA`. `app/(dashboard)/planes-accion/page.tsx`
+  ahora llama `getColumns({estadoOptions, prioridadOptions})` en vez de importar `columns` directo.
+- **TK-PA3 (CERRADO):** botón "Descargar Excel" agregado en el toolbar de
+  `components/planes/planes-table.tsx`, mismo patrón `exportToExcel` de
+  `@/lib/utils/export-excel`. Exporta `table.getFilteredRowModel().rows` con columnas Código /
+  Problema-Hallazgo / Maquinaria / Prioridad / Estado / Fecha Límite. Nombre de página: `'PLANES DE
+  ACCION'`.
+- **TK-PA4 (CERRADO):** `.range(0, 9999)` agregado a la query de `getPlanesAccion()` en
+  `lib/actions/planes.ts` (mismo criterio ya usado en `getCotizacionesDashboardStats` — cap
+  generoso, no paginación real completa). El resto de la función (filtros server-side `estado`/
+  `prioridad`) no se tocó.
+- **TK-PA1 (parcial, cerrado lo viable):** se verificó el schema real de `planes_accion` en
+  `fqwhagryqkkhbgznxtwf` (`information_schema.columns` vía MCP Supabase, read-only) antes de tocar
+  código:
+  - **Fecha Creación** agregada como columna nueva (`created_at`, formateada con `formatDateInTZ`,
+    sin lógica de "vencido").
+  - **Informe** agregada como columna nueva (`informe_bubble_id`, texto monoespaciado truncado con
+    `title` completo al hover) — se presenta explícitamente como ID técnico de Bubble, no como
+    número de informe legible.
+  - **Autor:** NO agregada. Confirmado por constraint real (`planes_accion_created_by_fkey →
+    auth.users(id)`, no `profiles`) que `created_by` referencia `auth.users`, tabla que no se
+    expone vía el cliente Supabase del proyecto igual que `profiles` (sin PostgREST embed
+    disponible) — se dejó fuera para no forzar un join no soportado por el setup actual. `created_by`
+    está poblado en 405/434 filas en PROD, así que el dato existe pero no es resoluble a nombre sin
+    trabajo adicional (posible ticket futuro si se necesita).
+  - **TAREA/FECHA TAREA:** NO agregadas. Se verificó vía SQL que `inspeccion_id`,
+    `inspeccion_detalle_id` y `reporte_maquinaria_id` están en `NULL` en el 100% de las 434 filas de
+    `planes_accion` en PROD (`count(inspeccion_id)=0`, etc.) — aunque `inspecciones` (`codigo`/
+    `fecha_inspeccion`) y `reportes_maquinaria` (`codigo_documento_interno`/`fecha_reporte`) sí
+    tienen columnas legibles para un join, no hay ninguna fila hoy que lo aproveche. No se agregó la
+    columna porque mostraría `—` en el 100% de los casos actuales; queda documentado como gap, no
+    como algo a inventar.
+  - **`cliente_id`/`cantidad`:** confirmado que NO existen como columnas en `planes_accion` (schema
+    real vía MCP, sin `cliente_id` ni `cantidad` en `information_schema.columns`). No se inventaron
+    ni se les puso dato falso. Ver **TK-PA6** arriba (nuevo ticket, dato/negocio, no UI).
 
 **Estado:** 🟢 **CERRADO 2026-09-09** — dato al día (GRUAS 414/414 exacto, CISE 20/20 exacto), UI
-mapea 1:1 en estructura. TK-PA1-5 quedan en backlog de UI/datos menores, no bloqueantes.
+mapea 1:1 en estructura. TK-PA2/PA3/PA4 cerrados y TK-PA1 parcialmente cerrado (Fecha Creación +
+Informe agregadas; Autor y Tarea/Fecha Tarea documentados como no viables hoy) en esta pasada
+(2026-09-09, ver arriba). TK-PA5 ya resuelto sin acción (Bubble no tiene avances para los 28 planes
+nuevos de GRUAS). TK-PA6 abierto como decisión de negocio/alcance pendiente.

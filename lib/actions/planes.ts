@@ -76,6 +76,7 @@ export async function getPlanesAccion(filter: PlanesFilter = {}): Promise<PlanAc
         `)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
+        .range(0, 9999)
 
     if (onlyActive) query = query.eq('is_active', true)
     if (estado && estado !== 'all') query = query.eq('estado', estado)

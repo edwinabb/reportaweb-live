@@ -1,11 +1,27 @@
 import { Suspense } from 'react'
 import { getPlanesAccion, getPlanesStats } from '@/lib/actions/planes'
 import { PlanesTable } from '@/components/planes/planes-table'
-import { columns } from '@/components/planes/planes-columns'
 import { PlanesStats } from '@/components/planes/planes-stats'
 import { Separator } from '@/components/ui/separator'
+import type { ColumnFilterOption } from '@/components/ui/column-filter-header'
 
 export const dynamic = 'force-dynamic'
+
+const ESTADO_OPTIONS: ColumnFilterOption[] = [
+    { label: 'Pendiente', value: 'PENDIENTE' },
+    { label: 'En proceso', value: 'EN_PROCESO' },
+    { label: 'Revisión', value: 'REVISION' },
+    { label: 'Cerrado', value: 'CERRADO' },
+    { label: 'Verificado', value: 'VERIFICADO' },
+    { label: 'Rechazado', value: 'RECHAZADO' },
+]
+
+const PRIORIDAD_OPTIONS: ColumnFilterOption[] = [
+    { label: 'Crítica', value: 'CRITICA' },
+    { label: 'Alta', value: 'ALTA' },
+    { label: 'Media', value: 'MEDIA' },
+    { label: 'Baja', value: 'BAJA' },
+]
 
 export default async function PlanesAccionPage() {
     const [planes, stats] = await Promise.all([
@@ -22,7 +38,11 @@ export default async function PlanesAccionPage() {
 
             <div className="flex-1">
                 <Suspense fallback={<div>Cargando planes...</div>}>
-                    <PlanesTable columns={columns} data={planes} />
+                    <PlanesTable
+                        data={planes}
+                        estadoOptions={ESTADO_OPTIONS}
+                        prioridadOptions={PRIORIDAD_OPTIONS}
+                    />
                 </Suspense>
             </div>
         </div>

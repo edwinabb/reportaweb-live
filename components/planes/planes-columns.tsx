@@ -21,12 +21,24 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ColumnFilterHeader, ColumnFilterOption } from '@/components/ui/column-filter-header'
 import { updatePlanAccion } from '@/lib/actions/planes'
 import { formatDateInTZ, todayInTZ } from '@/lib/utils/tz'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { AvanceDialog } from './avance-dialog'
+
+interface ColumnFilterOptions {
+    estadoOptions: ColumnFilterOption[]
+    prioridadOptions: ColumnFilterOption[]
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const includesFilter = (row: any, id: string, value: string[]) => {
+    if (!value || value.length === 0) return true
+    return value.includes(String(row.getValue(id) ?? ''))
+}
 
 const prioridadClass = (p: string | null) => {
     switch (p) {
@@ -62,7 +74,7 @@ const profileLabel = (first?: string | null, last?: string | null, email?: strin
     return name || email || 'Sin nombre'
 }
 
-export const columns: ColumnDef<PlanAccion>[] = [
+export const getColumns = (filters: ColumnFilterOptions): ColumnDef<PlanAccion>[] => [
     {
         accessorKey: 'codigo',
         header: 'Código',
@@ -115,7 +127,15 @@ export const columns: ColumnDef<PlanAccion>[] = [
     },
     {
         accessorKey: 'prioridad',
-        header: 'Prioridad',
+        header: ({ column }) => (
+            <ColumnFilterHeader
+                title="Prioridad"
+                options={filters.prioridadOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
+        ),
+        filterFn: includesFilter,
         cell: ({ row }) => {
             const p = row.original.prioridad
             return <Badge className={prioridadClass(p)}>{p || '—'}</Badge>
@@ -123,7 +143,15 @@ export const columns: ColumnDef<PlanAccion>[] = [
     },
     {
         accessorKey: 'estado',
-        header: 'Estado',
+        header: ({ column }) => (
+            <ColumnFilterHeader
+                title="Estado"
+                options={filters.estadoOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
+        ),
+        filterFn: includesFilter,
         cell: ({ row }) => {
             const e = row.original.estado
             return (
@@ -192,6 +220,35 @@ export const columns: ColumnDef<PlanAccion>[] = [
             return (
                 <span className={`text-sm ${vencido ? 'text-red-600 font-medium' : ''}`}>
                     {formatDateInTZ(raw + 'T12:00:00', 'America/Lima')}
+                </span>
+            )
+        },
+    },
+    {
+        accessorKey: 'created_at',
+        header: 'Fecha Creación',
+        cell: ({ row }) => {
+            const raw = row.original.created_at
+            if (!raw) return <span className="text-xs text-muted-foreground">—</span>
+            return (
+                <span className="text-sm">
+                    {formatDateInTZ(raw, 'America/Lima')}
+                </span>
+            )
+        },
+    },
+    {
+        accessorKey: 'informe_bubble_id',
+        header: 'Informe',
+        cell: ({ row }) => {
+            const id = row.original.informe_bubble_id
+            if (!id) return <span className="text-xs text-muted-foreground">—</span>
+            return (
+                <span
+                    className="font-mono text-xs whitespace-nowrap truncate max-w-[100px] inline-block"
+                    title={id}
+                >
+                    {id}
                 </span>
             )
         },
