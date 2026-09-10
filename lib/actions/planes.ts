@@ -112,6 +112,26 @@ export async function getPlanesAccion(filter: PlanesFilter = {}): Promise<PlanAc
         }
     }
 
+    // `maquinaria_id` tampoco tiene FK formal — mismo patrón que `cliente_id` arriba.
+    // TK-PA7: esta columna nunca se resolvía antes (la tabla "Maquinaria" del listado
+    // quedaba siempre vacía pese a que el dato sí existe en `planes_accion.maquinaria_id`).
+    const maquinariaIds = [...new Set(planes.map((p) => p.maquinaria_id).filter((id): id is string => !!id))]
+    if (maquinariaIds.length > 0) {
+        const { data: maquinarias, error: maquinariasError } = await adminClient
+            .from('maquinarias')
+            .select('id, nombre, modelo, codigo_interno')
+            .in('id', maquinariaIds)
+
+        if (maquinariasError) {
+            console.error('[getPlanesAccion] error resolviendo maquinarias:', maquinariasError)
+        } else {
+            const maquinariaMap = new Map((maquinarias || []).map((m) => [m.id, m]))
+            for (const plan of planes) {
+                plan.maquinaria = plan.maquinaria_id ? maquinariaMap.get(plan.maquinaria_id) || null : null
+            }
+        }
+    }
+
     return planes
 }
 
@@ -139,7 +159,29 @@ export async function getPlanAccionById(id: string): Promise<PlanAccion | null> 
         return null
     }
 
-    return (data as unknown as PlanAccion) || null
+    const plan = (data as unknown as PlanAccion) || null
+    if (!plan) return null
+
+    // Mismo patrón que getPlanesAccion (TK-PA7): maquinaria_id/cliente_id no tienen FK
+    // formal, se resuelven con un select aparte.
+    if (plan.maquinaria_id) {
+        const { data: maquinaria } = await adminClient
+            .from('maquinarias')
+            .select('id, nombre, modelo, codigo_interno')
+            .eq('id', plan.maquinaria_id)
+            .maybeSingle()
+        plan.maquinaria = maquinaria || null
+    }
+    if (plan.cliente_id) {
+        const { data: cliente } = await adminClient
+            .from('terceros')
+            .select('id, razon_social')
+            .eq('id', plan.cliente_id)
+            .maybeSingle()
+        plan.cliente = cliente || null
+    }
+
+    return plan
 }
 
 export async function updatePlanAccion(id: string, updates: Partial<PlanAccion>) {
