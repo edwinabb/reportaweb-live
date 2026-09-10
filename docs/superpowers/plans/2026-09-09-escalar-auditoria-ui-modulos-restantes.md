@@ -20,16 +20,16 @@ reordenó sobre la marcha según prioridad de negocio. Confirmado por archivo ex
 | `05-configuracion.md` | Configuración | 🟢 Cerrado |
 | `06-cotizaciones.md` | Cotizaciones | 🟢 Cerrado — TK-C1/TK-C4 en backlog de UI, no bloquean |
 | `07-informes.md` | Informes | 🟢 Cerrado (TK-I1 cerrado 2026-09-08) |
+| `08-epp.md` | Gestión EPP | 🟢 **Cerrado 2026-09-09** — gap crítico de datos encontrado y resuelto (módulo construido sin fase de migración, GRUAS tenía 0 filas migradas en 3 tipos Bubble; migrados 16 catálogo + 4 entregas + 14 items desde Bubble producción). TK-E1/E2/E3 en backlog de UI, no bloquean. |
 
-**7 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
+**8 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
 ya cubrió "Sitios", que en el roadmap original era un módulo aparte — se folded correctamente, no
 hace falta re-auditarlo).
 
-**Quedan 7 módulos genuinamente sin auditar** (no 8, no 11):
+**Quedan 6 módulos genuinamente sin auditar:**
 
 | # roadmap original | Módulo | Archivo a crear |
 |---|---|---|
-| 5 | Gestión EPP | `08-epp.md` |
 | 8 | Gestión Formatos | `09-formatos.md` |
 | 10 | Planes de Acción | `10-planes-accion.md` |
 | 11 | Ventas | `11-ventas.md` |
@@ -57,23 +57,25 @@ cuando aparezca.
 Reglas explícitas para resolver los patrones que aparecieron repetidamente al auditar los 7
 módulos ya cerrados, cada una con un ejemplo real de dónde se aplicó.
 
-### Regla 1 — Filtro avanzado de Bubble vs. columnas ordenables/con embudo de reportaweb3
+### Regla 1 — Filtro avanzado de Bubble vs. filtro embudo por columna de reportaweb3
 
 Cuando Bubble expone un botón "Filtrar" (panel de filtros avanzados) y reportaweb3 lo resuelve con
-columnas ordenables (↕) y/o `<ColumnFilterHeader>` en vez de un panel equivalente: **se cuenta como
-✅ equivalente, no como gap**, salvo que el panel de Bubble tenga un filtro real que ninguna columna
-de reportaweb3 pueda replicar (ej. rango de fechas combinado con 2 campos a la vez). Confirmar el
-caso puntual, no asumir equivalencia automática si el panel de Bubble es notablemente más rico.
-*Precedente:* DUDA-COT-001 (`06-cotizaciones.md`) — resuelto ✅ equivalente.
+**filtros embudo por columna** (`<ColumnFilterHeader>`, una opción por columna tipificada — NO
+ordenamiento/sort), se cuenta como ✅ equivalente, no como gap, salvo que el panel de Bubble tenga
+un filtro real que ninguna columna de reportaweb3 pueda replicar (ej. rango de fechas combinado con
+2 campos a la vez). Confirmar el caso puntual, no asumir equivalencia automática si el panel de
+Bubble es notablemente más rico.
 
-**Nota de inconsistencia detectada (2026-09-09), a resolver con el usuario antes de auditar el
-próximo módulo:** `docs/UI-TEMPLATE-LISTADOS.md` regla 3 dice explícitamente **"Sin ordenamiento
-por columna: títulos fijos, sin flechas de sort"** — pero la Regla 1 de acá (ya aplicada en
-Cotizaciones) acepta columnas ordenables como reemplazo válido del filtro de Bubble. Esto es una
-contradicción real entre el estándar v1.2 y la práctica ya aceptada. Antes de auditar el módulo 8
-(EPP), preguntarle al usuario: ¿el estándar v1.2 quedó desactualizado y las columnas SÍ deberían
-ser ordenables (actualizar `UI-TEMPLATE-LISTADOS.md`), o Cotizaciones fue una excepción puntual que
-no debería repetirse en los módulos nuevos?
+**Corrección 2026-09-09 (el usuario corrigió la redacción original de esta regla):** el mecanismo
+correcto es **filtro embudo por columna**, no "columnas ordenables". `docs/UI-TEMPLATE-LISTADOS.md`
+ya lo decía bien desde el principio (regla 3 "sin ordenamiento por columna" + regla 4 "filtros por
+columna en columnas tipificadas") — la interpretación errónea fue de esta sesión al auditar
+Cotizaciones, no una inconsistencia real del estándar. **Ya corregido en código**: el listado de
+Cotizaciones (`components/cotizaciones/cotizaciones-columns.tsx`) tenía `DataTableColumnHeader`
+(sort) en todas sus columnas y ningún embudo — se reemplazó por `ColumnFilterHeader` en
+`estado`/`servicio`/`proveedor` (columnas tipificadas) y títulos fijos sin sort en el resto, mismo
+patrón que `app/(dashboard)/maquinarias/columns.tsx`. *Precedente:* DUDA-COT-001
+(`06-cotizaciones.md`) resuelto ✅ equivalente; fix real aplicado el 2026-09-09.
 
 ### Regla 2 — Implementación huérfana/duplicada
 
@@ -147,21 +149,22 @@ No se asume ninguna de las 2 — se pregunta al usuario al arrancar el primer m�
 
 ---
 
-## Roadmap de ejecución — 7 módulos restantes
+## Roadmap de ejecución — 6 módulos restantes
 
 Cada módulo es su propia sesión (mismo criterio que el roadmap original: ~6h por módulo,
-2/semana). Orden propuesto por impacto de negocio (EPP y Planes de Acción son operativos diarios;
+2/semana). Orden propuesto por impacto de negocio (Planes de Acción es operativo diario;
 Perfil de Usuario y Opciones Internas son los de menor riesgo, van al final):
 
-1. **Gestión EPP** (`08-epp.md`) — 5 subopciones en Bubble, módulo activo de seguridad ocupacional.
-2. **Planes de Acción** (`10-planes-accion.md`) — ya tiene Panel+Listado en reportaweb3, falta
-   comparar contra Bubble.
-3. **Ventas** (`11-ventas.md`) — ya tiene Panel/Valoraciones/Facturas en reportaweb3.
-4. **Compras** (`12-compras.md`) — mismo patrón que Ventas, probablemente comparten componentes.
-5. **Gestión Formatos** (`09-formatos.md`) — DUDA D-02 de `00-sidebar.md` sigue abierta (¿visible
+1. **Planes de Acción** (`10-planes-accion.md`) — ya tiene Panel+Listado en reportaweb3, falta
+   comparar contra Bubble. **Verificar primero si tiene historial de commits de "migración" antes
+   de asumir que ya tiene datos** (lección de EPP: una feature nueva puede tener UI completa y 0
+   datos migrados).
+2. **Ventas** (`11-ventas.md`) — ya tiene Panel/Valoraciones/Facturas en reportaweb3.
+3. **Compras** (`12-compras.md`) — mismo patrón que Ventas, probablemente comparten componentes.
+4. **Gestión Formatos** (`09-formatos.md`) — DUDA D-02 de `00-sidebar.md` sigue abierta (¿visible
    para tenant o solo admin?) — resolverla es parte de este módulo.
-6. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
-7. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
+5. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
+6. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
    **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
    `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
    separada, `reporta-admin` (`C:\Proyectos\reporta-admin`, deploy `admin.reporta.la`, rol
