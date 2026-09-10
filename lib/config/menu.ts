@@ -11,6 +11,7 @@ import {
     Calendar,
     BookOpen,
     HelpCircle,
+    ClipboardList,
 } from "lucide-react"
 
 export type MenuItem = {
@@ -135,6 +136,12 @@ export const menuItems: MenuItem[] = [
             { name: "Alertas", href: "/epp/alertas" },
             { name: "Reportes", href: "/epp/reportes" },
         ]
+    },
+    {
+        name: "Gestión Formatos",
+        icon: ClipboardList,
+        href: "/formatos",
+        recurso: '/formatos',
     },
 
     // ── SOPORTE ───────────────────────────────────────────────
