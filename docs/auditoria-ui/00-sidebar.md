@@ -17,7 +17,7 @@
 | 7 | Sitios (nivel raíz) | Terceros → Sitios | ⚪ Reorganizado | Decisión de IA aceptada |
 | 8 | **Usuarios** (Usuarios · Tipos De Doc · Documentos) | **Usuarios** (Directorio · Documentación) + Configuración → Tipos de Documento | ⚪ Reorganizado | Tipos de Doc movido a Configuración. Ver [01-usuarios.md](./01-usuarios.md) |
 | 9 | Gestión EPP | Gestión EPP (5 subopciones) | ✅ | Nueva UI más completa |
-| 10 | Gestión Formatos | Sistema → Formatos | ❓ DUDA | En el menú nuevo solo visible para admin (`/sistema`). ¿Los usuarios de tenant necesitan acceso a Formatos? |
+| 10 | Gestión Formatos | Formatos (menú principal, sección Recursos) + Sistema → Formatos (shortcut admin) | ✅ | Resuelto 2026-09-10 (D-02) — agregado al menú principal para `admin_tenant`, ver `09-formatos.md` |
 | 11 | Planificación | Planificación (Panel · Registrar) | ✅ | |
 | 12 | Informes | Informes (Checklist · Maquinaria · Personal · Gastos) | ✅ | |
 | 13 | Planes de Acción | Planes de Acción (Panel · Listado) | ✅ | |
@@ -35,4 +35,4 @@
 ## DUDAs abiertas (responder el usuario)
 
 - [ ] **D-01:** ¿"Panel de Control" de Bubble equivale al home `/` del sistema nuevo, o falta construir un dashboard?
-- [ ] **D-02:** ¿"Gestión Formatos" debe ser visible para usuarios de tenant (como en Bubble) o se queda solo en Sistema/admin?
+- [x] **D-02:** ¿"Gestión Formatos" debe ser visible para usuarios de tenant (como en Bubble) o se queda solo en Sistema/admin? → **Resuelto 2026-09-10:** visible para `admin_tenant`, ver `docs/auditoria-ui/09-formatos.md` y PR #3.

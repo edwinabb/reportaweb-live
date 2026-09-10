@@ -24,17 +24,17 @@ reordenó sobre la marcha según prioridad de negocio. Confirmado por archivo ex
 | `10-planes-accion.md` | Planes de Acción | 🟢 **Cerrado 2026-09-09** — a diferencia de EPP, este módulo SÍ tenía datos migrados (406 filas con bubble_id); se encontró y cerró un delta-sync chico (GRUAS 386→414, exacto vs Bubble). TK-PA1-5 en backlog de UI, no bloquean. |
 | `11-ventas.md` | Ventas (Valoraciones + Facturas) | 🟢 **Cerrado 2026-09-10** — datos ya reconciliados (0 gap, re-confirmado con re-ejecución de `fase9-finanzas-delta.ts`); 3 hallazgos de UI (TK-V1/V2/V3: sort-button en Fecha, sin exportar Excel, filtro Cliente client-side engañoso) corregidos en PR [#1](https://github.com/edwinabb/reportaweb3/pull/1) (mergeado, `6200684`). Sin sesión en vivo contra Bubble — ver nota de alcance en `11-ventas.md`. |
 | `12-compras.md` | Compras (Valoraciones + Facturas) | 🟢 **Cerrado 2026-09-10** — datos ya reconciliados (0 gap); mismos 3 hallazgos de UI que Ventas (TK-CP1/2/3) + 1 feature completa ausente encontrada al revisar el menú de acciones masivas de Valoraciones (TK-CP4: Compras nunca tuvo generación de PDF de Valorización) — construida y confirmada sin regresión en Ventas. PR [#2](https://github.com/edwinabb/reportaweb3/pull/2) mergeado (`e735eed`). |
+| `09-formatos.md` | Gestión Formatos | 🟢 **Cerrado 2026-09-10** — DUDA D-02 resuelta (visible para `admin_tenant`, PR [#3](https://github.com/edwinabb/reportaweb3/pull/3)). Gestión cross-tenant desde Sistema de Superadmin construida aparte, ver `docs/superpowers/plans/2026-09-10-formatos-reporta-admin.md`. |
+| `13-perfil-usuario.md` | Perfil de Usuario | 🟢 **Cerrado 2026-09-10** — módulo ya bien construido (Datos/Seguridad/Documentos), sin hallazgos de datos ni UI. DUDA-PU-01 (notificaciones por usuario) documentada no-bloqueante. |
 
-**11 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
+**13 de 15 módulos del roadmap original ya están auditados** (aunque el archivo `03-terceros.md`
 ya cubrió "Sitios", que en el roadmap original era un módulo aparte — se folded correctamente, no
 hace falta re-auditarlo).
 
-**Quedan 3 módulos genuinamente sin auditar:**
+**Queda 1 módulo genuinamente sin auditar:**
 
 | # roadmap original | Módulo | Archivo a crear |
 |---|---|---|
-| 8 | Gestión Formatos | `09-formatos.md` |
-| 14 | Perfil de Usuario | `13-perfil-usuario.md` |
 | 15 | Opciones Internas | `14-opciones-internas.md` |
 
 (Numeración de archivo continua desde `07-informes.md` → `08` en adelante, no reutiliza los
@@ -149,23 +149,19 @@ No se asume ninguna de las 2 — se pregunta al usuario al arrancar el primer m�
 
 ---
 
-## Roadmap de ejecución — 3 módulos restantes
+## Roadmap de ejecución — 1 módulo restante
 
-Cada módulo es su propia sesión (mismo criterio que el roadmap original: ~6h por módulo,
-2/semana). Orden propuesto por impacto de negocio (Perfil de Usuario y Opciones Internas son los
-de menor riesgo, van al final):
-
-1. **Gestión Formatos** (`09-formatos.md`) — DUDA D-02 de `00-sidebar.md` sigue abierta (¿visible
-   para tenant o solo admin?) — resolverla es parte de este módulo.
-2. **Perfil de Usuario** (`13-perfil-usuario.md`) — bajo riesgo, ya reorganizado fuera del sidebar.
-3. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
+1. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
    **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
    `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
-   separada, `reporta-admin` (`C:\Proyectos\reporta-admin`, deploy `admin.reporta.la`, rol
-   `reporta_admin`, ver `docs/superpowers/plans/2026-09-06-reporta-admin.md`). La auditoría de este
-   módulo cubre **ambos**: lo que sigue viviendo en `/sistema` de reportaweb3 (solo visible para
-   `reporta_admin`) + lo que ahora vive en `reporta-admin` — comparando cada uno contra su
-   equivalente real en Bubble, no asumir que todo mapea a un solo lado.
+   separada, `reporta-admin` — **renombrada "Sistema de Superadmin" (2026-09-10)**, deploy futuro
+   en `sadm.reportar.app` (subdominio deliberadamente poco descubrible, decisión del usuario) en
+   vez de `admin.reporta.la` (dominio viejo, ver estándar de dominios en `CLAUDE.md`), rol
+   `reporta_admin`, ver `docs/superpowers/plans/2026-09-06-reporta-admin.md` (plan original) y
+   `docs/superpowers/plans/2026-09-10-formatos-reporta-admin.md` (extensión de Formatos, 2026-09-10).
+   La auditoría de este módulo cubre **ambos**: lo que sigue viviendo en `/sistema` de reportaweb3
+   (solo visible para `reporta_admin`) + lo que ahora vive en el Sistema de Superadmin — comparando
+   cada uno contra su equivalente real en Bubble, no asumir que todo mapea a un solo lado.
 
 ## Plantilla por módulo (mismo formato que `06-cotizaciones.md`, ya validado)
 
