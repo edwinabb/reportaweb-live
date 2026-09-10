@@ -76,6 +76,7 @@ export async function getPlanesAccion(filter: PlanesFilter = {}): Promise<PlanAc
         `)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
+        .range(0, 9999)
 
     if (onlyActive) query = query.eq('is_active', true)
     if (estado && estado !== 'all') query = query.eq('estado', estado)
@@ -89,7 +90,49 @@ export async function getPlanesAccion(filter: PlanesFilter = {}): Promise<PlanAc
         return []
     }
 
-    return (data || []) as unknown as PlanAccion[]
+    const planes = (data || []) as unknown as PlanAccion[]
+
+    // `cliente_id` no tiene FK formal hacia `terceros` (mismo patrón que
+    // `maquinaria_id`/`plantilla_id` en esta tabla), así que PostgREST no puede
+    // embeberlo directamente — se resuelve con un segundo select por catálogo.
+    const clienteIds = [...new Set(planes.map((p) => p.cliente_id).filter((id): id is string => !!id))]
+    if (clienteIds.length > 0) {
+        const { data: terceros, error: tercerosError } = await adminClient
+            .from('terceros')
+            .select('id, razon_social')
+            .in('id', clienteIds)
+
+        if (tercerosError) {
+            console.error('[getPlanesAccion] error resolviendo clientes:', tercerosError)
+        } else {
+            const clienteMap = new Map((terceros || []).map((t) => [t.id, t]))
+            for (const plan of planes) {
+                plan.cliente = plan.cliente_id ? clienteMap.get(plan.cliente_id) || null : null
+            }
+        }
+    }
+
+    // `maquinaria_id` tampoco tiene FK formal — mismo patrón que `cliente_id` arriba.
+    // TK-PA7: esta columna nunca se resolvía antes (la tabla "Maquinaria" del listado
+    // quedaba siempre vacía pese a que el dato sí existe en `planes_accion.maquinaria_id`).
+    const maquinariaIds = [...new Set(planes.map((p) => p.maquinaria_id).filter((id): id is string => !!id))]
+    if (maquinariaIds.length > 0) {
+        const { data: maquinarias, error: maquinariasError } = await adminClient
+            .from('maquinarias')
+            .select('id, nombre, modelo, codigo_interno')
+            .in('id', maquinariaIds)
+
+        if (maquinariasError) {
+            console.error('[getPlanesAccion] error resolviendo maquinarias:', maquinariasError)
+        } else {
+            const maquinariaMap = new Map((maquinarias || []).map((m) => [m.id, m]))
+            for (const plan of planes) {
+                plan.maquinaria = plan.maquinaria_id ? maquinariaMap.get(plan.maquinaria_id) || null : null
+            }
+        }
+    }
+
+    return planes
 }
 
 export async function getPlanAccionById(id: string): Promise<PlanAccion | null> {
@@ -116,7 +159,29 @@ export async function getPlanAccionById(id: string): Promise<PlanAccion | null> 
         return null
     }
 
-    return (data as unknown as PlanAccion) || null
+    const plan = (data as unknown as PlanAccion) || null
+    if (!plan) return null
+
+    // Mismo patrón que getPlanesAccion (TK-PA7): maquinaria_id/cliente_id no tienen FK
+    // formal, se resuelven con un select aparte.
+    if (plan.maquinaria_id) {
+        const { data: maquinaria } = await adminClient
+            .from('maquinarias')
+            .select('id, nombre, modelo, codigo_interno')
+            .eq('id', plan.maquinaria_id)
+            .maybeSingle()
+        plan.maquinaria = maquinaria || null
+    }
+    if (plan.cliente_id) {
+        const { data: cliente } = await adminClient
+            .from('terceros')
+            .select('id, razon_social')
+            .eq('id', plan.cliente_id)
+            .maybeSingle()
+        plan.cliente = cliente || null
+    }
+
+    return plan
 }
 
 export async function updatePlanAccion(id: string, updates: Partial<PlanAccion>) {
@@ -124,8 +189,8 @@ export async function updatePlanAccion(id: string, updates: Partial<PlanAccion>)
     if (!adminClient || !tenantId) return { success: false, message: 'No autorizado' }
 
     // Strip relational fields that can't be updated directly
-    const { maquinaria, plantilla, responsables, ...patch } = updates as Record<string, unknown>
-    void maquinaria; void plantilla; void responsables
+    const { maquinaria, plantilla, responsables, cliente, ...patch } = updates as Record<string, unknown>
+    void maquinaria; void plantilla; void responsables; void cliente
 
     const { error } = await adminClient
         .from('planes_accion')

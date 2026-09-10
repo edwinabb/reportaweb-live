@@ -31,6 +31,7 @@ export const menuItems: MenuItem[] = [
         sectionLabel: "FINANZAS",
         recurso: '/cotizaciones',
         children: [
+            { name: "Panel", href: "/cotizaciones/panel" },
             { name: "Gestión", href: "/cotizaciones" },
             { name: "Servicios", href: "/cotizaciones/servicios" },
             { name: "Tasas", href: "/cotizaciones/tasas" },
@@ -129,6 +130,7 @@ export const menuItems: MenuItem[] = [
         children: [
             { name: "Dashboard", href: "/epp" },
             { name: "Catálogo", href: "/epp/catalogo" },
+            { name: "Entregas", href: "/epp/entrega" },
             { name: "Nueva entrega", href: "/epp/entrega/nueva" },
             { name: "Alertas", href: "/epp/alertas" },
             { name: "Reportes", href: "/epp/reportes" },

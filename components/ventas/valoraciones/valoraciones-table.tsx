@@ -13,7 +13,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, FileCheck2, FileText, Undo2, Receipt, Loader2 } from "lucide-react"
+import { ChevronDown, Download, FileCheck2, FileText, Undo2, Receipt, Loader2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
@@ -35,7 +35,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -46,6 +52,7 @@ import {
 } from "@/components/ui/table"
 import { DataTableViewOptions } from "@/components/ui/data-table-view-options"
 import { ValoracionItem, deshacerValorizacion } from "@/lib/actions/ventas"
+import { exportToExcel } from "@/lib/utils/export-excel"
 import { ValorizarVentaDialog } from "./valorizar-venta-dialog"
 import { RegistrarFacturaVentaDialog } from "./registrar-factura-venta-dialog"
 
@@ -53,12 +60,14 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     pageCount: number
+    clientes: { id: string; razon_social: string }[]
 }
 
 export function ValoracionesTable<TData, TValue>({
     columns,
     data,
     pageCount,
+    clientes,
 }: DataTableProps<TData, TValue>) {
     const router = useRouter()
     const pathname = usePathname()
@@ -110,18 +119,33 @@ export function ValoracionesTable<TData, TValue>({
 
     const currentEstado = searchParams.get('estado') || 'ALL';
 
+    const handleClienteFilter = (clienteId: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (clienteId && clienteId !== 'ALL') {
+            params.set('cliente_id', clienteId);
+        } else {
+            params.delete('cliente_id');
+        }
+        router.push(`${pathname}?${params.toString()}`);
+    }
+
+    const currentCliente = searchParams.get('cliente_id') || 'ALL';
+
     return (
         <div className="w-full space-y-4">
             <div className="flex items-center justify-between py-4">
                 <div className="flex flex-1 items-center space-x-2">
-                    <Input
-                        placeholder="Filtrar por cliente..."
-                        value={(table.getColumn("cliente_nombre")?.getFilterValue() as string) ?? ""}
-                        onChange={(event) =>
-                            table.getColumn("cliente_nombre")?.setFilterValue(event.target.value)
-                        }
-                        className="max-w-sm"
-                    />
+                    <Select value={currentCliente} onValueChange={handleClienteFilter}>
+                        <SelectTrigger className="max-w-sm">
+                            <SelectValue placeholder="Filtrar por cliente..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos los clientes</SelectItem>
+                            {clientes.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.razon_social}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
                     {/* Simple State Filter Button Group */}
                     <div className="flex items-center space-x-1 border rounded-md p-1 bg-muted/20">
@@ -242,6 +266,36 @@ export function ValoracionesTable<TData, TValue>({
                             </DropdownMenu>
                         )
                     })()}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => {
+                            const rows = table.getFilteredRowModel().rows.map((r) => {
+                                const v = r.original as ValoracionItem
+                                return {
+                                    'Informe': v.id_reporte,
+                                    'Fecha': v.fecha_reporte,
+                                    'Cliente': v.cliente_nombre,
+                                    'Lugar': v.lugar,
+                                    'Maquinaria': v.maquinaria,
+                                    'Cotización': v.cotizacion_numero,
+                                    'Hrs Trabajo': v.horas_trabajo,
+                                    'Cant Facturar': v.cantidad_facturar,
+                                    'Moneda': v.moneda,
+                                    'Precio Unit': v.precio_venta,
+                                    'Total': v.total_venta,
+                                    'Valoración': v.valoracion_codigo,
+                                    'Factura': v.factura_codigo,
+                                    'Estado': v.estado,
+                                }
+                            })
+                            if (!exportToExcel('VALORACIONES', rows)) toast.error('No hay registros para exportar')
+                        }}
+                    >
+                        <Download className="h-4 w-4 mr-1" />
+                        Descargar Excel
+                    </Button>
                     <DataTableViewOptions table={table} />
                 </div>
             </div>

@@ -13,6 +13,7 @@ import type { NotificacionReceptor } from '@/lib/actions/notificaciones'
 const TIPO_LABELS: Record<string, string> = {
     DOCUMENTOS_MAQUINARIA_VENCIDOS: 'Maquinaria Vencidos',
     DOCUMENTOS_PERSONAL_VENCIDOS: 'Personal Vencidos',
+    COTIZACIONES_CONFIG_INCOMPLETA: 'Cotizaciones — Config. Incompleta',
 }
 
 const DIA_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -47,6 +48,7 @@ export function ReceptoresTable({ receptores }: { receptores: NotificacionRecept
                     <TableRow>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Destinatario</TableHead>
                         <TableHead>Tipo Notificación</TableHead>
                         <TableHead>Frecuencia</TableHead>
                         <TableHead>Estado</TableHead>
@@ -58,6 +60,13 @@ export function ReceptoresTable({ receptores }: { receptores: NotificacionRecept
                         <TableRow key={r.id} className={!r.is_active ? 'opacity-50' : ''}>
                             <TableCell className="font-medium">{r.nombre}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{r.email}</TableCell>
+                            <TableCell>
+                                {r.tipo_destinatario === 'CC' ? (
+                                    <Badge variant="outline" className="text-xs text-muted-foreground">CC</Badge>
+                                ) : (
+                                    <Badge className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">Para</Badge>
+                                )}
+                            </TableCell>
                             <TableCell>
                                 <Badge variant="secondary" className="text-xs">
                                     {TIPO_LABELS[r.tipo_correo] ?? r.tipo_correo}

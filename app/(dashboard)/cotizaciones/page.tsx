@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { getCotizaciones } from '@/lib/actions/cotizaciones'
+import { getCotizaciones, getCotizacionesEstadoCounts } from '@/lib/actions/cotizaciones'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CotizacionesTable } from '@/components/cotizaciones/cotizaciones-table'
 
@@ -9,14 +9,20 @@ async function CotizacionesList({ onlyActive }: { onlyActive: boolean }) {
     // If onlyActive is true, it returns active.
     // If onlyActive is false, it returns ALL (based on previous analysis).
     // So we need to filter manually if we want ONLY trash.
-    const allData = await getCotizaciones(undefined, false)
+    // NOTA: getCotizaciones no pagina (cap de 1000 filas de PostgREST), por lo
+    // que las KPI cards usan un conteo exacto aparte (getCotizacionesEstadoCounts)
+    // en vez de contar sobre este array, que puede venir truncado.
+    const [allData, estadoCounts] = await Promise.all([
+        getCotizaciones(undefined, false),
+        getCotizacionesEstadoCounts(),
+    ])
 
     const filteredData = onlyActive
         ? allData.filter((c: { is_active: boolean }) => c.is_active)
         : allData.filter((c: { is_active: boolean }) => !c.is_active)
 
     return (
-        <CotizacionesTable data={filteredData} />
+        <CotizacionesTable data={filteredData} estadoCounts={estadoCounts} />
     )
 }
 

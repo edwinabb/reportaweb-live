@@ -4,7 +4,8 @@ import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { FileText, Search, X, Eye, Pencil, ExternalLink } from "lucide-react"
+import { Download, FileText, Search, X, Eye, Pencil, ExternalLink } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +19,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import type { FacturaVentaItem } from "@/lib/actions/ventas"
+import { exportToExcel } from "@/lib/utils/export-excel"
 import { FacturaVentaDialog } from "./factura-venta-dialog"
 
 interface Props {
@@ -137,6 +139,31 @@ export function FacturasVentaTable({ data, total, kpis }: Props) {
                     ))}
                 </div>
                 <span className="text-xs text-gray-400 ml-auto">{data.length} de {total} facturas</span>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                        const rows = data.map((f) => ({
+                            'N° Factura': f.codigo_factura,
+                            'Fecha': f.fecha_factura,
+                            'Vencimiento': f.fecha_vencimiento,
+                            'Cliente': f.cliente_nombre,
+                            'RUC': f.cliente_ruc,
+                            'Subtotal': f.subtotal,
+                            'IGV': f.igv_monto,
+                            'Total USD': f.total_usd,
+                            'Detracción': f.detraccion_monto_sol,
+                            'Cobrado': f.monto_pagado_factura,
+                            'Pendiente': f.pendiente_por_cobrar_usd,
+                            'Estado': f.estado_pago,
+                        }))
+                        if (!exportToExcel('FACTURAS-VENTA', rows)) toast.error('No hay registros para exportar')
+                    }}
+                >
+                    <Download className="h-4 w-4 mr-1" />
+                    Descargar Excel
+                </Button>
             </div>
 
             {/* Listado */}

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getValoracionesData, ValoracionesParams } from "@/lib/actions/ventas";
+import { getTercerosForSelect } from "@/lib/actions/terceros";
 import { ValoracionesTable } from "@/components/ventas/valoraciones/valoraciones-table";
 import { columns } from "@/components/ventas/valoraciones/valoraciones-columns";
 import { Metadata } from "next";
@@ -15,7 +16,10 @@ export default async function ValoracionesPage({
     searchParams: Promise<ValoracionesParams>;
 }) {
     const params = await searchParams;
-    const data = await getValoracionesData(params);
+    const [data, clientes] = await Promise.all([
+        getValoracionesData(params),
+        getTercerosForSelect(),
+    ]);
 
     return (
         <div className="flex flex-col gap-6 p-6">
@@ -25,6 +29,7 @@ export default async function ValoracionesPage({
                     columns={columns}
                     data={data.data}
                     pageCount={Math.ceil(data.total / (data.limit || 20))}
+                    clientes={clientes}
                 />
             </div>
         </div>

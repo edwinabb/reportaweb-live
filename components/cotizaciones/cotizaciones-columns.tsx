@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { CotizacionWithRelations } from "@/types/cotizaciones"
 import { Badge } from "@/components/ui/badge"
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
+import { ColumnFilterHeader, ColumnFilterOption } from "@/components/ui/column-filter-header"
 import { CotizacionActions } from "@/components/cotizaciones/cotizacion-actions"
 import Link from "next/link"
 
@@ -35,12 +35,22 @@ const getEstadoColor = (estado: string) => {
     }
 }
 
-export const columns: ColumnDef<CotizacionWithRelations>[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const includesFilter = (row: any, id: string, value: string[]) => {
+    if (!value || value.length === 0) return true
+    return value.includes(String(row.getValue(id) ?? ''))
+}
+
+interface ColumnFilterOptions {
+    estadoOptions: ColumnFilterOption[]
+    servicioOptions: ColumnFilterOption[]
+    proveedorOptions: ColumnFilterOption[]
+}
+
+export const getColumns = (filters: ColumnFilterOptions): ColumnDef<CotizacionWithRelations>[] => [
     {
         accessorKey: "numero",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="CÓDIGO" />
-        ),
+        header: "CÓDIGO",
         cell: ({ row }) => {
             const pdfUrl = (row.original as unknown as { pdf_url?: string | null }).pdf_url
             if (pdfUrl) {
@@ -67,16 +77,20 @@ export const columns: ColumnDef<CotizacionWithRelations>[] = [
     },
     {
         accessorKey: "fecha_emision",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="FECHA DE SOLICITUD" />
-        ),
+        header: "FECHA DE SOLICITUD",
         cell: ({ row }) => formatDate(row.getValue("fecha_emision"))
     },
     {
         accessorKey: "estado",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="ESTADO" />
+            <ColumnFilterHeader
+                title="Estado"
+                options={filters.estadoOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
         ),
+        filterFn: includesFilter,
         cell: ({ row }) => (
             <Badge variant="outline" className={getEstadoColor(row.getValue("estado"))}>
                 {row.getValue("estado")}
@@ -85,17 +99,13 @@ export const columns: ColumnDef<CotizacionWithRelations>[] = [
     },
     {
         accessorKey: "fecha_envio",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="FECHA DE ENVÍO" />
-        ),
+        header: "FECHA DE ENVÍO",
         cell: ({ row }) => row.original.fecha_envio ? formatDate(row.original.fecha_envio) : '-'
     },
     {
         id: "cliente",
         accessorKey: "cliente.razon_social",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="CLIENTE / LUGAR" />
-        ),
+        header: "CLIENTE / LUGAR",
         cell: ({ row }) => (
             <div className="flex flex-col gap-0.5">
                 <span className="font-medium text-sm leading-tight">{row.original.cliente?.razon_social || 'Sin cliente'}</span>
@@ -106,15 +116,26 @@ export const columns: ColumnDef<CotizacionWithRelations>[] = [
     {
         id: "servicio",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="SERVICIO" />
+            <ColumnFilterHeader
+                title="Servicio"
+                options={filters.servicioOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
         ),
+        filterFn: (row, id, value: string[]) => {
+            if (!value || value.length === 0) return true
+            const detalles = row.original.detalles as unknown as { servicio: { nombre: string } }[]
+            const nombres = (detalles ?? []).map(d => d.servicio?.nombre).filter(Boolean)
+            return nombres.some(n => value.includes(n as string))
+        },
         cell: ({ row }) => {
             const detalles = row.original.detalles as unknown as { cantidad: number; servicio: { nombre: string } }[]
             if (!detalles || detalles.length === 0) return '-'
-            
+
             const count = detalles.length
             const firstService = detalles[0]?.servicio?.nombre || 'Servicio'
-            
+
             return (
                 <div className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-5 h-5 rounded-full border border-orange-500 text-[10px] text-orange-600 font-bold shrink-0">
@@ -129,21 +150,30 @@ export const columns: ColumnDef<CotizacionWithRelations>[] = [
     },
     {
         accessorKey: "fecha_aprobacion",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="RESPUESTA DEL CLIENTE" />
-        ),
+        header: "RESPUESTA DEL CLIENTE",
         cell: ({ row }) => row.original.fecha_aprobacion ? formatDate(row.original.fecha_aprobacion) : '-'
     },
     {
         id: "proveedor",
         header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="PROVEEDOR" />
+            <ColumnFilterHeader
+                title="Proveedor"
+                options={filters.proveedorOptions}
+                selected={(column.getFilterValue() as string[]) ?? []}
+                onChange={(v) => column.setFilterValue(v.length ? v : undefined)}
+            />
         ),
+        filterFn: (row, id, value: string[]) => {
+            if (!value || value.length === 0) return true
+            const original = row.original as unknown as { ofertas: { proveedor_nombre?: string; proveedor: { razon_social: string } }[] }
+            const nombres = (original.ofertas ?? []).map(o => o.proveedor?.razon_social || o.proveedor_nombre).filter(Boolean)
+            return nombres.some(n => value.includes(n as string))
+        },
         cell: ({ row }) => {
             const original = row.original as unknown as { ofertas: { proveedor_nombre?: string; proveedor: { razon_social: string } }[] }
             const ofertas = original.ofertas
             if (!ofertas || ofertas.length === 0) return '-'
-            
+
             // Show the first provider found in offers
             const provider = ofertas[0]?.proveedor?.razon_social || ofertas[0]?.proveedor_nombre || '-'
             return <span className="truncate max-w-[120px]" title={provider}>{provider}</span>

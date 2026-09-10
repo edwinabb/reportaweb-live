@@ -57,6 +57,137 @@ export async function getCotizaciones(
     return data
 }
 
+// Conteos exactos por estado usando `count: 'exact', head: true` — a diferencia
+// de `getCotizaciones` (sin `.range()`, truncado a 1000 filas por el cap
+// default de PostgREST), esta función NO trae filas, solo cuenta, por lo que
+// no sufre el truncamiento. Usado para las KPI cards del panel de Cotizaciones,
+// que antes contaban sobre el array truncado de `getCotizaciones`.
+export async function getCotizacionesEstadoCounts() {
+    const { adminClient, tenantId } = await getSupabaseContext()
+    if (!adminClient || !tenantId) return null
+
+    const estados: CotizacionEstado[] = ['BORRADOR', 'ENVIADA', 'APLAZADA', 'RECHAZADA', 'APROBADA']
+    const counts = await Promise.all(
+        estados.map(async (estado) => {
+            const { count, error } = await adminClient
+                .from('cotizaciones')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+                .eq('is_active', true)
+                .eq('estado', estado)
+            if (error) {
+                console.error(`Error counting cotizaciones estado=${estado}:`, error)
+                return [estado, 0] as const
+            }
+            return [estado, count ?? 0] as const
+        })
+    )
+    return Object.fromEntries(counts) as Record<CotizacionEstado, number>
+}
+
+export async function getCotizacionesDashboardStats({ month }: { month?: number } = {}) {
+    const { adminClient, tenantId } = await getSupabaseContext()
+    if (!adminClient || !tenantId) return null
+
+    const now = new Date()
+    const year = now.getFullYear()
+    const selectedMonth = month && month >= 1 && month <= 12 ? month : now.getMonth() + 1
+
+    const { data, error } = await adminClient
+        .from('cotizaciones')
+        .select(`
+            id,
+            numero,
+            estado,
+            fecha_solicitud,
+            cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)
+        `)
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .gte('fecha_solicitud', `${year}-01-01`)
+        .lte('fecha_solicitud', `${year}-12-31`)
+        .order('fecha_solicitud', { ascending: false })
+        .range(0, 9999)
+
+    if (error || !data) {
+        console.error('Error fetching cotizaciones dashboard stats:', error)
+        return null
+    }
+
+    // Pendientes por enviar / Enviadas no deben acotarse al año actual (a
+    // diferencia de los gráficos) — una cotización BORRADOR de diciembre del
+    // año pasado sin enviar todavía debe seguir apareciendo. Query separada,
+    // sin filtro de fecha.
+    const { data: listasData, error: listasError } = await adminClient
+        .from('cotizaciones')
+        .select(`
+            id,
+            numero,
+            estado,
+            fecha_solicitud,
+            cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)
+        `)
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .in('estado', ['BORRADOR', 'ENVIADA'])
+        .order('fecha_solicitud', { ascending: false })
+        .range(0, 9999)
+
+    if (listasError || !listasData) {
+        console.error('Error fetching cotizaciones pendientes/enviadas:', listasError)
+        return null
+    }
+
+    const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    const monthly = MESES.map((mes, idx) => {
+        const rows = data.filter((c) => c.fecha_solicitud && new Date(c.fecha_solicitud).getMonth() === idx)
+        return {
+            mes,
+            enviadas: rows.filter((c) => c.estado === 'ENVIADA').length,
+            rechazadas: rows.filter((c) => c.estado === 'RECHAZADA').length,
+            aprobadas: rows.filter((c) => c.estado === 'APROBADA').length,
+        }
+    })
+
+    const daysInMonth = new Date(year, selectedMonth, 0).getDate()
+    const daily = Array.from({ length: daysInMonth }, (_, i) => i + 1).map((dia) => {
+        const rows = data.filter((c) => {
+            if (!c.fecha_solicitud) return false
+            const d = new Date(c.fecha_solicitud)
+            return d.getMonth() === selectedMonth - 1 && d.getDate() === dia
+        })
+        return {
+            dia,
+            enviadas: rows.filter((c) => c.estado === 'ENVIADA').length,
+            rechazadas: rows.filter((c) => c.estado === 'RECHAZADA').length,
+            aprobadas: rows.filter((c) => c.estado === 'APROBADA').length,
+        }
+    })
+
+    const toRow = (c: typeof listasData[number]) => {
+        // El embed `cliente:terceros!cotizaciones_cliente_id_fkey(razon_social)`
+        // es una relación to-one — PostgREST devuelve un OBJETO, no un array,
+        // aunque TypeScript a veces infiera tipo array. Mismo patrón defensivo
+        // que en getHistoricalClientQuotes.
+        const cli = Array.isArray(c.cliente) ? c.cliente[0] : c.cliente
+        return {
+            id: c.id,
+            numero: c.numero,
+            cliente: cli?.razon_social ?? 'Sin cliente',
+            fecha_solicitud: c.fecha_solicitud,
+        }
+    }
+
+    return {
+        year,
+        selectedMonth,
+        monthly,
+        daily,
+        pendientesPorEnviar: listasData.filter((c) => c.estado === 'BORRADOR').slice(0, 50).map(toRow),
+        enviadas: listasData.filter((c) => c.estado === 'ENVIADA').slice(0, 50).map(toRow),
+    }
+}
+
 export async function getCotizacionesByClienteId(clienteId: string) {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return []

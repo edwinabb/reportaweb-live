@@ -126,6 +126,71 @@ export function renderMaquinariaVencidosEmailHtml(data: {
 </html>`
 }
 
+export function renderCotizacionesConfigIncompletaEmailHtml(data: {
+    nombre: string
+    tenantNombre: string
+    faltaImagenBanco: boolean
+    faltaImagenFirma: boolean
+    siteUrl: string
+}): string {
+    const { nombre, tenantNombre, faltaImagenBanco, faltaImagenFirma, siteUrl } = data
+
+    const items: string[] = []
+    if (faltaImagenBanco) items.push('Imagen del banco (para mostrar los datos bancarios en el PDF)')
+    if (faltaImagenFirma) items.push('Imagen de la firma (para mostrar la firma de autorización en el PDF)')
+
+    const listaFaltantes = items.map(i => `
+        <li style="margin:0 0 8px;font-size:14px;color:#374151;">${escapeHtml(i)}</li>`).join('')
+
+    const asunto = items.length === 1
+        ? 'falta 1 campo de configuración'
+        : `faltan ${items.length} campos de configuración`
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Cotizaciones — Configuración Incompleta</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <tr>
+          <td style="background:#0f172a;padding:20px 28px;">
+            <span style="color:#f97316;font-size:22px;font-weight:700;">REPORTA</span>
+            <span style="color:#94a3b8;font-size:12px;margin-left:12px;">Cotizaciones — Configuración Incompleta</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px;">
+            <p style="margin:0 0 8px;font-size:15px;color:#111827;">Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+            <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+              A <strong>${escapeHtml(tenantNombre)}</strong> le ${asunto} en <strong>Cotizaciones</strong>,
+              necesario${items.length === 1 ? '' : 's'} para generar el PDF de cotización correctamente:
+            </p>
+            <ul style="margin:0 0 20px;padding-left:20px;">
+              ${listaFaltantes}
+            </ul>
+            <div style="margin-top:32px;text-align:center;">
+              <a href="${escapeHtml(siteUrl)}/settings/cotizaciones"
+                 style="background:#f97316;color:#fff;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;">
+                Completar Configuración
+              </a>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;font-size:11px;color:#94a3b8;text-align:center;">
+              Este correo fue generado automáticamente por REPORTA · <a href="${escapeHtml(siteUrl)}" style="color:#f97316;">reportar.app</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
 export function renderPersonalVencidosEmailHtml(data: {
     nombre: string
     tenantNombre: string

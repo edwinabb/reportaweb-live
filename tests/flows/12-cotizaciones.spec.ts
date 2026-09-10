@@ -69,6 +69,61 @@ test.describe('Cotizaciones — Admin @critical', () => {
         await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
         await expect(page.locator('body')).not.toContainText('Application error')
     })
+
+    test('botón Descargar Excel visible y descarga un archivo (o avisa si no hay datos)', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const downloadBtn = page.locator('button[title*="Descargar Excel" i], button', { hasText: /Descargar Excel/i })
+        await expect(downloadBtn.first()).toBeVisible()
+
+        // TEST puede tener 0 filas de cotizaciones para el tenant (dato conocido, ver
+        // docs/auditoria-ui/06-cotizaciones.md). El botón debe comportarse correctamente
+        // en ambos casos: con datos dispara la descarga, sin datos muestra el toast de error.
+        const sinResultados = await page.getByText('No hay resultados.').isVisible().catch(() => false)
+
+        if (sinResultados) {
+            await downloadBtn.first().click()
+            await expect(page.getByText(/No hay registros para exportar/i)).toBeVisible({ timeout: 5_000 })
+        } else {
+            const [download] = await Promise.all([
+                page.waitForEvent('download', { timeout: 10_000 }),
+                downloadBtn.first().click(),
+            ])
+            expect(download.suggestedFilename()).toMatch(/^COTIZACIONES-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.xls$/)
+        }
+    })
+
+    test('tarjeta KPI "Aprobadas" filtra el listado por estado', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const kpiAprobadas = page.locator('[data-kpi-estado="APROBADA"]')
+        await expect(kpiAprobadas).toBeVisible()
+        await kpiAprobadas.click()
+
+        const sinResultados = await page.getByText('No hay resultados.').isVisible().catch(() => false)
+        if (!sinResultados) {
+            const rows = page.locator('table tbody tr')
+            const count = await rows.count()
+            for (let i = 0; i < count; i++) {
+                await expect(rows.nth(i)).toContainText(/APROBADA/i)
+            }
+        }
+    })
+
+    test('embudo de la columna Estado muestra las 6 opciones', async ({ page }) => {
+        await page.goto('/cotizaciones')
+        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+
+        const estadoFilterButton = page.locator('th', { hasText: /Estado/i }).getByRole('button', { name: /Filtrar por estado/i })
+        await expect(estadoFilterButton).toBeVisible()
+        await estadoFilterButton.click()
+
+        for (const label of ['Borrador', 'Enviada', 'Aprobada', 'Rechazada', 'Vencida', 'Aplazada']) {
+            await expect(page.getByRole('menuitemcheckbox', { name: label })).toBeVisible()
+        }
+    })
 })
 
 test.describe('Cotizaciones — Viewer (solo lectura) @roles', () => {
