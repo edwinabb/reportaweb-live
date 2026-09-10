@@ -42,6 +42,10 @@ Datos: **100% reconciliados**, sin gap pendiente (confirmado por re-ejecución d
 
 Ninguna abierta.
 
+## ⚠️ Hallazgo posterior al cierre (2026-09-10, mismo día)
+
+El usuario pidió revisar qué tablas usa Ventas porque sospechaba un gap de migración. Se encontró uno real: **`cobros_venta`** (la tabla que la app lee para "Cobrado"/"Pendiente de cobro") tiene **0 filas** en PROD — los pagos históricos de Bubble quedaron en una tabla paralela nunca conectada (`factura_venta_pagos`, 521 filas). Resultado: las 3.130 facturas de venta migradas muestran 100% pendiente de cobro aunque en Bubble muchas sí tuvieran pagos. Detalle completo, impacto y pasos de confirmación en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo (ya hecho), pero el dato de "Cobrado" no es confiable hasta resolverlo.**
+
 ## Cierre
 
-🟢 **Cerrado 2026-09-10.** 0 DUDAs sin resolución (Regla 7). PR [#1](https://github.com/edwinabb/reportaweb3/pull/1) pendiente de merge por el usuario (esta sesión no tiene acceso al checkout principal para mergear localmente — worktree aislado).
+🟢 **Cerrado 2026-09-10** a nivel UI/UX v1.2. 0 DUDAs sin resolución (Regla 7). PR [#1](https://github.com/edwinabb/reportaweb3/pull/1) mergeado (`6200684`). ⚠️ Ver hallazgo de datos arriba — pendiente de resolución aparte, no reabre este cierre de UI.

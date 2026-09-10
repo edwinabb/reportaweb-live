@@ -57,6 +57,16 @@
 
 ---
 
+## P-005 · Pagos/Cobros de Facturación (Ventas + Compras) — 🔴 Pendiente confirmar en Bubble (2026-09-10)
+
+| Campo | Detalle |
+|-------|---------|
+| **Tabla** | `cobros_venta` (Ventas) — 0 filas en PROD, tabla que la app realmente lee. Pagos migrados quedaron en `factura_venta_pagos` (521 filas), nunca leída por el código. |
+| **Impacto** | 0 de 3.130 `facturas_venta` en PROD muestran algún pago registrado — toda factura se ve 100% pendiente de cobro aunque en Bubble estuviera cobrada. |
+| **Compras** | `facturas_compra_pagos` sí es la tabla correcta (tiene `bubble_id`), pero solo 20/1.473 facturas (1,4%) tienen pago — nunca verificado contra una cifra real de Bubble. |
+| **Detalle completo** | `docs/auditoria-ui/residuales-pagos-facturacion.md` |
+| **Estado** | 🔴 Abierto — pendiente contar en Bubble (`reporta.la`, tenant GRUAS) cuántos pagos reales existen para Ventas y Compras y comparar contra lo migrado, antes de decidir el backfill. |
+
 ## Cómo revisar
 
 Para cada pendiente, verificar directamente en el panel de Bubble:

@@ -57,6 +57,10 @@ El faltante de "PDF Valorización" no era solo un ítem de menú: la funcionalid
 
 Ninguna abierta.
 
+## ⚠️ Hallazgo posterior al cierre (2026-09-10, mismo día)
+
+El usuario pidió revisar qué tablas usa Compras porque sospechaba un gap de migración (mismo pedido que en Ventas, donde apareció uno real). En Compras: `facturas_compra_pagos` (la tabla que la app lee/escribe) sí tiene `bubble_id` — no hay tabla paralela huérfana como en Ventas — pero solo **20 de 1.473 facturas_compra (1,4%)** tienen algún pago registrado. `fase9-finanzas-delta.ts` asumía esta tabla "ya al 100%" sin verificarlo nunca contra una cifra real de Bubble. Queda pendiente confirmar en Bubble si ese 1,4% es correcto o es un gap de migración. Detalle en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo.**
+
 ## Cierre
 
-🟢 **Cerrado 2026-09-10.** 0 DUDAs sin resolución (Regla 7). PR [#2](https://github.com/edwinabb/reportaweb3/pull/2) mergeado a master (`e735eed`).
+🟢 **Cerrado 2026-09-10** a nivel UI/UX v1.2 + feature PDF Valorización. 0 DUDAs sin resolución (Regla 7). PR [#2](https://github.com/edwinabb/reportaweb3/pull/2) mergeado a master (`e735eed`). ⚠️ Ver hallazgo de datos arriba — pendiente de confirmar en Bubble, no reabre este cierre de UI.
