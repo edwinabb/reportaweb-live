@@ -57,15 +57,16 @@
 
 ---
 
-## P-005 · Pagos/Cobros de Facturación (Ventas + Compras) — 🔴 Pendiente confirmar en Bubble (2026-09-10)
+## P-005 · Ventas/Compras — pagos, bancos y valorizaciones sin migrar o sin confirmar — 🔴 Pendiente confirmar en Bubble (2026-09-10)
 
 | Campo | Detalle |
 |-------|---------|
-| **Tabla** | `cobros_venta` (Ventas) — 0 filas en PROD, tabla que la app realmente lee. Pagos migrados quedaron en `factura_venta_pagos` (521 filas), nunca leída por el código. |
-| **Impacto** | 0 de 3.130 `facturas_venta` en PROD muestran algún pago registrado — toda factura se ve 100% pendiente de cobro aunque en Bubble estuviera cobrada. |
-| **Compras** | `facturas_compra_pagos` sí es la tabla correcta (tiene `bubble_id`), pero solo 20/1.473 facturas (1,4%) tienen pago — nunca verificado contra una cifra real de Bubble. |
+| **`cobros_venta` (Ventas)** | 0 filas en PROD, tabla que la app realmente lee. Pagos migrados quedaron en `factura_venta_pagos` (521 filas), nunca leída por el código. 0 de 3.130 `facturas_venta` muestran algún pago registrado. |
+| **`facturas_compra_pagos` (Compras)** | Sí es la tabla correcta (tiene `bubble_id`), pero solo 20/1.473 facturas (1,4%) tienen pago — nunca verificado contra una cifra real de Bubble. |
+| **`bancos`** | 0 filas en TODO el sistema (ningún tenant). Nunca migrada — bloquea registrar cobros nuevos, no solo el histórico. |
+| **`valorizaciones`** | 752 filas, 100% de CISE — GRUAS tiene 0, a pesar de ser el tenant con más facturación real. Asimetría sin explicación documentada. 0 filas de Compra en todo el sistema (todas son Venta). |
 | **Detalle completo** | `docs/auditoria-ui/residuales-pagos-facturacion.md` |
-| **Estado** | 🔴 Abierto — pendiente contar en Bubble (`reporta.la`, tenant GRUAS) cuántos pagos reales existen para Ventas y Compras y comparar contra lo migrado, antes de decidir el backfill. |
+| **Estado** | 🔴 Abierto — pendiente confirmar en Bubble (`reporta.la`, tenant GRUAS) los 4 puntos antes de decidir backfill/migración. |
 
 ## Cómo revisar
 

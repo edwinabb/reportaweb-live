@@ -59,7 +59,13 @@ Ninguna abierta.
 
 ## ⚠️ Hallazgo posterior al cierre (2026-09-10, mismo día)
 
-El usuario pidió revisar qué tablas usa Compras porque sospechaba un gap de migración (mismo pedido que en Ventas, donde apareció uno real). En Compras: `facturas_compra_pagos` (la tabla que la app lee/escribe) sí tiene `bubble_id` — no hay tabla paralela huérfana como en Ventas — pero solo **20 de 1.473 facturas_compra (1,4%)** tienen algún pago registrado. `fase9-finanzas-delta.ts` asumía esta tabla "ya al 100%" sin verificarlo nunca contra una cifra real de Bubble. Queda pendiente confirmar en Bubble si ese 1,4% es correcto o es un gap de migración. Detalle en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo.**
+El usuario pidió revisar qué tablas usa Compras porque sospechaba un gap de migración (mismo pedido que en Ventas, donde aparecieron varios reales), y luego pidió profundizar en las tablas de Valorizaciones. Hallazgos:
+
+1. `facturas_compra_pagos` (la tabla que la app lee/escribe) sí tiene `bubble_id` — no hay tabla paralela huérfana como en Ventas — pero solo **20 de 1.473 facturas_compra (1,4%)** tienen algún pago registrado. `fase9-finanzas-delta.ts` asumía esta tabla "ya al 100%" sin verificarlo nunca contra una cifra real de Bubble.
+2. **`bancos` está completamente vacía** (0 filas, ningún tenant) — compartida con Ventas, bloquea registrar pagos nuevos.
+3. **Valorizaciones de Compra: 0 filas en todo el sistema, para cualquier tenant** — ninguna valorización con prefijo `C-` existe en PROD. La única que se generó fue con datos sintéticos en TEST para probar el PDF (PR #2), luego eliminada.
+
+Queda pendiente confirmar en Bubble si estos números son correctos o gaps de migración. Detalle en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo.**
 
 ## Cierre
 

@@ -44,7 +44,13 @@ Ninguna abierta.
 
 ## ⚠️ Hallazgo posterior al cierre (2026-09-10, mismo día)
 
-El usuario pidió revisar qué tablas usa Ventas porque sospechaba un gap de migración. Se encontró uno real: **`cobros_venta`** (la tabla que la app lee para "Cobrado"/"Pendiente de cobro") tiene **0 filas** en PROD — los pagos históricos de Bubble quedaron en una tabla paralela nunca conectada (`factura_venta_pagos`, 521 filas). Resultado: las 3.130 facturas de venta migradas muestran 100% pendiente de cobro aunque en Bubble muchas sí tuvieran pagos. Detalle completo, impacto y pasos de confirmación en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo (ya hecho), pero el dato de "Cobrado" no es confiable hasta resolverlo.**
+El usuario pidió revisar qué tablas usa Ventas porque sospechaba un gap de migración, y luego pidió profundizar en las tablas de Valorizaciones específicamente. Se encontraron 3 gaps reales del lado de Ventas:
+
+1. **`cobros_venta`** (la tabla que la app lee para "Cobrado"/"Pendiente de cobro") tiene **0 filas** en PROD — los pagos históricos de Bubble quedaron en una tabla paralela nunca conectada (`factura_venta_pagos`, 521 filas). Las 3.130 facturas de venta migradas muestran 100% pendiente de cobro aunque en Bubble muchas sí tuvieran pagos.
+2. **`bancos` está completamente vacía** (0 filas, ningún tenant) — bloquea registrar cobros nuevos, no solo el dato histórico.
+3. **`valorizaciones` es asimétrica entre tenants**: CISE tiene 752 filas, **GRUAS tiene 0** pese a ser el tenant con más facturación real (1.720 facturas_venta).
+
+Detalle completo, impacto y pasos de confirmación en `docs/auditoria-ui/residuales-pagos-facturacion.md`. **No bloquea el cierre de UI de este módulo (ya hecho), pero los datos de "Cobrado" y la capacidad de registrar cobros nuevos no son confiables hasta resolverlo.**
 
 ## Cierre
 
