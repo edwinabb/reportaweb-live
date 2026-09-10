@@ -13,7 +13,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, FileCheck2, Undo2, Receipt, Loader2 } from "lucide-react"
+import { ChevronDown, Download, FileCheck2, FileText, Undo2, Receipt, Loader2 } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
@@ -35,7 +35,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -46,6 +52,7 @@ import {
 } from "@/components/ui/table"
 import { DataTableViewOptions } from "@/components/ui/data-table-view-options"
 import { ValoracionCompraItem, deshacerValorizacionCompra } from "@/lib/actions/compras"
+import { exportToExcel } from "@/lib/utils/export-excel"
 import { ValorizarCompraDialog } from "./valorizar-compra-dialog"
 import { RegistrarFacturaCompraDialog } from "./registrar-factura-compra-dialog"
 
@@ -53,12 +60,14 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     pageCount: number
+    proveedores: { id: string; razon_social: string }[]
 }
 
 export function ValoracionesComprasTable<TData, TValue>({
     columns,
     data,
     pageCount,
+    proveedores,
 }: DataTableProps<TData, TValue>) {
     const router = useRouter()
     const pathname = usePathname()
@@ -100,16 +109,30 @@ export function ValoracionesComprasTable<TData, TValue>({
 
     const currentEstado = searchParams.get('estado') || 'ALL'
 
+    const handleProveedorFilter = (proveedorId: string) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (proveedorId && proveedorId !== 'ALL') params.set('proveedor_id', proveedorId)
+        else params.delete('proveedor_id')
+        router.push(`${pathname}?${params.toString()}`)
+    }
+
+    const currentProveedor = searchParams.get('proveedor_id') || 'ALL'
+
     return (
         <div className="w-full space-y-4">
             <div className="flex items-center justify-between py-4">
                 <div className="flex flex-1 items-center space-x-2">
-                    <Input
-                        placeholder="Filtrar por proveedor..."
-                        value={(table.getColumn("proveedor_nombre")?.getFilterValue() as string) ?? ""}
-                        onChange={(event) => table.getColumn("proveedor_nombre")?.setFilterValue(event.target.value)}
-                        className="max-w-sm"
-                    />
+                    <Select value={currentProveedor} onValueChange={handleProveedorFilter}>
+                        <SelectTrigger className="max-w-sm">
+                            <SelectValue placeholder="Filtrar por proveedor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Todos los proveedores</SelectItem>
+                            {proveedores.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.razon_social}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
                     <div className="flex items-center space-x-1 border rounded-md p-1 bg-muted/20">
                         {['ALL', 'PENDIENTE', 'VALORADO', 'FACTURADO'].map((st) => (
@@ -161,6 +184,22 @@ export function ValoracionesComprasTable<TData, TValue>({
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
+                                        disabled={!singleCodigo}
+                                        onClick={() => {
+                                            if (singleCodigo) {
+                                                window.open(`/api/valorizaciones/${encodeURIComponent(singleCodigo)}/pdf`, '_blank', 'noopener,noreferrer')
+                                            }
+                                        }}
+                                        className="gap-2"
+                                    >
+                                        <FileText className="h-4 w-4 text-blue-600" />
+                                        PDF Valorización
+                                        {!singleCodigo && selectedRows.length > 0 && (
+                                            <span className="text-[10px] text-gray-400 ml-auto">1 valorización</span>
+                                        )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
                                         disabled={!singleCodigo || !allValorados}
                                         onClick={() => {
                                             if (singleCodigo) { setDeshacerCodigo(singleCodigo); setDeshacerOpen(true) }
@@ -193,6 +232,37 @@ export function ValoracionesComprasTable<TData, TValue>({
                             </DropdownMenu>
                         )
                     })()}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => {
+                            const rows = table.getFilteredRowModel().rows.map((r) => {
+                                const v = r.original as ValoracionCompraItem
+                                return {
+                                    'Informe': v.id_reporte,
+                                    'Fecha': v.fecha_reporte,
+                                    'Proveedor': v.proveedor_nombre,
+                                    'Cliente': v.cliente_nombre,
+                                    'Lugar': v.lugar,
+                                    'Maquinaria': v.maquinaria,
+                                    'Cotización': v.cotizacion_numero,
+                                    'Hrs Trabajo': v.horas_trabajo,
+                                    'Cant Facturar': v.cantidad_facturar,
+                                    'Moneda': v.moneda,
+                                    'Precio Compra': v.precio_compra,
+                                    'Total': v.total_compra,
+                                    'Valoración': v.valoracion_codigo,
+                                    'Factura': v.factura_codigo,
+                                    'Estado': v.estado,
+                                }
+                            })
+                            if (!exportToExcel('VALORACIONES-COMPRA', rows)) toast.error('No hay registros para exportar')
+                        }}
+                    >
+                        <Download className="h-4 w-4 mr-1" />
+                        Descargar Excel
+                    </Button>
                     <DataTableViewOptions table={table} />
                 </div>
             </div>
