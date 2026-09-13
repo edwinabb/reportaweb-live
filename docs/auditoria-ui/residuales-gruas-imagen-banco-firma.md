@@ -59,3 +59,13 @@ Pedirle a GRUAS (canal a elección del usuario — email/WhatsApp/reunión):
 Cuando el cliente entregue los archivos, subirlos siguiendo el mismo patrón ya usado para CISE
 (bucket `cotizaciones`, path `tenant_6f4c923a/banco/...` y `tenant_6f4c923a/firma/...`), y
 actualizar las 2 columnas con la URL real del proyecto correcto (`fqwhagryqkkhbgznxtwf`).
+
+## Confirmación en Bubble (2026-09-13)
+
+Verificado en vivo en `reporta.la` → Opciones Internas → Empresas Interno → GRUAS → tab
+"6. Formato de cotización": los campos "imagen con la información de las cuentas bancarias" y
+"Firma Autorizada" muestran el placeholder vacío (captura
+`screenshots/14-opciones-internas/07-empresa-tab6-formato-cotizacion.png`). **GRUAS nunca cargó
+esos archivos en Bubble**, así que no hay nada que recuperar: el pedido a GRUAS pasa de "recuperar"
+a "cargar por primera vez", y solo importa si GRUAS va a usar Cotizaciones en v3 (hoy 1 cotización
+en 2025, 0 en 2026).

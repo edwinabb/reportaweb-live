@@ -75,3 +75,21 @@ Para cada pendiente, verificar directamente en el panel de Bubble:
 2. Ver el nombre exacto del campo y su tipo
 3. Ver si tiene datos en registros reales de CISE/GRUAS
 4. Actualizar este archivo con la conclusión y acción a tomar
+
+## P-006 · `profiles.role` — perfiles de Bubble nunca mapeados — 🔴 ALTA (2026-09-13)
+
+| Campo | Detalle |
+|---|---|
+| **Hallazgo** | En Bubble cada usuario tiene perfil AdminEmpresa / AdminSistema / Colaborador / Gestor / Integrante / Proveedor (Opciones Internas → Usuarios Interno). La migración (`scripts/sync-fase1-usuarios.ts`) no lo mapea: GRUAS quedó con 236 `member` + 1 `reporta_admin` y **0 `admin_tenant`**; CISE con 1 `admin_tenant`. |
+| **Impacto** | Al cutover nadie de GRUAS puede administrar usuarios/configuración. |
+| **Acción** | Definir mapeo (DUDA OI-06b en `docs/auditoria-ui/14-opciones-internas.md`) y correr delta por `bubble_id` en TEST+PROD, dry-run primero. |
+| **Estado** | 🔴 Abierto — espera mapeo del usuario. |
+
+## P-007 · Numeración de cotizaciones no continúa la de Bubble — 🔴 ALTA (2026-09-13)
+
+| Campo | Detalle |
+|---|---|
+| **Hallazgo** | Bubble numera por tenant con prefijo+secuencia+sufijo (`CT`·291·`-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` (`lib/actions/cotizaciones.ts`) genera `CT 2026-0001`: formato distinto, el `like` no matchea los migrados, y toma último por `created_at` en vez del máximo. `companies_consecutives` existe (1 fila vacía por tenant) y ningún código la lee. `tareas_codigo_contador` y `formatos_correlativos` también vacías. |
+| **Impacto** | La primera cotización nueva en v3 sale `CT 2026-0001` en vez de `CT280-2026`; posible colisión de códigos y quiebre de la serie del cliente. |
+| **Acción** | TK-OI7: rediseñar generación sobre `companies_consecutives` con prefijo/sufijo por tenant y sembrar con el último real. Confirmar formato deseado con el usuario. |
+| **Estado** | 🔴 Abierto. |
