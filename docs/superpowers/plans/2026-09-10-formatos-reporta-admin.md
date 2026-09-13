@@ -220,11 +220,11 @@ Ninguna credencial real (contraseña, service-role key, Resend key) fue vista ni
 1. Generar `RESEND_API_KEY` nueva en Resend (dominio `reportar.app` ya verificado) y actualizarla en `C:\Proyectos\reporta-admin\.env.local`.
 2. Probar el flujo completo en vivo: `npm run dev` en reporta-admin → login con `info@reporta.la` → `/formatos` → PIN por email → editar un formato de cualquier tenant.
 3. Decidir sobre rotar `SUPABASE_SERVICE_ROLE_KEY` de PROD.
-4. `reporta-admin` sigue siendo un repo git **sin remoto** — los 5 commits de esta sesión (`27ffc5a` en adelante hasta `ec57021`) viven solo local. El usuario decide cuándo/cómo publicarlo (deploy a Cloudflare Workers, `admin.reporta.la`).
+4. `reporta-admin` sigue siendo un repo git **sin remoto** — los 5 commits de esta sesión (`27ffc5a` en adelante hasta `ec57021`) viven solo local. El usuario decide cuándo/cómo publicarlo (deploy a Cloudflare Workers, `sadm.reportar.app` — decisión 2026-09-10, reemplaza `admin.reporta.la` del plan original).
 
 ## Notas de ejecución
 
 - Task 1 vive en reportaweb3 y sigue el flujo normal de PR de esa sesión (worktree → PR → merge).
-- Tasks 2 y 3 viven en reporta-admin, que **no tiene remoto** — cada task termina con un commit local a `master` de ese repo, sin PR. El usuario decide cuándo/cómo publicar ese repo (Cloudflare Workers, ver referencias a `admin.reporta.la` en `docs/superpowers/plans/2026-09-06-reporta-admin.md` de reportaweb3).
+- Tasks 2 y 3 viven en reporta-admin, que **no tiene remoto** — cada task termina con un commit local a `master` de ese repo, sin PR. El usuario decide cuándo/cómo publicar ese repo (Cloudflare Workers en `sadm.reportar.app`; las referencias a `admin.reporta.la` en `docs/superpowers/plans/2026-09-06-reporta-admin.md` quedaron obsoletas por el estándar de dominios de `CLAUDE.md`).
 - Task 2 debe completarse y verificarse ANTES de Task 3 (el guard debe funcionar antes de exponer el CRUD real).
 - Ningún dato de prueba debe quedar en PROD al cerrar — limpiar cualquier fila sintética creada durante pruebas manuales.
