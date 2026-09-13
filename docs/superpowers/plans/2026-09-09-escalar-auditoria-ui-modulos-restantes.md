@@ -151,7 +151,7 @@ No se asume ninguna de las 2 — se pregunta al usuario al arrancar el primer m�
 
 ## Roadmap de ejecución — 1 módulo restante
 
-1. **Opciones Internas** (`14-opciones-internas.md`) — solo `reporta_admin`, bajo riesgo.
+1. **Opciones Internas** (`14-opciones-internas.md`) — 🟡 **arrancado 2026-09-13**: inventario de Sistema + Superadmin y cobertura de datos hechos; 5 tickets (TK-OI1 = 24 tenants trial basura en PROD) y 5 DUDAs abiertas, lado Bubble pendiente. Solo `reporta_admin`, bajo riesgo.
    **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
    `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
    separada, `reporta-admin` — **renombrada "Sistema de Superadmin" (2026-09-10)**, deploy futuro

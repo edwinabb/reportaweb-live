@@ -110,7 +110,7 @@
 | 12 | Compras | 🔲 Pendiente | — |
 | 13 | Configuración | 🔲 Pendiente | — |
 | 14 | Perfil de Usuario | 🔲 Pendiente | — |
-| 15 | Opciones Internas | 🔲 Pendiente | — |
+| 15 | Opciones Internas | 🟡 En auditoría (2026-09-13) | `docs/auditoria-ui/14-opciones-internas.md` — listados de Tenant/Onboarding/Superadmin fuera del estándar v1.2 por volumen (TK-OI2/OI3, diferidos) |
 
 > Actualizar esta tabla al cerrar cada módulo (status + fecha + % de avance).
 
