@@ -21,7 +21,8 @@
 | DUDA-DEPS-002 | middleware.ts → proxy.ts (espera soporte OpenNext) | BAJA | 🔴 Bloqueado |
 | DUDA-MAQ-HORAS | `maquinaria_horas` sin UI propia (se usa en informes y tareas) | MEDIA | 🟡 Pendiente |
 | DUDA-SERV-001 | `servicios.precio_N_tipo` sin FK real hacia `servicios_tipo_precios` (~670 referencias huérfanas en PROD: 444+174+56 en precio_1/2/3). Código ya no depende del FK (v3.12.3, mapeo manual), pero falta decidir si limpiar/reasignar las huérfanas o agregar el FK con `ON DELETE SET NULL` tras la limpieza | MEDIA | 🟡 Pendiente (mitigado en código) |
-| TK-OI7 | Numeración de cotizaciones (`generateNumeroCotizacion`, `lib/actions/cotizaciones.ts`) no continúa la serie de Bubble por tenant (formato distinto, `companies_consecutives` sin usar) — la primera cotización nueva de un tenant migrado colisiona/rompe la serie del cliente. Formato confirmado por el usuario 2026-09-13: `CT-XXXX-YYYY`. Plan de implementación: `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md` | ALTA | 🟡 Plan listo, pendiente ejecutar |
+| TK-OI7 | Numeración de cotizaciones (`generateNumeroCotizacion`, `lib/actions/cotizaciones.ts`) no continuaba la serie de Bubble por tenant. Formato `CT-XXXX-YYYY` implementado, calcula el máximo real desde `cotizaciones.numero` (no `companies_consecutives`, sin usar a propósito — Bubble sigue creando cotizaciones de CISE). Detalle: `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md` | ALTA | 🟢 **Cerrado 2026-09-14** — código + test unitario + verificación contra TEST; test E2E bloqueado por DUDA-E2E-001 (ver esa fila) |
+| — | Numeración de Órdenes de Trabajo (`T-YYYY-XXXX`, `finalizeAprobacionCotizacion` en `lib/actions/cotizaciones.ts`) cuenta filas (`count(*)+1`) en vez de parsear el máximo real — misma clase de fragilidad que tenía TK-OI7 antes del fix, pero con formato y mecanismo distintos. No auditado a fondo, no confirmado si ya causó un problema real | BAJA | 🟡 Pendiente (anotado 2026-09-14, no es parte de TK-OI7) |
 | — | Migrar cron jobs de Vercel a Cloudflare | MEDIA | 🟡 Pendiente |
 > Nota (2026-09-06): `/api/cron/pdf-jobs` específicamente ya NO depende de esta migración — se resolvió drenando `pdf_jobs` con `pg_cron`+`pg_net` directo en Supabase, porque `@opennextjs/cloudflare@1.20.1` no expone un hook `scheduled()` para Next.js. Detalle en [docs/superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md](./superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md) (Task 9). El resto de los crons del proyecto siguen pendientes de la migración a Cloudflare Cron Triggers, por eso la fila arriba se mantiene.
 | — | Crear entorno Cloudflare de prod (`reportar.app` apex) + rebind `demo`→`dev.reportar.app` (estándar dominios 2026-07-22) | ALTA | 🟢 Worker `reportaweb-live` existe y funciona (2026-09-08, `reportaweb-live.ancient-block-882d.workers.dev`, secret `SUPABASE_SERVICE_ROLE_KEY` agregado) — **falta bindear el dominio real** (`reportar.app` apex hoy sirve otro proyecto, `ReportaLanding`) |
@@ -154,6 +155,18 @@ en 0 filas y no debe recibir nuevos seeds.
 selectores/asserts al nuevo estándar (incluido Terceros y el nuevo tab
 Personal), reescribir el caso EXTERNO del flow 43 con profiles, y de paso crear
 helpers reutilizables para validar el template en los próximos módulos.
+
+**Hallazgo nuevo 2026-09-14 (ejecutando TK-OI7):** la suite falla en dev local
+con sesión inválida — `tests/flows/12-cotizaciones.spec.ts` redirige a `/`
+(login) en vez de cargar `/cotizaciones`, reproducible incluso en un test SIN
+modificar del mismo spec (`listado de cotizaciones carga`). Regenerar
+`.auth/admin.json` (`npx playwright test --project=setup-admin`) no lo arregla
+— el archivo queda "fresco" (`MAX_AUTH_AGE_HOURS` en `tests/auth/setup-base.ts`)
+pero la sesión se invalida casi de inmediato, con `AuthApiError: Invalid
+Refresh Token: Refresh Token Not Found` en los logs del `webServer`. Huele al
+mismo tipo de race que DUDA-COT-000 (v3.12.2, `middleware.ts` reintenta
+`getUser()`) pero manifestándose distinto en este entorno — no investigado a
+fondo, solo confirmado que no es específico de un test ni de esta sesión.
 
 ## DUDA-CACHE-001: Migrar a stale-while-revalidate (Opción B)
 

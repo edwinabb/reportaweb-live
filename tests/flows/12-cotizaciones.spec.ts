@@ -58,6 +58,42 @@ test.describe('Cotizaciones — Admin @critical', () => {
         await expect(page.locator('body')).not.toContainText('Application error', { timeout: 10_000 })
     })
 
+    test('crear cotización genera número con formato CT-XXXX-YYYY (TK-OI7)', async ({ page }) => {
+        await page.goto('/cotizaciones/nueva')
+        await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {})
+
+        // Descripción del requerimiento (no bloqueante para el submit, pero deja rastro E2E)
+        const descInput = page.locator('textarea[name="descripcion_requerimiento"]').first()
+        if (await descInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await descInput.fill(`${E2E}TK-OI7_${TS}`)
+        }
+
+        // Cliente (SearchableSelect) — mismo patrón probado en 26-pre-cutover-planificacion-full.spec.ts
+        const clienteSelect = page.locator('[role="combobox"]').first()
+        await expect(clienteSelect).toBeVisible({ timeout: 8_000 })
+        await clienteSelect.click()
+        await page.waitForTimeout(400)
+        const primeraOpcion = page.locator('[data-radix-popper-content-wrapper] button[type="button"]')
+            .filter({ hasNotText: /Sin |Ninguno|Todos|Nuevo/i }).first()
+        await primeraOpcion.click({ timeout: 5_000 })
+        await page.waitForTimeout(300)
+
+        // fecha_emision, periodo, periodo_unidad y moneda ya traen default válido
+        // (hoy, 7, DIA, USD) — no hace falta tocarlos para pasar la validación.
+        await page.locator('button[type="submit"]').click()
+
+        // Debe redirigir a /cotizaciones/[id] al crear con éxito
+        await page.waitForURL(/\/cotizaciones\/[0-9a-f-]{36}(\?.*)?$/, { timeout: 15_000 })
+        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
+
+        // El campo "Cotización" (disabled, sin name — no se envía en el submit)
+        // muestra el numero real una vez creada.
+        const numeroField = page.locator('div', { has: page.locator('label', { hasText: /^Cotización$/ }) })
+            .locator('input')
+            .first()
+        await expect(numeroField).toHaveValue(/^CT-\d{4}-\d{4}$/, { timeout: 10_000 })
+    })
+
     test('página de servicios de cotizaciones carga', async ({ page }) => {
         await page.goto('/cotizaciones/servicios')
         await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})

@@ -81,7 +81,7 @@ CT-001-2022        CT 001-23 (año 2 dígitos)   CT067-2026B (sufijo B, no cuent
 CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó alguno)
 ```
 
-- [ ] **Paso 1: Escribir los tests primero** en `scripts/test-cotizaciones-numero.ts` — el repo NO
+- [x] **Paso 1: Escribir los tests primero** en `scripts/test-cotizaciones-numero.ts` — el repo NO
   usa Jest/Vitest para `lib/`, usa scripts planos con `node:assert/strict` corridos directo con
   `npx tsx` (confirmado: `scripts/test-pdf-retry-schedule.ts`, mismo patrón que
   `lib/pdf-retry-schedule.ts`). Seguir ese formato exacto: imports relativos, `assert.equal`/
@@ -111,11 +111,11 @@ CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó a
   // fallback sin prefijo CT: /^(\d+)-(\d{2,4})$/
   ```
 
-- [ ] **Paso 2: Implementar `parseNumeroCotizacion`** en `lib/actions/cotizaciones.ts`, exportada
+- [x] **Paso 2: Implementar `parseNumeroCotizacion`** en `lib/actions/cotizaciones.ts`, exportada
   (no `function` privada) para que `scripts/test-cotizaciones-numero.ts` pueda importarla, hasta
   que los tests del Paso 1 pasen. Correr con `npx tsx scripts/test-cotizaciones-numero.ts`.
 
-- [ ] **Paso 3: Año en hora de Lima — reusar `lib/utils/tz.ts`, NO crear un helper nuevo**
+- [x] **Paso 3: Año en hora de Lima — reusar `lib/utils/tz.ts`, NO crear un helper nuevo**
 
   Ya existe `todayInTZ(timezone: string): string` en `lib/utils/tz.ts` (formatea `YYYY-MM-DD` en
   el timezone dado vía `Intl.DateTimeFormat('en-CA', ...)`, ya usado en `empresa-config.ts`,
@@ -128,7 +128,7 @@ CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó a
   tenant (`companies.timezone` ya existe, ver `empresa-timezone-form.tsx`) — pero eso es scope
   creep para este ticket: CISE y GRUAS son ambos Perú, hardcodear Lima es correcto hoy.
 
-- [ ] **Paso 4: Reescribir `generateNumeroCotizacion`**
+- [x] **Paso 4: Reescribir `generateNumeroCotizacion`**
 
   ```ts
   async function generateNumeroCotizacion(tenantId: string, adminClient: SupabaseClient): Promise<string> {
@@ -164,7 +164,7 @@ CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó a
   `created_at >= '${anio}-01-01'` en la query ayuda pero no es 100% preciso porque el `anio` está
   en el texto, no en una columna — dejar la traída completa hasta que sea necesario optimizar.
 
-- [ ] **Paso 5: Retry-on-conflict en los 2 call sites**
+- [x] **Paso 5: Retry-on-conflict en los 2 call sites**
 
   En `createCotizacion` y `duplicateCotizacion`, envolver el insert:
   ```ts
@@ -179,7 +179,7 @@ CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó a
   (Adaptar a la estructura real de cada función — no hay que duplicar todo el objeto de insert dos
   veces si se puede extraer a una función interna `insertConReintento`.)
 
-- [ ] **Paso 6: `duplicateCotizacion` — número limpio, sin sufijo**
+- [x] **Paso 6: `duplicateCotizacion` — número limpio, sin sufijo**
 
   Confirmado por el usuario 2026-09-13: la copia es un documento independiente. Cambiar:
   ```ts
@@ -192,33 +192,36 @@ CT 226-2025B        CT 2026-0001 (el formato ROTO actual, por si ya se generó a
   (el `cotizacion_padre_id: original.id` ya guarda la trazabilidad, no hace falta el sufijo en el
   número visible).
 
-- [ ] **Paso 7: `npx tsc --noEmit`**
+- [x] **Paso 7: `npx tsc --noEmit`**
 
 ---
 
 ### Task 2: Test E2E de verificación
 
-- [ ] **Paso 1:** en `tests/flows/12-cotizaciones.spec.ts`, agregar un test que cree una cotización
-  desde la UI y verifique que el campo número visible matchea `/^CT-\d{4}-\d{4}$/`.
-- [ ] **Paso 2:** correr `npx playwright test tests/flows/12-cotizaciones.spec.ts --project=chromium`
-  contra dev local con BD TEST — **TEST no tiene cotizaciones migradas** (`bubble_id` en 0 filas,
-  confirmado 2026-09-13), así que el primer número generado en TEST será `CT-0001-{añoActual}`,
-  buen caso de prueba del "arranque en 1" además del caso de continuar una serie existente.
-- [ ] **Paso 3 (verificación manual adicional, no automatizable sin credenciales de PROD):**
-  pedirle al controller/usuario que confirme en PROD, tras el deploy, que la primera cotización
-  nueva de CISE sale como `CT-0280-2026` (siguiente después del máximo real 279) y no colisiona con
-  nada que Bubble haya creado mientras tanto.
+- [x] **Paso 1:** agregado en `tests/flows/12-cotizaciones.spec.ts` ("crear cotización genera número
+  con formato CT-XXXX-YYYY (TK-OI7)"), selecciona cliente real vía `SearchableSelect` (mismo patrón
+  probado en `26-pre-cutover-planificacion-full.spec.ts`) y verifica el campo número tras el redirect.
+- [x] **Paso 2 — BLOQUEADO por infraestructura, no por el fix:** corrido contra dev local con BD TEST.
+  La suite entera redirige a `/` (login) — reproducible en un test SIN modificar del mismo spec
+  (`listado de cotizaciones carga`), confirmando que es una falla de sesión preexistente de la suite
+  E2E, no algo que introdujo este cambio. Anotado como hallazgo nuevo en `docs/TECHNICAL_DEBTS.md`
+  § DUDA-E2E-001. **Verificación alternativa realizada:** llamada directa a la lógica real contra la
+  BD de TEST (0 cotizaciones migradas) confirma que el siguiente número calculado es `CT-0001-2026`,
+  el resultado esperado.
+- [ ] **Paso 3 (verificación manual, no automatizable sin credenciales de PROD) — PENDIENTE:**
+  pedirle al usuario que confirme en PROD, tras el deploy, que la primera cotización nueva de CISE
+  sale como `CT-0280-2026` (o el siguiente número si Bubble creó más desde el 2026-09-13) y no
+  colisiona con nada que Bubble haya creado mientras tanto.
 
 ---
 
 ### Task 3: Cerrar la documentación
 
-- [ ] `docs/pendientes_por_resolver.md` § P-007 → 🟢 Resuelto, con el commit/PR de referencia.
-- [ ] `docs/TECHNICAL_DEBTS.md` → fila `TK-OI7` a 🟢 Cerrado. Agregar una fila nueva BAJA (no
-  bloqueante) anotando la numeración de O.T. (`T-YYYY-XXXX`, cuenta filas en vez de parsear máximo)
-  como mismo tipo de fragilidad, fuera de alcance de este ticket.
-- [ ] `docs/auditoria-ui/14-opciones-internas.md` § TK-OI7 → actualizar de 🔴 abierto a 🟢 cerrado.
-- [ ] `docs/auditoria-ui/06-cotizaciones.md` → actualizar la nota sobre numeración si existe.
+- [x] `docs/pendientes_por_resolver.md` § P-007 → 🟢 Resuelto.
+- [x] `docs/TECHNICAL_DEBTS.md` → fila `TK-OI7` a 🟢 Cerrado + fila nueva BAJA para O.T. + hallazgo
+  nuevo de sesión E2E anotado en DUDA-E2E-001.
+- [x] `docs/auditoria-ui/14-opciones-internas.md` § TK-OI7 → actualizado a 🟢 cerrado (6 referencias).
+- [x] `docs/auditoria-ui/06-cotizaciones.md` → nota agregada en el addendum de cierre.
 
 ---
 
@@ -242,3 +245,34 @@ accionable sin otra ronda de preguntas:
    corrección del bug; limpiarla es un ticket aparte de 1 línea si el usuario lo pide.
 
 No hay bloqueantes. Listo para ejecutar Task 1.
+
+
+---
+
+## Estado final (2026-09-14)
+
+🟢 **Implementado y verificado, con una limitación anotada.**
+
+- `lib/utils/numero-cotizacion.ts` (nuevo): `parseNumeroCotizacion`, testeado contra todos los
+  formatos heredados reales de PROD + el formato nuevo (`scripts/test-cotizaciones-numero.ts`, pasa).
+  Vive fuera de `lib/actions/cotizaciones.ts` porque ese archivo tiene `'use server'` — Next.js exige
+  que todo export de un archivo así sea una función async, y `parseNumeroCotizacion` necesitaba ser
+  exportada (síncrona) para poder testearse. Decisión no anticipada en el plan original, tomada al
+  ejecutar.
+- `lib/actions/cotizaciones.ts`: `generateNumeroCotizacion` reescrito (formato `CT-XXXX-YYYY`, año en
+  hora de Lima vía `todayInTZ`, máximo real desde `cotizaciones.numero`). Nuevo helper interno
+  `insertCotizacionConNumero` con retry-on-conflict, usado por `createCotizacion` y
+  `duplicateCotizacion`. `duplicateCotizacion` ya no agrega `' (Copia)'` al número.
+- `npx tsc --noEmit` limpio.
+- **Test E2E bloqueado por infraestructura, no por el fix:** la suite completa (incluido un test sin
+  modificar) redirige a login contra dev local. Verificación alternativa directa contra la BD real de
+  TEST confirma el resultado esperado (`CT-0001-2026`). Hallazgo anotado en `docs/TECHNICAL_DEBTS.md`
+  § DUDA-E2E-001 para que se investigue por separado.
+
+### Pendiente para el usuario
+
+1. Revisar y mergear el PR.
+2. Tras el deploy a demo/PROD, confirmar que la primera cotización nueva de CISE sale con el
+   siguiente número real de la serie (no colisiona con lo que Bubble haya creado mientras tanto).
+3. Considerar investigar la falla de sesión E2E encontrada (DUDA-E2E-001) — bloquea verificar
+   cualquier fix con Playwright en este entorno hasta que se resuelva.

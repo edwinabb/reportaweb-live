@@ -4,6 +4,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { ActionResponse, CotizacionEstado, HistoricalClientQuote, HistoricalSupplierOffer } from '@/types/cotizaciones'
 import { getSupabaseContext, safeRevalidatePath } from '@/lib/action-context'
 import { buildTiposPreciosMap } from '@/lib/actions/servicios'
+import { todayInTZ } from '@/lib/utils/tz'
+import { parseNumeroCotizacion } from '@/lib/utils/numero-cotizacion'
 
 
 
@@ -259,27 +261,62 @@ export async function getCotizacionById(id: string) {
     return data
 }
 
-// Generar número de cotización
-async function generateNumeroCotizacion(tenantId: string, adminClient: SupabaseClient) {
-    const year = new Date().getFullYear()
-    const prefix = `CT ${year}-`
+// Generar número de cotización — formato CT-XXXX-YYYY (TK-OI7, confirmado por
+// el usuario 2026-09-13). El consecutivo reinicia a 0001 cada 1 de enero, hora
+// de Lima.
+//
+// No usa un contador cacheado (`companies_consecutives`, sin usar a propósito):
+// Bubble sigue siendo el sistema en producción para CISE y sigue creando
+// cotizaciones que el delta-sync trae a esta misma tabla con su propia
+// numeración — un contador sembrado una vez se desincronizaría en cuanto
+// Bubble cree la siguiente. La única fuente de verdad confiable es el máximo
+// real en `cotizaciones.numero` en el momento de generar, mismo patrón "peek
+// sin lock" que `peekNextCodigoValorizacion` en `lib/actions/ventas.ts`.
+async function generateNumeroCotizacion(tenantId: string, adminClient: SupabaseClient): Promise<string> {
+    const anio = Number(todayInTZ('America/Lima').slice(0, 4))
 
-    // Get last number for this year
-    const { data } = await adminClient
+    const { data, error } = await adminClient
         .from('cotizaciones')
         .select('numero')
         .eq('tenant_id', tenantId)
-        .like('numero', `${prefix}%`)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+        .not('numero', 'is', null)
 
-    if (data?.numero) {
-        const lastNumber = parseInt(data.numero.split('-')[1])
-        return `${prefix}${String(lastNumber + 1).padStart(4, '0')}`
+    if (error) {
+        console.error('Error leyendo numeros de cotizacion:', error)
+        // Fallback conservador: si no se puede verificar el máximo real, mejor
+        // fallar explícito que arriesgar una colisión silenciosa con Bubble.
+        throw new Error('No se pudo generar el numero de cotizacion')
     }
 
-    return `${prefix}0001`
+    let maxConsecutivo = 0
+    for (const row of data ?? []) {
+        const parsed = parseNumeroCotizacion(row.numero)
+        if (parsed && parsed.anio === anio) {
+            maxConsecutivo = Math.max(maxConsecutivo, parsed.consecutivo)
+        }
+    }
+
+    return `CT-${String(maxConsecutivo + 1).padStart(4, '0')}-${anio}`
+}
+
+/** Inserta una cotización con `numero` generado, reintentando una vez si otra
+ * cotización (típicamente sincronizada desde Bubble) tomó el mismo número
+ * entre el "peek" y el insert — protegido por el UNIQUE(tenant_id, numero,
+ * version) ya existente en la tabla. */
+async function insertCotizacionConNumero(
+    adminClient: SupabaseClient,
+    tenantId: string,
+    buildRow: (numero: string) => Record<string, unknown>,
+) {
+    let numero = await generateNumeroCotizacion(tenantId, adminClient)
+    let result = await adminClient.from('cotizaciones').insert(buildRow(numero)).select().single()
+
+    if (result.error?.code === '23505' && result.error.message?.includes('cotizaciones_tenant_id_numero_version_key')) {
+        numero = await generateNumeroCotizacion(tenantId, adminClient)
+        result = await adminClient.from('cotizaciones').insert(buildRow(numero)).select().single()
+    }
+
+    return result
 }
 
 export async function createCotizacion(_prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
@@ -304,9 +341,6 @@ export async function createCotizacion(_prevState: ActionResponse, formData: For
     if (isNaN(periodo)) return { message: 'Periodo inválido' }
     if (!moneda) return { message: 'Falta Moneda' }
 
-    // Generate numero
-    const numero = await generateNumeroCotizacion(tenantId, adminClient)
-
     // Calculate fecha_vencimiento (30 days from emission)
     const fechaEmision = new Date(fecha_emision)
     const fechaVencimiento = new Date(fechaEmision)
@@ -315,35 +349,31 @@ export async function createCotizacion(_prevState: ActionResponse, formData: For
     // Helper to sanitize IDs
     const sanitizeId = (id: string) => (id && id !== '_none' ? id : null)
 
-    const { data: cotizacion, error } = await adminClient
-        .from('cotizaciones')
-        .insert({
-            tenant_id: tenantId,
-            numero,
-            version: 1,
-            cliente_id,
-            contacto_id: sanitizeId(contacto_id),
-            sitio_id: sanitizeId(sitio_id),
-            fecha_emision,
-            fecha_inicio_estimada: fecha_inicio_estimada || null,
-            fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
-            dias_validez: 30,
-            periodo,
-            periodo_unidad,
-            forma_pago,
-            moneda,
-            plazo_pago,
-            descripcion_requerimiento: descripcion_requerimiento || null,
-            tasa_cambio_id: sanitizeId(tasa_cambio_id),
-            estado: 'BORRADOR',
-            subtotal: 0,
-            igv: 0,
-            total: 0,
-            created_by: user.id,
-            updated_by: user.id
-        })
-        .select()
-        .single()
+    const { data: cotizacion, error } = await insertCotizacionConNumero(adminClient, tenantId, (numero) => ({
+        tenant_id: tenantId,
+        numero,
+        version: 1,
+        cliente_id,
+        contacto_id: sanitizeId(contacto_id),
+        sitio_id: sanitizeId(sitio_id),
+        fecha_emision,
+        fecha_inicio_estimada: fecha_inicio_estimada || null,
+        fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0],
+        dias_validez: 30,
+        periodo,
+        periodo_unidad,
+        forma_pago,
+        moneda,
+        plazo_pago,
+        descripcion_requerimiento: descripcion_requerimiento || null,
+        tasa_cambio_id: sanitizeId(tasa_cambio_id),
+        estado: 'BORRADOR',
+        subtotal: 0,
+        igv: 0,
+        total: 0,
+        created_by: user.id,
+        updated_by: user.id
+    }))
 
     if (error) {
         console.error('Error creating cotizacion:', error)
@@ -582,48 +612,44 @@ export async function duplicateCotizacion(id: string) {
     const original = await getCotizacionById(id)
     if (!original) return { message: 'Cotización no encontrada' }
 
-    // 2. Generate new number
-    const numero = await generateNumeroCotizacion(tenantId, adminClient)
-
-    // 3. Create new cotizacion record
-    const { data: newCotizacion, error: createError } = await adminClient
-        .from('cotizaciones')
-        .insert({
-            tenant_id: tenantId,
-            numero: numero + ' (Copia)',
-            version: 1,
-            cliente_id: original.cliente_id,
-            contacto_id: original.contacto_id,
-            sitio_id: original.sitio_id,
-            fecha_emision: new Date().toISOString().split('T')[0], // Today
-            fecha_inicio_estimada: original.fecha_inicio_estimada,
-            fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            dias_validez: original.dias_validez,
-            periodo: original.periodo,
-            periodo_unidad: original.periodo_unidad,
-            forma_pago: original.forma_pago,
-            moneda: original.moneda,
-            plazo_pago: original.plazo_pago,
-            descripcion_requerimiento: original.descripcion_requerimiento,
-            tasa_cambio_id: original.tasa_cambio_id,
-            cotizacion_padre_id: original.id, // Trace origin
-            estado: 'BORRADOR',
-            subtotal: 0, // Recalculated later or could copy? Let's copy 0 and let verify step fix it, or copy simplistic.
-            igv: 0,
-            total: 0,
-            created_by: user.id,
-            updated_by: user.id,
-            is_active: true
-        })
-        .select()
-        .single()
+    // 2. Create new cotizacion record — número limpio del consecutivo del año
+    // (confirmado por el usuario 2026-09-13: la copia es un documento
+    // independiente, no una revisión de la original; `cotizacion_padre_id` ya
+    // guarda la trazabilidad, no hace falta sufijo en el número visible).
+    const { data: newCotizacion, error: createError } = await insertCotizacionConNumero(adminClient, tenantId, (numero) => ({
+        tenant_id: tenantId,
+        numero,
+        version: 1,
+        cliente_id: original.cliente_id,
+        contacto_id: original.contacto_id,
+        sitio_id: original.sitio_id,
+        fecha_emision: new Date().toISOString().split('T')[0], // Today
+        fecha_inicio_estimada: original.fecha_inicio_estimada,
+        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        dias_validez: original.dias_validez,
+        periodo: original.periodo,
+        periodo_unidad: original.periodo_unidad,
+        forma_pago: original.forma_pago,
+        moneda: original.moneda,
+        plazo_pago: original.plazo_pago,
+        descripcion_requerimiento: original.descripcion_requerimiento,
+        tasa_cambio_id: original.tasa_cambio_id,
+        cotizacion_padre_id: original.id, // Trace origin
+        estado: 'BORRADOR',
+        subtotal: 0, // Recalculated later or could copy? Let's copy 0 and let verify step fix it, or copy simplistic.
+        igv: 0,
+        total: 0,
+        created_by: user.id,
+        updated_by: user.id,
+        is_active: true
+    }))
 
     if (createError) {
         console.error('Error duplicating cotizacion header:', createError)
         return { message: 'Error al duplicar cabecera' }
     }
 
-    // 4. Duplicate Detalles (Services)
+    // 3. Duplicate Detalles (Services)
     if (original.detalles && original.detalles.length > 0) {
         const detallesInsert = (original.detalles as unknown[]).map((d: any) => ({
             cotizacion_id: newCotizacion.id,
@@ -649,7 +675,7 @@ export async function duplicateCotizacion(id: string) {
         }
     }
 
-    // 5. Duplicate Matriz Responsabilidad
+    // 4. Duplicate Matriz Responsabilidad
     if (original.matriz_responsabilidad && original.matriz_responsabilidad.length > 0) {
         const matrizInsert = (original.matriz_responsabilidad as unknown[]).map((m: any) => ({
             cotizacion_id: newCotizacion.id,

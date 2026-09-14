@@ -86,11 +86,11 @@ Para cada pendiente, verificar directamente en el panel de Bubble:
 | **Verificación** | CISE: 8 `admin_tenant` (antes 1). GRUAS: 11 `admin_tenant` + 1 `supervisor` (antes 0 y 0), `reporta_admin` de `info@reporta.la` sin tocar. Proveedor: 0 usuarios reales hoy en CISE/GRUAS, sin mapeo pendiente (el enum `app_role` no tiene un valor equivalente — `customer` es el concepto opuesto, alguien a quien se le vende, no a quien se le compra — anotar si aparece el primer caso real). |
 | **Estado** | 🟢 Resuelto y aplicado en PROD 2026-09-13. |
 
-## P-007 · Numeración de cotizaciones no continúa la de Bubble — 🔴 ALTA (2026-09-13)
+## P-007 · Numeración de cotizaciones no continúa la de Bubble — 🟢 Resuelto (2026-09-14)
 
 | Campo | Detalle |
 |---|---|
-| **Hallazgo** | Bubble numera por tenant con prefijo+secuencia+sufijo (`CT`·291·`-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` (`lib/actions/cotizaciones.ts`) genera `CT 2026-0001`: formato distinto, el `like` no matchea los migrados, y toma último por `created_at` en vez del máximo. `companies_consecutives` existe (1 fila vacía por tenant) y ningún código la lee. `tareas_codigo_contador` y `formatos_correlativos` también vacías. |
-| **Impacto** | La primera cotización nueva en v3 sale `CT 2026-0001` en vez de `CT280-2026`; posible colisión de códigos y quiebre de la serie del cliente. |
-| **Acción** | TK-OI7: reescribir `generateNumeroCotizacion` para calcular el máximo real desde `cotizaciones.numero` (no un contador cacheado — Bubble sigue creando cotizaciones en producción). Formato confirmado por el usuario 2026-09-13: `CT-XXXX-YYYY`, reinicio 1 de enero hora Lima. Plan de implementación completo en `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`. |
-| **Estado** | 🟡 Plan listo (2026-09-13), pendiente ejecutar. |
+| **Hallazgo** | Bubble numera por tenant con prefijo+secuencia+sufijo (`CT`·291·`-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` (`lib/actions/cotizaciones.ts`) generaba `CT 2026-0001`: formato distinto, el `like` no matchea los migrados, y tomaba el último por `created_at` en vez del máximo. |
+| **Acción** | `generateNumeroCotizacion` reescrito: formato `CT-XXXX-YYYY` (confirmado por el usuario), consecutivo calculado como máximo real desde `cotizaciones.numero` (no un contador cacheado — Bubble sigue creando cotizaciones de CISE que llegan por delta-sync), año en hora de Lima. Retry-on-conflict en `createCotizacion`/`duplicateCotizacion` usando el `UNIQUE(tenant_id, numero, version)` ya existente. `duplicateCotizacion` genera número limpio (sin sufijo "(Copia)"). Detalle completo: `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`. |
+| **Verificación** | Test unitario (`scripts/test-cotizaciones-numero.ts`) cubre todos los formatos heredados reales de PROD + el nuevo formato — pasa. `npx tsc --noEmit` limpio. Verificado contra la BD real de TEST (0 cotizaciones migradas): el siguiente número calculado da `CT-0001-2026`, correcto. **El test E2E automatizado no pudo correr**: la suite tiene una falla de sesión/auth preexistente y no relacionada (redirige a login incluso en un test sin modificar de este mismo spec) — anotada como hallazgo nuevo para DUDA-E2E-001, no bloquea este ticket. |
+| **Estado** | 🟢 Resuelto — PR pendiente de abrir/mergear. |
