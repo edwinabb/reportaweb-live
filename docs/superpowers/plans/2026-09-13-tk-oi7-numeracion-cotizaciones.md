@@ -269,10 +269,15 @@ No hay bloqueantes. Listo para ejecutar Task 1.
   TEST confirma el resultado esperado (`CT-0001-2026`). Hallazgo anotado en `docs/TECHNICAL_DEBTS.md`
   § DUDA-E2E-001 para que se investigue por separado.
 
+### Estado del PR
+
+🟢 **Mergeado 2026-09-14** — PR [#6](https://github.com/edwinabb/reportaweb3/pull/6) (squash a
+`master`, `9e314a7`), rama `feat/tk-oi7-numeracion-cotizaciones` borrada. Versión bumpeada a
+**v3.12.6**.
+
 ### Pendiente para el usuario
 
-1. Revisar y mergear el PR.
-2. Tras el deploy a demo/PROD, confirmar que la primera cotización nueva de CISE sale con el
+1. Tras el deploy a demo/PROD, confirmar que la primera cotización nueva de CISE sale con el
    siguiente número real de la serie (no colisiona con lo que Bubble haya creado mientras tanto).
-3. Considerar investigar la falla de sesión E2E encontrada (DUDA-E2E-001) — bloquea verificar
+2. Considerar investigar la falla de sesión E2E encontrada (DUDA-E2E-001) — bloquea verificar
    cualquier fix con Playwright en este entorno hasta que se resuelva.
