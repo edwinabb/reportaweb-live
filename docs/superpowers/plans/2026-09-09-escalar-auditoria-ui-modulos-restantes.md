@@ -149,21 +149,24 @@ No se asume ninguna de las 2 — se pregunta al usuario al arrancar el primer m�
 
 ---
 
-## Roadmap de ejecución — 1 módulo restante
+## Roadmap de ejecución — 🟢 completo, las 15 auditorías cerradas
 
 1. **Opciones Internas** (`14-opciones-internas.md`) — 🟢 **cerrado 2026-09-13**: comparación 1:1 hecha en vivo contra Bubble (Empresas Interno 6 tabs, Usuarios Interno; Informes Interno no carga en Bubble, el usuario pidió no insistir). TK-OI1 cerrado (25 tenants residuales borrados de PROD). TK-OI6 (perfiles de Bubble nunca mapeados a `profiles.role`) cerrado y aplicado en PROD. Las 4 DUDAs del usuario (OI-06/06b/07/08) resueltas. Queda **TK-OI7** (numeración de cotizaciones no continúa la de Bubble) como deuda de *cutover* en `docs/TECHNICAL_DEBTS.md`, no bloquea el cierre de esta auditoría.
 
-**Las 15 auditorías del roadmap original están cerradas.**
-   **Alcance corregido por el usuario (2026-09-09):** este módulo no se audita solo contra
+   **Alcance corregido por el usuario (2026-09-09):** este módulo no se auditó solo contra
    `/sistema` de reportaweb3 — parte de "Opciones Internas" de Bubble migró a una app externa
    separada, `reporta-admin` — **renombrada "Sistema de Superadmin" (2026-09-10)**, deploy futuro
    en `sadm.reportar.app` (subdominio deliberadamente poco descubrible, decisión del usuario) en
    vez de `admin.reporta.la` (dominio viejo, ver estándar de dominios en `CLAUDE.md`), rol
    `reporta_admin`, ver `docs/superpowers/plans/2026-09-06-reporta-admin.md` (plan original) y
    `docs/superpowers/plans/2026-09-10-formatos-reporta-admin.md` (extensión de Formatos, 2026-09-10).
-   La auditoría de este módulo cubre **ambos**: lo que sigue viviendo en `/sistema` de reportaweb3
-   (solo visible para `reporta_admin`) + lo que ahora vive en el Sistema de Superadmin — comparando
-   cada uno contra su equivalente real en Bubble, no asumir que todo mapea a un solo lado.
+   La auditoría de este módulo cubrió **ambos**: lo que sigue viviendo en `/sistema` de reportaweb3
+   (solo visible para `reporta_admin`) + lo que vive en el Sistema de Superadmin.
+
+**Con esto, la escalada de la auditoría UI v1.2 a los módulos restantes queda completa.** Los
+pendientes que salieron de las auditorías (TK-OI7, P-005 finanzas, Sistema de Superadmin sin
+deploy) viven ahora en `docs/TECHNICAL_DEBTS.md` y `docs/pendientes_por_resolver.md`, no en este
+plan.
 
 ## Plantilla por módulo (mismo formato que `06-cotizaciones.md`, ya validado)
 

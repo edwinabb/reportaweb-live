@@ -1,11 +1,11 @@
 # Technical Debts & DUDAs — Reporta Web 3
 
-**Última revisión:** 2026-09-09 (cierre del recorrido completo Fases 1-9 de `docs/guia_migracion_bubble_supabase.md` — ver resumen ejecutivo en `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`)
+**Última revisión:** 2026-09-13 (cierre de la auditoría UI 15/15, `docs/auditoria-ui/14-opciones-internas.md`)
 
 | ID | Tema | Prioridad | Estado |
 |----|------|-----------|--------|
-| DT-RES-001 | Residuales sin fuente real en Bubble del recorrido Fases 1-9: GRUAS `cotizaciones_configuracion.imagen_banco`/`imagen_firma` (pedir archivo al cliente); 685 PDFs de `facturas_venta`/`facturas_compra`; 149 `reportes_maquinaria` con `maquinaria_id` no resoluble; `CT 233-2025` + 1 `reportes_maquinaria` con literal de texto corrupto en vez de URL en Bubble; 3.327+2.527 items de facturación + 6 pagos de venta huérfanos en Bubble (sin FK padre) | BAJA | 🟡 Documentado, no recuperable del origen |
-| DT-UI-V12 | Auditoría de estándar UI v1.2: piloto "Cargos" corrió el checklist v1 (encontró implementación huérfana/duplicada + 6 ambigüedades del checklist) — falta iterar a v2/v3 antes de escalar a los módulos 5-15 | MEDIA | 🟡 Piloto corrido, no escalado |
+| DT-RES-001 | Residuales sin fuente real en Bubble del recorrido Fases 1-9: GRUAS `cotizaciones_configuracion.imagen_banco`/`imagen_firma` (confirmado 2026-09-13 que tampoco existen en Bubble, no es que se perdieron en la migración); 685 PDFs de `facturas_venta`/`facturas_compra`; 149 `reportes_maquinaria` con `maquinaria_id` no resoluble; `CT 233-2025` + 1 `reportes_maquinaria` con literal de texto corrupto en vez de URL en Bubble; 3.327+2.527 items de facturación + 6 pagos de venta huérfanos en Bubble (sin FK padre) | BAJA | 🟡 Documentado, no recuperable del origen |
+| DT-UI-V12 | Auditoría de estándar UI v1.2: piloto "Cargos" corrió el checklist v1 (encontró implementación huérfana/duplicada + 6 ambigüedades del checklist), luego se creó un checklist v2 con reglas evidenciadas (`docs/superpowers/plans/2026-09-09-escalar-auditoria-ui-modulos-restantes.md`) y se escaló a los 15 módulos del roadmap original | MEDIA | 🟢 **Cerrado 2026-09-13** — las 15 auditorías de módulo están hechas; el checklist v2 nunca se formalizó a v3, pero ya no hay módulos pendientes donde iterarlo |
 | DT-TYPES-001 | Regenerar `types/supabase.ts` desde la BD (`npm run types:supabase`) — hoy quedó hand-edit tras el rename `estadosunat`/`condicionsunat` + drops en `terceros` | MEDIA | 🟡 Pendiente |
 | DT-BUILD-001 | Correr `npm run build` local ANTES de deployar a demo — el rename de columnas rompió el build por un tipo de dominio (`types/terceros.ts`) que el hand-edit de `types/supabase.ts` no cubría | BAJA | 🟡 Proceso |
 | DT-CAT-001 | `personal_cargos` sin editor central en `/settings` (solo alta inline en `personal-dialog`); inconsistente con el resto de catálogos (que tienen tab en settings) | BAJA | 🟡 Pendiente |

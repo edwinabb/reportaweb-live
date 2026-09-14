@@ -485,7 +485,7 @@ Claude-Session: https://claude.ai/code/session_01UU4oo55qHQwe9rorCcnPA6"
 
 ### Task 9: Pedido a GRUAS — `imagen_banco`/`imagen_firma`
 
-(operativa/comunicación — controller la reporta directamente, no se dispatchea a subagente.)
+🟡 **Cambia de alcance (2026-09-13):** verificado en vivo en Bubble (`docs/auditoria-ui/14-opciones-internas.md` § 1.2 tab 6, captura `screenshots/14-opciones-internas/07-empresa-tab6-formato-cotizacion.png`) que GRUAS **tampoco tiene esos archivos cargados en Bubble** — no es un problema de migración, nunca existieron. El pedido pasa de "recuperar archivo perdido" a "pedirle a GRUAS que cargue el archivo por primera vez", y solo importa si GRUAS va a usar activamente el módulo de Cotizaciones (hoy 1 cotización en 2025, 0 en 2026). Sigue siendo operativa/comunicación — controller la reporta directamente.
 
 ---
 
@@ -1236,4 +1236,4 @@ por enviar/Enviadas, `recharts@3.10.1`".
 
 ### Task 13: Escalar auditoría de template UI v1.2 a módulos 5-15
 
-(proceso multi-sesión, fuera de alcance de esta ejecución. Ver plan original.)
+🟢 **Cerrado 2026-09-13.** Proceso multi-sesión ejecutado en `docs/superpowers/plans/2026-09-09-escalar-auditoria-ui-modulos-restantes.md` — las 15 auditorías del roadmap original (`docs/auditoria-ui/RETRO-PILOTO-2026-07-14.md`) están cerradas, la última fue Opciones Internas (`docs/auditoria-ui/14-opciones-internas.md`, incluye el Sistema de Superadmin). Los hallazgos de datos que salieron de esa escalada (P-005 finanzas, P-006 roles ya resuelto, P-007/TK-OI7 numeración de cotizaciones) viven en `docs/pendientes_por_resolver.md` y `docs/TECHNICAL_DEBTS.md`, no en este plan.
