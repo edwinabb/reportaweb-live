@@ -76,14 +76,15 @@ Para cada pendiente, verificar directamente en el panel de Bubble:
 3. Ver si tiene datos en registros reales de CISE/GRUAS
 4. Actualizar este archivo con la conclusión y acción a tomar
 
-## P-006 · `profiles.role` — perfiles de Bubble nunca mapeados — 🔴 ALTA (2026-09-13)
+## P-006 · `profiles.role` — perfiles de Bubble nunca mapeados — 🟢 Resuelto (2026-09-13)
 
 | Campo | Detalle |
 |---|---|
 | **Hallazgo** | En Bubble cada usuario tiene perfil AdminEmpresa / AdminSistema / Colaborador / Gestor / Integrante / Proveedor (Opciones Internas → Usuarios Interno). La migración (`scripts/sync-fase1-usuarios.ts`) no lo mapea: GRUAS quedó con 236 `member` + 1 `reporta_admin` y **0 `admin_tenant`**; CISE con 1 `admin_tenant`. |
-| **Impacto** | Al cutover nadie de GRUAS puede administrar usuarios/configuración. |
-| **Acción** | Definir mapeo (DUDA OI-06b en `docs/auditoria-ui/14-opciones-internas.md`) y correr delta por `bubble_id` en TEST+PROD, dry-run primero. |
-| **Estado** | 🔴 Abierto — espera mapeo del usuario. |
+| **Impacto** | Al cutover nadie de GRUAS podía administrar usuarios/configuración. |
+| **Acción** | Mapeo confirmado por el usuario (DUDA OI-06b, `docs/auditoria-ui/14-opciones-internas.md`): AdminEmpresa/AdminSistema→`admin_tenant`, Gestor→`supervisor`, Colaborador/Integrante→`member` (sin cambio, ya lo eran). Ejecutado vía Bubble Data API (`User.profile` por `bubble_id`) + `UPDATE` directo en PROD — TEST no tiene perfiles migrados (`bubble_id` en 0 filas). |
+| **Verificación** | CISE: 8 `admin_tenant` (antes 1). GRUAS: 11 `admin_tenant` + 1 `supervisor` (antes 0 y 0), `reporta_admin` de `info@reporta.la` sin tocar. Proveedor: 0 usuarios reales hoy en CISE/GRUAS, sin mapeo pendiente (el enum `app_role` no tiene un valor equivalente — `customer` es el concepto opuesto, alguien a quien se le vende, no a quien se le compra — anotar si aparece el primer caso real). |
+| **Estado** | 🟢 Resuelto y aplicado en PROD 2026-09-13. |
 
 ## P-007 · Numeración de cotizaciones no continúa la de Bubble — 🔴 ALTA (2026-09-13)
 

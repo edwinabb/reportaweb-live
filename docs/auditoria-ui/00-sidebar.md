@@ -25,7 +25,7 @@
 | 15 | Soporte | Soporte | ✅ | |
 | 16 | Configuración | Configuración (10 subopciones) | ✅ | Nueva UI más granular |
 | 17 | Salir | Menú de avatar → Logout | ⚪ Reorganizado | |
-| 18 | Opciones Internas | Sistema (`/sistema/*`, `reporta_admin` + parcial `admin_tenant`) **y** Sistema de Superadmin (`reporta-admin`) | 🟡 En auditoría | Ver [14-opciones-internas.md](./14-opciones-internas.md) (2026-09-13). Lado Bubble pendiente (DUDA OI-01/OI-02) |
+| 18 | Opciones Internas | Sistema (`/sistema/*`, `reporta_admin` + parcial `admin_tenant`) **y** Sistema de Superadmin (`reporta-admin`) | ✅ | Ver [14-opciones-internas.md](./14-opciones-internas.md) — 🟢 cerrado 2026-09-13, comparado en vivo contra Bubble. TK-OI7 (numeración de cotizaciones) queda como deuda de cutover en `docs/TECHNICAL_DEBTS.md` |
 
 ## Orden de auditoría por módulo (acordado)
 
