@@ -7,7 +7,7 @@
 **Fuente de UI reportaweb3:** código en `master`, no se levantó dev local
 **Fuente de UI Superadmin:** `C:\Proyectos\reporta-admin` `master` local (`ec57021`)
 **Screenshots:** `docs/auditoria-ui/screenshots/14-opciones-internas/` (9 capturas)
-**Estado:** 🟡 **AUDITADO, PENDIENTE DE CIERRE** — las 4 DUDAs resueltas por el usuario (2026-09-13); TK-OI6 (mapeo de roles) ejecutado y verificado en PROD; TK-OI7 (numeración de cotizaciones) sigue abierto, requiere más trabajo de código
+**Estado:** 🟢 **CERRADO** — las 4 DUDAs resueltas por el usuario (2026-09-13); TK-OI6 (mapeo de roles) ejecutado y verificado en PROD; TK-OI7 (numeración de cotizaciones) tiene plan de implementación listo (`docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`), pendiente ejecutar — no bloquea el cierre de esta auditoría
 
 ---
 
@@ -19,7 +19,7 @@ Paridad funcional: **Empresas Interno ≈ 90%** (5 de 6 tabs cubiertos por Siste
 
 **Dos hallazgos de datos ALTA** que no son de UI y salieron de esta comparación:
 - **TK-OI6 (🟢 cerrado 2026-09-13):** el perfil de Bubble nunca se había mapeado a `profiles.role`. Corregido: 18 usuarios (AdminEmpresa/AdminSistema) pasaron a `admin_tenant` y 1 (Gestor) a `supervisor`, aplicado en PROD y verificado por conteo (CISE 8 admin_tenant, GRUAS 11 admin_tenant + 1 supervisor + 1 reporta_admin intacto). Colaborador/Integrante ya eran `member`, sin cambio. Proveedor: 0 usuarios reales hoy, sin código pendiente.
-- **TK-OI7 (🔴 sigue abierto):** la numeración de cotizaciones de v3 no continúa la de Bubble (formato distinto, `companies_consecutives` sin usar). Requiere reescribir `generateNumeroCotizacion`.
+- **TK-OI7 (🟡 plan listo):** la numeración de cotizaciones de v3 no continúa la de Bubble (formato distinto, `companies_consecutives` sin usar). Formato confirmado por el usuario: `CT-XXXX-YYYY`. Plan de implementación en `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`.
 
 Además se ejecutó la limpieza autorizada: **25 tenants residuales borrados de PROD** (24 trials basura + INGEM), quedan solo CISE y GRUAS.
 
@@ -54,7 +54,7 @@ Además se ejecutó la limpieza autorizada: **25 tenants residuales borrados de 
 |---|---|---|---|
 | 1. Información general | RUC, nombre, email, teléfono, web, dirección, ciudad, país, logo | `companies.*` (todas las columnas existen) editable en Onboarding paso Empresa y en Configuración → Empresa | ✅ |
 | 2. Módulos del sistema | 20 toggles por tenant en 4 grupos (Reporta.la / Alquiler de maquinaria / Bases de datos / Otros). GRUAS: 13 on, 7 off (Formatos, Sensores, Ejecución, Seguimiento, Proyectos, Inventario, COVID-19) | **No existe gating por tenant.** v3 gatea por **cargo** (`cargo_permisos` × `sistema_recursos`, 15 recursos) en `/sistema/permisos`. `companies` no tiene columnas de módulos | ✅ **Resuelto (OI-06): permisos por cargo cubre el caso** — el usuario confirmó que no hace falta gating adicional a nivel empresa |
-| 3. Catálogos del sistema | 12 listas (Áreas, Cargos, Formas de Pago, Monedas, Nombres de Mínimos-Precios, Nombres de Precios, Plazos de Pago, Productos y Servicios, Rubros, Tipos de Servicios, Tipos de Sitios, Unidades de Tiempo) + correlativos de Cotización / O.T. / Informe PDF (prefijo, secuencia, sufijo) | Listas: todas existen como tablas por tenant y se gestionan en **Configuración** (auditado en `05-configuracion.md`). Correlativos: `companies_consecutives` existe pero **vacía de valor** (COTIZACION, prefijo ∅, último 0) y **ningún código la lee** | Listas ✅ · Correlativos 🔴 TK-OI7 |
+| 3. Catálogos del sistema | 12 listas (Áreas, Cargos, Formas de Pago, Monedas, Nombres de Mínimos-Precios, Nombres de Precios, Plazos de Pago, Productos y Servicios, Rubros, Tipos de Servicios, Tipos de Sitios, Unidades de Tiempo) + correlativos de Cotización / O.T. / Informe PDF (prefijo, secuencia, sufijo) | Listas: todas existen como tablas por tenant y se gestionan en **Configuración** (auditado en `05-configuracion.md`). Correlativos: `companies_consecutives` existe pero **vacía de valor** (COTIZACION, prefijo ∅, último 0) y **ningún código la lee** — el fix de TK-OI7 no usa esta tabla, calcula el máximo real desde `cotizaciones.numero` | Listas ✅ · Correlativos 🟡 TK-OI7 (plan listo) |
 | 4. Perfiles de usuarios | Dropdown con solo "CISE PERU SAC" + 3 botones "Subir datos CotizaCise / CotizaItemCise / InformeCise" | Herramienta de carga masiva de desarrollo, no funcionalidad de producto | ✅ no migrar |
 | 5. Matriz de responsabilidad | CRUD de ítems (descripción corta/larga) | `actividades_matriz` (GRUAS 36 filas) gestionado en Cotizaciones/Configuración, ya auditado (`06-cotizaciones.md`) | ✅ |
 | 6. Formato de cotización | Textos de aceptación/facturación/matriz, imagen de cuentas bancarias, usuario autorizado + firma | `cotizaciones_configuracion` (GRUAS 1 fila). **En Bubble GRUAS tampoco tiene imagen de banco ni firma cargadas** (placeholders vacíos, captura 07) | ✅ · residual cerrado |
@@ -64,7 +64,7 @@ Además se ejecutó la limpieza autorizada: **25 tenants residuales borrados de 
 | Tabla | Filas | Estado |
 |---|---|---|
 | `companies` | **2** (CISE, GRUAS) | ✅ Limpieza 2026-09-13: 25 borradas (24 trials basura + INGEM) con sus dependencias (job_titles, terceros, servicios, tareas, configs, catálogos). Verificado 0 usuarios y 0 datos operativos reales antes de borrar |
-| `companies_consecutives` | 2 (una por tenant, vacías) | 🔴 TK-OI7 |
+| `companies_consecutives` | 2 (una por tenant, vacías) | 🟡 sin usar — TK-OI7 no la necesita (ver plan) |
 | `actividades_matriz` GRUAS | 36 | ✅ |
 | `cotizaciones_configuracion` GRUAS | 1 | ✅ |
 | `sistema_recursos` | 15 | ✅ coinciden con rutas reales |
@@ -119,7 +119,7 @@ Ambos listados sin filtro por tenant ni buscador (TK-OI3, diferido).
 |---|---|---|---|
 | TK-OI1 | ~~ALTA~~ 🟢 **Cerrado 2026-09-13** | 24 `companies` trial basura + INGEM (residuo confirmado por el usuario) en PROD | Borradas en una transacción con sus 25 tablas dependientes. `companies` queda en 2 filas |
 | TK-OI6 | 🟢 **ALTA — cerrado 2026-09-13** | Perfil de Bubble no mapeado a `profiles.role`. GRUAS sin ningún `admin_tenant` | Mapeo confirmado (OI-06b): AdminEmpresa/AdminSistema→admin_tenant, Gestor→supervisor, Colaborador/Integrante→member (ya lo eran). Fetch a Bubble Data API (`User.profile` por `bubble_id`) + `UPDATE` directo en PROD (TEST no tiene perfiles migrados, `bubble_id` en 0 filas). Verificado: CISE 8 admin_tenant (antes 1), GRUAS 11 admin_tenant + 1 supervisor (antes 0), `reporta_admin` de `info@reporta.la` intacto. Proveedor: 0 usuarios reales en CISE/GRUAS hoy — sin código pendiente, pero el enum `app_role` no tiene un valor equivalente a "Proveedor" (solo `customer`, que es el concepto opuesto: alguien a quien le vendés, no a quien le comprás) — anotado para cuando aparezca el primer caso real |
-| TK-OI7 | 🔴 **ALTA — abierto** (cutover) | Numeración de cotizaciones: Bubble usa prefijo+secuencia+sufijo por tenant (GRUAS `CT` · 291 · `-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` genera `CT 2026-0001` (formato distinto), busca con `like 'CT 2026-%'` que no matchea los migrados `CTnnn-2026`, y toma el último por `created_at` en vez del máximo. `companies_consecutives` existe pero vacía y sin lectores | Reescribir la generación para (a) usar `companies_consecutives` con prefijo/sufijo por tenant, (b) sembrarla con el último número real de cada tenant (CISE 2026 = 279), (c) mismo criterio para O.T. y correlativo de Informe PDF si aplica (`tareas_codigo_contador`, `formatos_correlativos`, hoy ambas vacías). Requiere confirmar formato deseado con el usuario antes de tocar código — no ejecutado en esta sesión |
+| TK-OI7 | 🟡 **ALTA — plan listo** (cutover) | Numeración de cotizaciones: Bubble usa prefijo+secuencia+sufijo por tenant (GRUAS `CT` · 291 · `-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` genera `CT 2026-0001` (formato distinto), busca con `like 'CT 2026-%'` que no matchea los migrados `CTnnn-2026`, y toma el último por `created_at` en vez del máximo | Formato confirmado por el usuario 2026-09-13: `CT-XXXX-YYYY`, reinicio 1 de enero hora Lima. Calcula el máximo real desde `cotizaciones.numero` (no `companies_consecutives` — Bubble sigue creando cotizaciones en producción). Plan completo: `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`. O.T./Informe PDF quedan fuera de alcance de este ticket |
 | TK-OI2 | MEDIA | `/sistema/tenant` y `/sistema/onboarding` sin estándar v1.2 (buscador, embudos, paginación) | Diferir hasta >10 tenants reales |
 | TK-OI3 | MEDIA | Superadmin `/templates` y `/formatos` sin filtro por tenant ni buscador | Diferir, misma condición |
 | TK-OI4 | BAJA | Breadcrumb genérico "Sistema" para Tenant y Onboarding (`components/dashboard/header.tsx`) | Agregar 2 entradas al mapa manual |
@@ -145,6 +145,6 @@ Ambos listados sin filtro por tenant ni buscador (TK-OI3, diferido).
 
 ## 7. Cierre
 
-🟢 **CERRADO 2026-09-13.** Regla 7: las 4 DUDAs tienen resolución escrita. TK-OI6 (mapeo de roles) ejecutado y verificado en PROD. **TK-OI7 (numeración de cotizaciones) queda abierto como deuda de cutover** en `docs/TECHNICAL_DEBTS.md` — no bloquea el cierre de esta auditoría UI, que ya comparó los 3 sub-módulos en alcance 1:1 contra Bubble en vivo.
+🟢 **CERRADO 2026-09-13.** Regla 7: las 4 DUDAs tienen resolución escrita. TK-OI6 (mapeo de roles) ejecutado y verificado en PROD. **TK-OI7 (numeración de cotizaciones) tiene plan de implementación listo** (`docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`), pendiente ejecutar — no bloquea el cierre de esta auditoría UI, que ya comparó los 3 sub-módulos en alcance 1:1 contra Bubble en vivo.
 
 **Verificado en vivo contra Bubble (2026-09-13):** Empresas Interno (listado + 6 tabs), Usuarios Interno (listado + controles inline). **No verificable:** Informes Interno.

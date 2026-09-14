@@ -92,5 +92,5 @@ Para cada pendiente, verificar directamente en el panel de Bubble:
 |---|---|
 | **Hallazgo** | Bubble numera por tenant con prefijo+secuencia+sufijo (`CT`·291·`-2023`; CISE va por `CT279-2026`). v3 `generateNumeroCotizacion` (`lib/actions/cotizaciones.ts`) genera `CT 2026-0001`: formato distinto, el `like` no matchea los migrados, y toma último por `created_at` en vez del máximo. `companies_consecutives` existe (1 fila vacía por tenant) y ningún código la lee. `tareas_codigo_contador` y `formatos_correlativos` también vacías. |
 | **Impacto** | La primera cotización nueva en v3 sale `CT 2026-0001` en vez de `CT280-2026`; posible colisión de códigos y quiebre de la serie del cliente. |
-| **Acción** | TK-OI7: rediseñar generación sobre `companies_consecutives` con prefijo/sufijo por tenant y sembrar con el último real. Confirmar formato deseado con el usuario. |
-| **Estado** | 🔴 Abierto. |
+| **Acción** | TK-OI7: reescribir `generateNumeroCotizacion` para calcular el máximo real desde `cotizaciones.numero` (no un contador cacheado — Bubble sigue creando cotizaciones en producción). Formato confirmado por el usuario 2026-09-13: `CT-XXXX-YYYY`, reinicio 1 de enero hora Lima. Plan de implementación completo en `docs/superpowers/plans/2026-09-13-tk-oi7-numeracion-cotizaciones.md`. |
+| **Estado** | 🟡 Plan listo (2026-09-13), pendiente ejecutar. |
