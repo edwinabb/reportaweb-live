@@ -89,12 +89,18 @@ export default defineConfig({
             grep: /@sistema/,
         },
     ],
-    webServer: process.env.CI || process.env.TEST_NO_SERVER
+    // En CI: Playwright levanta el dev server fresco.
+    // En dev local: reusa el server que el dev ya tenga corriendo (o lo levanta
+    // si no hay). TEST_NO_SERVER permite opt-out explicito (p.ej. para apuntar
+    // contra TEST_BASE_URL remoto).
+    webServer: process.env.TEST_NO_SERVER
         ? undefined
         : {
             command: 'npm run dev',
             url: BASE_URL,
-            reuseExistingServer: true,
+            reuseExistingServer: !process.env.CI,
             timeout: 120_000,
+            stdout: 'pipe',
+            stderr: 'pipe',
         },
 })
