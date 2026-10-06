@@ -99,7 +99,7 @@ de estos catálogos, usar el nombre correcto — no reusar el string del script 
 
 **⚠️ Hallazgo de seguridad de paso (confirma DUDA-SEC-002 ya documentada):** `scripts/migrate-batch1.ts`
 (git history, commit `f9511aa`) tiene un token de Bubble **hardcodeado en el código fuente**
-(`BUBBLE_TOKEN = '5532c3bb4891ccf5c49e69a6cf30b8e7'`) y apunta a `https://reporta.la/version-test/api/1.1/obj`
+(`BUBBLE_TOKEN = '$BUBBLE_API_TOKEN'` — valor literal removido del árbol actual, aún visible en git history commit `f9511aa`) y apunta a `https://reporta.la/version-test/api/1.1/obj`
 (no LIVE). No se usó ese token para nada de este relevamiento (se usó el de `.env.local`, contra LIVE). Confirma
 que la rotación pendiente en DUDA-SEC-002 (`docs/TECHNICAL_DEBTS.md`) sigue siendo necesaria — ese token viejo
 podría seguir siendo válido.

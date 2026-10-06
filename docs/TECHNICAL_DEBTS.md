@@ -82,11 +82,11 @@ secret key `sb_secret_…` para uso server-side y deshabilitar solo la legacy
 Durante la limpieza de secretos (2026-07-22) se detectaron **dos** tokens de la API de
 Bubble (`reporta.la`), ambos comprometidos:
 
-- `2539…dbd9` — estaba hardcodeado en `reportaweb3/.claude/settings.json` (curls a
+- **token-settings** (prefijo retirado del árbol; aún visible en git history) — estaba hardcodeado en `reportaweb3/.claude/settings.json` (curls a
   `reporta.la/version-test`). Ya removido del árbol; queda en historia de git
   (commits `eae2fbb`, `5463816`).
-- `5532c3bb…` — el que usa la migración (`.env.local` → `BUBBLE_API_TOKEN`, URL live).
-  **Hardcodeado en 4 docs trackeados** y en historia de git (`162a503`, `5463816`):
+- **token-live** (prefijo retirado del árbol; aún visible en git history) — el que usa la migración (`.env.local` → `BUBBLE_API_TOKEN`, URL live).
+  **Hardcodeado en 4 docs trackeados** (ya limpiados; prefijo retirado del resto del árbol el 2026-10-05) y en historia de git (`162a503`, `5463816`):
   `docs/migracion-mapeo-bubble-supabase.md`, `docs/julio12/migracion-mapeo-bubble-supabase.md`,
   `docs/julio12/README.md`, `docs/julio12/KICKOFF_v3.11_2026-07-15.md`.
 
@@ -96,9 +96,9 @@ token **inline en curls**, por eso terminó copiado en tantos lugares.
 ### Acción
 
 1. Bubble (`reporta.la` → Settings → API → API Tokens): generar **uno nuevo**, revocar
-   los dos viejos (`2539…`, `5532c3bb…`).
+   los dos viejos (token-settings y token-live).
 2. Poner el nuevo **solo** en `.env.local` (`BUBBLE_API_TOKEN`), nunca inline.
-3. Limpiar `5532c3bb…` de los 4 docs trackeados (placeholder → `.env.local`).
+3. ✅ Limpiar token-live de los 4 docs trackeados (placeholder → `$BUBBLE_API_TOKEN`) — hecho 2026-07-22; prefijo retirado del resto del árbol el 2026-10-05 (DUDA-SEC-002 §A2).
 4. Consumir siempre por env: `curl -H "Authorization: Bearer $BUBBLE_API_TOKEN"
    "$BUBBLE_API_URL/..."` (cargar con `npx dotenvx run -f .env.local -- …`).
 
