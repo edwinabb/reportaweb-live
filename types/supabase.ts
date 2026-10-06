@@ -1279,6 +1279,33 @@ export type Database = {
           },
         ]
       }
+      admin_formatos_pin: {
+        Row: {
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       apks: {
         Row: {
           archivo: string
@@ -7096,6 +7123,8 @@ export type Database = {
         Row: {
           accion_correctiva_propuesta: string | null
           bubble_id: string | null
+          cantidad: number | null
+          cliente_id: string | null
           codigo: string | null
           comentario_cierre: string | null
           created_at: string | null
@@ -7125,6 +7154,8 @@ export type Database = {
         Insert: {
           accion_correctiva_propuesta?: string | null
           bubble_id?: string | null
+          cantidad?: number | null
+          cliente_id?: string | null
           codigo?: string | null
           comentario_cierre?: string | null
           created_at?: string | null
@@ -7154,6 +7185,8 @@ export type Database = {
         Update: {
           accion_correctiva_propuesta?: string | null
           bubble_id?: string | null
+          cantidad?: number | null
+          cliente_id?: string | null
           codigo?: string | null
           comentario_cierre?: string | null
           created_at?: string | null
@@ -9096,6 +9129,7 @@ export type Database = {
       sst_epp_config: {
         Row: {
           bubble_id: string | null
+          codigo: string | null
           created_at: string | null
           dias_renovacion: number | null
           epp_nombre: string
@@ -9108,6 +9142,7 @@ export type Database = {
         }
         Insert: {
           bubble_id?: string | null
+          codigo?: string | null
           created_at?: string | null
           dias_renovacion?: number | null
           epp_nombre: string
@@ -9120,6 +9155,7 @@ export type Database = {
         }
         Update: {
           bubble_id?: string | null
+          codigo?: string | null
           created_at?: string | null
           dias_renovacion?: number | null
           epp_nombre?: string
