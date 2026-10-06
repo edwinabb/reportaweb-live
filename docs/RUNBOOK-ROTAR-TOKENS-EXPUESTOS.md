@@ -21,7 +21,7 @@ de settings hasta que se editen (Paso final de cada sección).
 | 1 | Supabase PAT (personal access token) | `sbp_bd7c…b370d2` | `~/.claude/settings.json` (regla `Bash(SUPABASE_ACCESS_TOKEN=… npx supabase gen types…)`) | Reporta (project-id `wioozisskjjgjjybsoqo`) | **Alto** — un PAT da acceso a la cuenta Supabase vía CLI/API |
 | 2 | Supabase PAT del MCP | `sbp_2135…c4fa0` | `~/.claude/settings.json` → `mcpServers.supabase.args` | Reporta (MCP en uso) | **Alto** — igual que arriba; además está **activo** (lo usa el MCP) |
 | 3 | Password de BD Postgres | `BcJ*19n104Sup4b4s3` | `~/.claude/settings.json` (varias reglas `DATABASE_URL=…prisma…`) | **SerIA** (project-ref `ozyxsuayrzreaigqffsq`) | **Alto** — password directo a la BD |
-| 4 | Bubble API bearer token | `2539…dbd9` | `reportaweb3/.claude/settings.json` (reglas `curl … reporta.la … Authorization: Bearer …`) | Bubble legacy `reporta.la` | Medio — acceso de lectura a la API Bubble del sistema viejo |
+| 4 | Bubble API bearer token | **token-settings** (prefijo retirado del árbol; aún en git history) | `reportaweb3/.claude/settings.json` (reglas `curl … reporta.la … Authorization: Bearer …`) | Bubble legacy `reporta.la` | Medio — acceso de lectura a la API Bubble del sistema viejo |
 | 5 | JWT `anon` (demo local / SerIA) | `eyJ…` (2 ocurrencias) | `~/.claude/settings.json` (reglas curl con `apikey:`) | demo local / SerIA | **Bajo** — la `anon` es clave pública por diseño; rotarla es opcional |
 
 > **Nota:** el `SUPABASE_SERVICE_ROLE_KEY` / `sb_secret_` de PROD de Reporta NO está aquí;
@@ -81,13 +81,13 @@ Pertenece al proyecto **SerIA** (`ozyxsuayrzreaigqffsq`), no a Reporta. Rotarlo:
 
 ---
 
-## 4 — Bubble API bearer token (`2539…dbd9`)
+## 4 — Bubble API bearer token (token-settings)
 
 Token de la API de Bubble del sistema viejo `reporta.la`. Aunque el sistema viejo sigue
 operando (no tocar `reporta.la`), el token quedó expuesto:
 
 1. **Bubble** → app `reporta.la` → **Settings → API** → sección **API Tokens**.
-2. Revocar/regenerar el token `2539…dbd9`.
+2. Revocar/regenerar el token-settings.
 3. Si algún script de migración lo usa todavía, actualizarlo por env (`BUBBLE_API_TOKEN`),
    nunca inline.
 4. **Borrar del allowlist**: en `reportaweb3/.claude/settings.json`, eliminar las dos reglas
@@ -143,8 +143,9 @@ higiene, sin urgencia).
 - [ ] #3 Password BD SerIA reseteado + 4 reglas `DATABASE_URL` borradas del allowlist global
 - [x] #4 Reglas curl con token Bubble (`2539…`) borradas del allowlist del proyecto
 - [ ] #4 **Ampliado (DUDA-SEC-002):** hay 2 tokens Bubble y ambos en git. Rotar en Bubble
-      (`2539…` + `5532c3bb…`), poner el nuevo solo en `.env.local`, y limpiar `5532c3bb…`
-      de los 4 docs trackeados (ver DUDA-SEC-002 en TECHNICAL_DEBTS.md)
+      (token-settings + token-live), poner el nuevo solo en `.env.local`, y limpiar token-live
+      de los 4 docs trackeados (ver DUDA-SEC-002 en TECHNICAL_DEBTS.md). Prefijos retirados
+      del árbol el 2026-10-05 (quedan en git history).
 - [ ] #5 (opcional) reglas con `apikey:` anon borradas
 - [x] `grep` de verificación sin secretos `sbp_`/Bubble/`BcJ` en settings + JSON válidos
 - [x] Confirmado: `reportaweb3/.claude/settings.json` **SÍ trackeado en git** (token Bubble en historia)

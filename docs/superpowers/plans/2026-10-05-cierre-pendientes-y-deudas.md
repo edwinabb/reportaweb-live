@@ -24,7 +24,7 @@ Objetivo: dejar rotadas todas las credenciales ya expuestas antes de que el apex
 | # | Tarea | Agente | Dependencia |
 |---|---|---|---|
 | A1 | **DUDA-SEC-001** — cargar `sb_secret_` en worker `reportaweb-live`, smoke-test login + acción admin, deshabilitar legacy service_role en Supabase. Runbook: `docs/RUNBOOK-ROTAR-SERVICE-ROLE-PROD.md`. | usuario (credenciales) + `fork` para generar checklist de verificación post-rotación | — |
-| A2 | **DUDA-SEC-002** — rotar `BUBBLE_API_TOKEN` en `reporta.la`, revocar los 2 viejos (`2539…`, `5532c3bb…`), reemplazar en `.env.local`, limpiar los 4 docs trackeados que lo tienen hardcoded. | `fork` (edita docs) + usuario (rotación) | — |
+| A2 | **DUDA-SEC-002** — rotar `BUBBLE_API_TOKEN` en `reporta.la`, revocar los 2 viejos (token-settings + token-live, prefijos retirados del árbol), reemplazar en `.env.local`, limpiar los 4 docs trackeados que lo tienen hardcoded. | `fork` (edita docs) + usuario (rotación) | — |
 | A3 | **DUDA-SEC-003** — revocar `sbp_2135…` y `sbp_bd7c…` en Supabase Dashboard. | usuario | — |
 | A4 | **Audit de secretos vigentes** — `general-purpose`: grep contra `.env*`, `wrangler*.toml`, `.claude/*`, historia reciente de git (`git log -p -S sb_secret_ -S sbp_ -S Bearer`) para confirmar que ningún secret quedó committeado. Reporte en `docs/auditoria-seguridad-2026-10-05.md`. | `general-purpose` | A1, A2, A3 |
 | A5 | **Baseline de dependencias vulnerables** — `fork`: correr `npm audit --omit=dev --json`, `npm outdated`, snapshot en `docs/auditoria-seguridad-2026-10-05.md`. Preparar PR separado para fixables (sin romper semver). | `fork` | — |

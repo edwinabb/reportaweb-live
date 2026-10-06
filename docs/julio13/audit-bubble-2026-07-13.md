@@ -65,4 +65,4 @@
 ---
 
 **Auditoría realizada:** 2026-07-13T02:09:58.603Z
-**Token:** 5532c3bb...
+**Token:** `$BUBBLE_API_TOKEN` (token-live; pendiente de rotar — DUDA-SEC-002)

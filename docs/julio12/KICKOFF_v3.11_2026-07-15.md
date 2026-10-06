@@ -214,7 +214,7 @@ SERVICE_ROLE: eyJhbGciOiJIUzI1NiIs...
 
 **Bubble API:**
 ```
-Token: <BUBBLE_API_TOKEN — ver .env.local>
+Token: $BUBBLE_API_TOKEN  (ver .env.local; cargar con `npx dotenvx run -f .env.local -- …`)
 URL: https://reporta.la/api/1.1/obj
 ```
 
@@ -256,7 +256,7 @@ c:\Proyectos\reportaweb3\docs\julio12\
 - [ ] Crear Slack channel #v3.11-recovery
 - [ ] Asignar devs a tickets (ver arriba)
 - [ ] Verificar acceso a Supabase TEST + PROD
-- [ ] Verificar acceso a Bubble API (token = 5532c3b...)
+- [ ] Verificar acceso a Bubble API (token = `$BUBBLE_API_TOKEN` desde `.env.local`)
 - [ ] Pull latest develop branch
 - [ ] Install dependencies: `npm install`
 

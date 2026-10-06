@@ -11,7 +11,7 @@
 | Item | Detalle |
 |---|---|
 | Bubble API URL | `https://reporta.la/api/1.1/obj` |
-| Bubble Token | `<BUBBLE_API_TOKEN — ver .env.local>` |
+| Bubble Token | `$BUBBLE_API_TOKEN` (cargar con `npx dotenvx run -f .env.local -- …`) |
 | PROD (Brazil) | `fqwhagryqkkhbgznxtwf` |
 | TEST (USA) | `wioozisskjjgjjybsoqo` |
 | Tenant CISE | `1cb97ec7-326c-4376-93ee-ed317d3da51b` (Bubble: `1596035803087x371442079041323000`) |

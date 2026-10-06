@@ -133,7 +133,7 @@ O: Distribuir como considere mejor
 SUPABASE_URL = "https://fqwhagryqkkhbgznxtwf.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOi..."
 SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOi..."
-BUBBLE_API_TOKEN = "5532c3bb..."
+BUBBLE_API_TOKEN = "$BUBBLE_API_TOKEN"  # ver .env.local
 ```
 
 ---
