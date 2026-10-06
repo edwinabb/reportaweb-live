@@ -25,7 +25,7 @@
 | — | Numeración de Órdenes de Trabajo (`T-YYYY-XXXX`, `finalizeAprobacionCotizacion` en `lib/actions/cotizaciones.ts`) cuenta filas (`count(*)+1`) en vez de parsear el máximo real — misma clase de fragilidad que tenía TK-OI7 antes del fix, pero con formato y mecanismo distintos. No auditado a fondo, no confirmado si ya causó un problema real | BAJA | 🟡 Pendiente (anotado 2026-09-14, no es parte de TK-OI7) |
 | — | Migrar cron jobs de Vercel a Cloudflare | MEDIA | 🟡 Pendiente |
 > Nota (2026-09-06): `/api/cron/pdf-jobs` específicamente ya NO depende de esta migración — se resolvió drenando `pdf_jobs` con `pg_cron`+`pg_net` directo en Supabase, porque `@opennextjs/cloudflare@1.20.1` no expone un hook `scheduled()` para Next.js. Detalle en [docs/superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md](./superpowers/plans/2026-09-06-fase0-pdf-bridge-bubble.md) (Task 9). El resto de los crons del proyecto siguen pendientes de la migración a Cloudflare Cron Triggers, por eso la fila arriba se mantiene.
-| — | Crear entorno Cloudflare de prod (`reportar.app` apex) + rebind `demo`→`dev.reportar.app` (estándar dominios 2026-07-22) | ALTA | 🟢 Worker `reportaweb-live` existe y funciona (2026-09-08, `reportaweb-live.ancient-block-882d.workers.dev`, secret `SUPABASE_SERVICE_ROLE_KEY` agregado) — **falta bindear el dominio real** (`reportar.app` apex hoy sirve otro proyecto, `ReportaLanding`) |
+| — | Crear entorno Cloudflare de prod (`reportar.app` apex) + rebind `demo`→`dev.reportar.app` (estándar dominios 2026-07-22) | ALTA | 🟡 Worker `reportaweb-live` existe y funciona (2026-09-08, `reportaweb-live.ancient-block-882d.workers.dev`, secret `SUPABASE_SERVICE_ROLE_KEY` agregado). `wrangler.demo.toml` actualizado 2026-09-26 con `routes = [dev.reportar.app, demo.reportar.app]` — pendiente `npx wrangler deploy --config wrangler.demo.toml` para que dev.reportar.app quede activo (demo se mantiene durante la transición). **Bind del apex `reportar.app` a live NO se hizo** (decisión del usuario 2026-09-26): esperar a que la home Growth Engine esté implementada antes de reemplazar la ReportaLanding actual, para no dejar el apex público solo con `/login`. |
 | — | Plan Workers Paid ($5/mes, por cuenta) — worker remoto 4.86 MB gzip > Free 1 MB. Opt. a Free: matar source maps de CI (ver ARCHITECTURE) | BAJA | 🟡 Pendiente |
 | — | **Implementar Growth Engine** (leads→trial 15+7+3→pago→servicios, con IA en ventas+operación). Sub-proyectos A–E diseñados. Journey consolidado: [PLAN-GROWTH-ENGINE-JOURNEY.md](./PLAN-GROWTH-ENGINE-JOURNEY.md) · playbook [PLAYBOOK-GROWTH-ENGINE.md](./PLAYBOOK-GROWTH-ENGINE.md) · specs `docs/superpowers/specs/` · planes `docs/superpowers/plans/` | ALTA | 🟡 Diseñado (specs+planes), pendiente ejecución (orden A→C→D→B→E) |
 
@@ -167,6 +167,32 @@ Refresh Token: Refresh Token Not Found` en los logs del `webServer`. Huele al
 mismo tipo de race que DUDA-COT-000 (v3.12.2, `middleware.ts` reintenta
 `getUser()`) pero manifestándose distinto en este entorno — no investigado a
 fondo, solo confirmado que no es específico de un test ni de esta sesión.
+
+**Re-verificación 2026-09-26:** el bug de sesión **NO se reproduce hoy**.
+Corridas locales de `npx playwright test tests/flows/12-cotizaciones.spec.ts
+--project=chromium` con los `.auth/*.json` frescos del 2026-09-14 dan 10/11
+tests OK (`listado de cotizaciones carga` incluido, mismo test que fallaba
+antes). El único test que falla es el **nuevo** de TK-OI7 (línea 61) por dos
+motivos separados, ninguno relacionado con auth:
+
+1. **Selector del `SearchableSelect` de Cliente estaba mal**: usaba
+   `[role="combobox"]:first()`, que matcheaba el select de **Periodo unidad**
+   (DIA/SEMANA/MES) porque aparece antes en el DOM. Fixeado 2026-09-26
+   agregando `.filter({ hasText: /Seleccionar cliente/i })` — mismo patrón ya
+   usado en `26-pre-cutover-planificacion-full.spec.ts`.
+2. **Después del submit exitoso**, la app crashea con `Runtime Error: Jest
+   worker encountered 2 child process exceptions, exceeding retry limit`
+   (Next 16 / Turbopack, header marca el dev server como "stale"). El error
+   ocurre al renderizar `/cotizaciones/[id]` tras el `redirect()` del server
+   action. **No es un problema del test ni de la suite** — es un bug del
+   bundler en dev; queda pendiente reproducirlo sin Playwright para
+   confirmar si es race del dev server, un `pnpm/npm run dev` viciado que
+   necesita restart, o un bug real de Next 16 en esa ruta.
+
+Estado actualizado de esta DUDA: la parte de "template v1.2 rompe selectores"
+sigue vigente para la mayoría de specs; la parte de "sesión inválida" queda
+como no reproducible por ahora. Reabrirla si vuelve a aparecer con el mismo
+patrón (redirect a `/login` sin acción E2E que lo justifique).
 
 ## DUDA-CACHE-001: Migrar a stale-while-revalidate (Opción B)
 
@@ -350,6 +376,33 @@ abierta, ver `docs/auditoria-ui/07-informes.md`.
 ### Recomendación
 
 Resolver en este orden: (4) crear un perfil `reporta_admin` en TEST → (1) deploy a Cloudflare (puede ir directo a producción, dado que aún no hay clientes reales en v3) → (3) decidir smoke test contra PROD directamente en vez de armar un segundo entorno → (2) conseguir y subir las 6 plantillas reales por CISE y GRUAS antes de anunciar el bridge como funcional a Bubble.
+
+### Update 2026-09-26
+
+- **(4) Perfil `reporta_admin` en TEST**: `info@reporta.la` (id `b13ad450-…`)
+  existe en TEST hoy con `role='admin_tenant'`. SQL de promoción listo en
+  `scripts/test-promote-info-reporta-admin.sql`, **pendiente ejecución del
+  usuario** (el MCP de Supabase de esta sesión está en read-only). Es un
+  `UPDATE profiles SET role='reporta_admin' WHERE id=…` reversible y no rompe
+  ningún test E2E (los tests admin usan `e2e-admin@reporta.la`; el mail
+  `info@reporta.la` solo aparece en `tests/auth/setup-base.ts:54` como marker
+  de timeout y en `tests/flows/45-permisos-cargo.spec.ts:53` como comentario).
+- **(3) Config TEST para reporta-admin**: creado `wrangler.test.toml` en
+  `C:\Proyectos\reporta-admin\` como copia del PROD apuntando a la BD TEST
+  (`oyrokyyaeaeqzlsgxtto`). Deploy: `npx wrangler deploy --config
+  wrangler.test.toml`. Igual falta cargar el secret `SUPABASE_SERVICE_ROLE_KEY`
+  de TEST en el dashboard del worker `reporta-admin-test`.
+- **(1) Deploy real**: sigue pendiente — requiere `wrangler login` con las
+  credenciales de Cloudflare del usuario. Vale igual para el worker PROD y
+  para el nuevo `reporta-admin-test`.
+- **(2) Plantillas**: `system_document_templates` sigue en 0 filas en ambos
+  entornos hoy. Sigue esperando los 6 `.docx` originales (uno por cada uno
+  de los 6 tipos, y probablemente uno por tenant), extraíbles desde docmaker
+  o del histórico de Bubble.
+- **Resend / PIN**: fuera de mi alcance sin credenciales de dashboard —
+  documentado como sub-tarea del usuario. Cuando se rote la key de Resend
+  y se cargue en el worker de reporta-admin, hacer una prueba en vivo
+  del PIN (email → código) para confirmar el flow.
 
 ### Criterios de Éxito
 

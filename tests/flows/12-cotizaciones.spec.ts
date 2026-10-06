@@ -69,7 +69,10 @@ test.describe('Cotizaciones — Admin @critical', () => {
         }
 
         // Cliente (SearchableSelect) — mismo patrón probado en 26-pre-cutover-planificacion-full.spec.ts
-        const clienteSelect = page.locator('[role="combobox"]').first()
+        // NOTA: el `[role="combobox"]:first` matchea el select de "Periodo unidad" (aparece antes
+        // en el DOM), no el de Cliente. Filtrar por el texto del placeholder para identificarlo.
+        const clienteSelect = page.locator('[role="combobox"]')
+            .filter({ hasText: /Seleccionar cliente/i }).first()
         await expect(clienteSelect).toBeVisible({ timeout: 8_000 })
         await clienteSelect.click()
         await page.waitForTimeout(400)

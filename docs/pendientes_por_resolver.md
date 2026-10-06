@@ -68,6 +68,20 @@
 | **Detalle completo** | `docs/auditoria-ui/residuales-pagos-facturacion.md` |
 | **Estado** | 🔴 Abierto — pendiente confirmar en Bubble (`reporta.la`, tenant GRUAS) los 4 puntos antes de decidir backfill/migración. |
 
+**Update 2026-09-26 — re-verificación y separación P-005-A / P-005-B:** los 4
+números siguen idénticos a los del 10-sep (0 / 521 / 22 / 0 / 752-0-752).
+Análisis adicional: los 521 pagos del staging son **TODOS de CISE** (465
+facturas cubiertas, 2022-07 → 2024-10, 0 huérfanas al FK) — GRUAS **no tiene
+ningún pago migrado tampoco en el staging**, hay que traerlos de Bubble
+desde cero. **P-005-A (sin Bubble, ejecutable ya):** backfill de los 513
+pagos válidos de CISE `factura_venta_pagos` → `cobros_venta` con `banco_id
+= NULL` (se preserva el texto del banco en `comentarios`); plan detallado
++ SQL listo para revisión en
+`docs/superpowers/plans/2026-09-26-p005-backfill-cobros-cise.md`, NO
+ejecutado, esperando aprobación. **P-005-B (requiere Bubble):** migrar
+pagos de venta de GRUAS + migrar `bancos` + verificar cobertura de
+`facturas_compra_pagos` + resolver asimetría de `valorizaciones`.
+
 ## Cómo revisar
 
 Para cada pendiente, verificar directamente en el panel de Bubble:

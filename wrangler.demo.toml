@@ -13,6 +13,14 @@ directory = ".open-next/assets"
 binding = "ASSETS"
 
 # DEMO: Points to TEST database (oyrokyyaeaeqzlsgxtto)
+# Custom domains (estándar 2026-07-22): dev.reportar.app = interno/BD TEST.
+# demo.reportar.app se mantiene temporalmente durante la transición; retirar cuando
+# no queden enlaces apuntando a demo.
+routes = [
+  { pattern = "dev.reportar.app", custom_domain = true },
+  { pattern = "demo.reportar.app", custom_domain = true },
+]
+
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://oyrokyyaeaeqzlsgxtto.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95cm9reXlhZWFlcXpsc2d4dHRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MzAwNzQsImV4cCI6MjA5OTIwNjA3NH0.Oy_WO5suRhBeN-FUTVnpRjN2SwdOJZbY0amKaKO20cc"
