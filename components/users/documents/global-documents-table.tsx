@@ -119,7 +119,7 @@ export function GlobalDocumentsTable({
             'Estado': doc.is_active ? 'Activo' : 'Inactivo',
             'Nombre Archivo': doc.file_name,
         }))
-        if (!exportToExcel('DOCUMENTACION', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('DOCUMENTACION', rows)
     }
 
     const handleDownloadZip = async () => {

@@ -1,22 +1,22 @@
 "use client"
 
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from "recharts"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+const CotizacionesBarChart = dynamic(() => import("./cotizaciones-bar-chart"), {
+    ssr: false,
+    loading: () => <div className="h-full w-full animate-pulse rounded-md bg-muted/40" />,
+})
+
 const MESES_LARGO = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
-
-// Mismos colores que los badges de estado en cotizaciones-columns.tsx
-const COLORS = { enviadas: '#3b82f6', rechazadas: '#ef4444', aprobadas: '#22c55e' }
 
 interface CotizacionRow {
     id: string
@@ -52,18 +52,7 @@ export function CotizacionesPanel({ stats }: { stats: DashboardStats }) {
                 </CardHeader>
                 <CardContent>
                     <div className="h-[320px]" data-testid="panel-chart-mensual">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.monthly}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="mes" />
-                                <YAxis allowDecimals={false} />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="enviadas" name="Enviadas" fill={COLORS.enviadas} />
-                                <Bar dataKey="rechazadas" name="Rechazadas" fill={COLORS.rechazadas} />
-                                <Bar dataKey="aprobadas" name="Aprobadas" fill={COLORS.aprobadas} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <CotizacionesBarChart data={stats.monthly} xKey="mes" />
                     </div>
                 </CardContent>
             </Card>
@@ -84,18 +73,7 @@ export function CotizacionesPanel({ stats }: { stats: DashboardStats }) {
                 </CardHeader>
                 <CardContent>
                     <div className="h-[320px]" data-testid="panel-chart-diario">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.daily}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="dia" />
-                                <YAxis allowDecimals={false} />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="enviadas" name="Enviadas" fill={COLORS.enviadas} />
-                                <Bar dataKey="rechazadas" name="Rechazadas" fill={COLORS.rechazadas} />
-                                <Bar dataKey="aprobadas" name="Aprobadas" fill={COLORS.aprobadas} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <CotizacionesBarChart data={stats.daily} xKey="dia" />
                     </div>
                 </CardContent>
             </Card>

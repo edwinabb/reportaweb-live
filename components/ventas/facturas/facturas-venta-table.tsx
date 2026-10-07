@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Download, FileText, Search, X, Eye, Pencil, ExternalLink } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -158,7 +157,7 @@ export function FacturasVentaTable({ data, total, kpis }: Props) {
                             'Pendiente': f.pendiente_por_cobrar_usd,
                             'Estado': f.estado_pago,
                         }))
-                        if (!exportToExcel('FACTURAS-VENTA', rows)) toast.error('No hay registros para exportar')
+                        exportToExcel('FACTURAS-VENTA', rows)
                     }}
                 >
                     <Download className="h-4 w-4 mr-1" />

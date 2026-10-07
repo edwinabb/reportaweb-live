@@ -29,7 +29,6 @@ import { Tercero } from "@/types/terceros"
 import { Maquinaria, MaquinariaModelo } from "@/types/maquinaria"
 import { ModelCreationDialog } from "./model-creation-dialog"
 import { SearchableSelect } from "@/components/ui/searchable-select"
-import imageCompression from 'browser-image-compression';
 import Image from "next/image"
 
 interface ActionResult {
@@ -132,6 +131,7 @@ export function MaquinariaForm({ proveedores, modelos: initialModelos, initialDa
         };
 
         try {
+            const { default: imageCompression } = await import('browser-image-compression');
             const compressed = await imageCompression(file, options);
             setCompressedFile(compressed);
             toast.success("Imagen comprimida y lista");

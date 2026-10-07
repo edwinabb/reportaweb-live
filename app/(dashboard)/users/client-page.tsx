@@ -226,7 +226,7 @@ export function UsersClientPage({ users, isTrash = false }: UsersClientProps) {
                                             'Estado': u.is_active ? 'Activo' : 'Inactivo',
                                         }
                                     })
-                                    if (!exportToExcel('USUARIOS', rows)) toast.error('No hay registros para exportar')
+                                    exportToExcel('USUARIOS', rows)
                                 }}
                             >
                                 <FileText className="h-4 w-4 text-green-600" />

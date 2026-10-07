@@ -290,7 +290,7 @@ export function ValoracionesTable<TData, TValue>({
                                     'Estado': v.estado,
                                 }
                             })
-                            if (!exportToExcel('VALORACIONES', rows)) toast.error('No hay registros para exportar')
+                            exportToExcel('VALORACIONES', rows)
                         }}
                     >
                         <Download className="h-4 w-4 mr-1" />

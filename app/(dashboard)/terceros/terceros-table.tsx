@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Trash, FileText, Plus } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
@@ -103,7 +102,7 @@ export function TercerosTable({ data, isTrash = false }: TercerosTableProps) {
                                         'Estado': t.is_active ? 'Activo' : 'Inactivo',
                                     }
                                 })
-                                if (!exportToExcel('TERCEROS', rows)) toast.error('No hay registros para exportar')
+                                exportToExcel('TERCEROS', rows)
                             }}
                         >
                             <FileText className="h-4 w-4 text-green-600" />

@@ -278,7 +278,7 @@ export function ContactosClientPage({ contactos, terceros, isTrash = false }: Co
                                         'Estado': c.is_active ? 'Activo' : 'Inactivo',
                                     }
                                 })
-                                if (!exportToExcel('TERCEROS-CONTACTOS', rows)) toast.error('No hay registros para exportar')
+                                exportToExcel('TERCEROS-CONTACTOS', rows)
                             }}
                         >
                             <FileText className="h-4 w-4 text-green-600" />
