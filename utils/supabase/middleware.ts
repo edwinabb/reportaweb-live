@@ -21,7 +21,16 @@ const ALWAYS_ALLOWED_PREFIXES = [
 
 const COOKIE_BLOCKED   = 'rw3_bloqueadas'
 const COOKIE_TIMEZONE  = 'rw3_timezone'
+const COOKIE_TRIAL     = 'rw3_trial'
+const COOKIE_ROLE      = 'rw3_role'
 const COOKIE_MAX_AGE   = 3_600  // 1 hora (igual que el access token de Supabase)
+const COOKIE_TRIAL_MAX_AGE = 300  // 5 min — trial puede expirar por reloj, no por mutación
+
+type CachedTrial = {
+    status: 'active' | 'expired' | 'converted' | 'exempt' | string | null
+    expires_at: string | null
+    tenant_id: string | null
+}
 
 function isPublicPath(pathname: string): boolean {
     return PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
@@ -92,6 +101,8 @@ export async function updateSession(request: NextRequest) {
         // Limpiar cookies de permisos y timezone al cerrar sesión
         response.cookies.delete(COOKIE_BLOCKED)
         response.cookies.delete(COOKIE_TIMEZONE)
+        response.cookies.delete(COOKIE_TRIAL)
+        response.cookies.delete(COOKIE_ROLE)
 
         if (!isPublicPath(request.nextUrl.pathname)) {
             const loginUrl = new URL('/login', request.url)
@@ -112,12 +123,26 @@ export async function updateSession(request: NextRequest) {
 
     // /sistema solo accesible para reporta_admin
     if (request.nextUrl.pathname.startsWith('/sistema')) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-        if (profile?.role !== 'reporta_admin') {
+        const roleCookie = request.cookies.get(COOKIE_ROLE)?.value
+        let role: string | null = roleCookie ?? null
+        if (!role) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+            role = profile?.role ?? null
+            if (role) {
+                response.cookies.set(COOKIE_ROLE, role, {
+                    path: '/',
+                    maxAge: COOKIE_MAX_AGE,
+                    sameSite: 'lax',
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                })
+            }
+        }
+        if (role !== 'reporta_admin') {
             return NextResponse.redirect(new URL('/', request.url))
         }
         return response
@@ -132,50 +157,93 @@ export async function updateSession(request: NextRequest) {
 
     if (!skipTrialCheck) {
         try {
-            const { data: profileTrial } = await supabase
-                .from('profiles')
-                .select('tenant_id')
-                .eq('id', user.id)
-                .single()
+            // Cookie-cache del estado de trial para evitar 2 queries por request.
+            // TTL 5 min: trial puede expirar por paso del reloj, no por mutación,
+            // así que el cache corto es suficiente. Las actions que mutan trial
+            // (lib/actions/trial.ts) borran esta cookie para forzar re-fetch.
+            const trialCookie = request.cookies.get(COOKIE_TRIAL)?.value
+            let cached: CachedTrial | null = null
+            if (trialCookie) {
+                try {
+                    cached = JSON.parse(decodeURIComponent(trialCookie)) as CachedTrial
+                } catch { /* cookie corrupta → re-fetch */ }
+            }
 
-            if (profileTrial?.tenant_id) {
-                const { data: company } = await supabase
-                    .from('companies')
-                    .select('trial_status, trial_expires_at')
-                    .eq('id', profileTrial.tenant_id)
+            let trialStatus = cached?.status ?? null
+            let trialExpiresAt = cached?.expires_at ?? null
+            let tenantId = cached?.tenant_id ?? null
+
+            if (!cached) {
+                const { data: profileTrial } = await supabase
+                    .from('profiles')
+                    .select('tenant_id')
+                    .eq('id', user.id)
                     .single()
 
-                const isExpired = company?.trial_status === 'expired'
-                const isActiveButExpired =
-                    company?.trial_status === 'active' &&
-                    company?.trial_expires_at != null &&
-                    new Date(company.trial_expires_at) < new Date()
+                tenantId = profileTrial?.tenant_id ?? null
 
-                if (isExpired || isActiveButExpired) {
-                    if (isActiveButExpired) {
-                        // Fire-and-forget: mark as expired in DB
-                        supabase
-                            .from('companies')
-                            .update({ trial_status: 'expired' })
-                            .eq('id', profileTrial.tenant_id)
-                            .then(() => {}) // intentionally ignored
-                    }
+                if (tenantId) {
+                    const { data: company } = await supabase
+                        .from('companies')
+                        .select('trial_status, trial_expires_at')
+                        .eq('id', tenantId)
+                        .single()
 
-                    const redirectTo = NextResponse.redirect(new URL('/trial-expirado', request.url))
-                    response.cookies.getAll().forEach((cookie) => {
-                        const { name, value, ...opts } = cookie
-                        redirectTo.cookies.set({
-                            name,
-                            value,
-                            path: opts.path ?? '/',
-                            maxAge: opts.maxAge,
-                            sameSite: opts.sameSite as 'lax' | 'strict' | 'none' | undefined,
-                            httpOnly: opts.httpOnly,
-                            secure: opts.secure,
-                        })
-                    })
-                    return redirectTo
+                    trialStatus = company?.trial_status ?? null
+                    trialExpiresAt = company?.trial_expires_at ?? null
                 }
+
+                const toCache: CachedTrial = {
+                    status: trialStatus,
+                    expires_at: trialExpiresAt,
+                    tenant_id: tenantId,
+                }
+                response.cookies.set(
+                    COOKIE_TRIAL,
+                    encodeURIComponent(JSON.stringify(toCache)),
+                    {
+                        path: '/',
+                        maxAge: COOKIE_TRIAL_MAX_AGE,
+                        sameSite: 'lax',
+                        httpOnly: true,
+                        secure: process.env.NODE_ENV === 'production',
+                    }
+                )
+            }
+
+            const isExpired = trialStatus === 'expired'
+            const isActiveButExpired =
+                trialStatus === 'active' &&
+                trialExpiresAt != null &&
+                new Date(trialExpiresAt) < new Date()
+
+            if (isExpired || isActiveButExpired) {
+                if (isActiveButExpired && tenantId) {
+                    // Fire-and-forget: mark as expired in DB
+                    supabase
+                        .from('companies')
+                        .update({ trial_status: 'expired' })
+                        .eq('id', tenantId)
+                        .then(() => {}) // intentionally ignored
+                }
+
+                // Invalidar cookie para que el próximo request lea el estado real
+                response.cookies.delete(COOKIE_TRIAL)
+
+                const redirectTo = NextResponse.redirect(new URL('/trial-expirado', request.url))
+                response.cookies.getAll().forEach((cookie) => {
+                    const { name, value, ...opts } = cookie
+                    redirectTo.cookies.set({
+                        name,
+                        value,
+                        path: opts.path ?? '/',
+                        maxAge: opts.maxAge,
+                        sameSite: opts.sameSite as 'lax' | 'strict' | 'none' | undefined,
+                        httpOnly: opts.httpOnly,
+                        secure: opts.secure,
+                    })
+                })
+                return redirectTo
             }
         } catch {
             // Trial check failure is non-fatal — allow request through
