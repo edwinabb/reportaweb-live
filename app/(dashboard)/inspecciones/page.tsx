@@ -15,10 +15,14 @@ export const metadata: Metadata = {
 }
 
 export default async function InspeccionesPage() {
-    const [inspecciones, maquinarias] = await Promise.all([
-        getInspecciones(),
+    // E5: getInspecciones ahora pagina con default limit=50 + count.
+    // Pedimos limit alto (500) para mantener comportamiento previo del listado.
+    // UI con paginacion controlada vendria en una pasada futura.
+    const [inspeccionesResult, maquinarias] = await Promise.all([
+        getInspecciones(undefined, undefined, undefined, true, { limit: 500 }),
         getMaquinarias('', true),
     ])
+    const inspecciones = inspeccionesResult.data
 
     return (
         <div className="flex flex-col gap-6 p-6">

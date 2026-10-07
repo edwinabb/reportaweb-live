@@ -831,6 +831,8 @@ export async function getAvailability(startDate: string, endDate: string) {
         // Acepta true o null (migrados Bubble tienen is_active NULL)
         .or('is_active.is.null,is_active.eq.true')
         .eq('tarea.is_active', true)
+        // Cap explicito: timeline requiere rango completo (E5 risk ALTA)
+        .range(0, 9999)
 
     if (error) {
         console.error('Error fetching availability:', error)

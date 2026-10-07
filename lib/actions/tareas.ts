@@ -8,9 +8,15 @@ export type TareaEstado = 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA
 export type TareaPrioridad = 'ALTA' | 'MEDIA' | 'BAJA'
 
 
-export async function getTareas(estado?: TareaEstado) {
+export async function getTareas(
+    estado?: TareaEstado,
+    { page = 1, limit = 50 }: { page?: number; limit?: number } = {},
+) {
     const { adminClient, tenantId } = await getSupabaseContext()
-    if (!adminClient || !tenantId) return []
+    if (!adminClient || !tenantId) return { data: [], count: 0 }
+
+    const from = (page - 1) * limit
+    const to = from + limit - 1
 
     let query = adminClient
         .from('tareas')
@@ -20,13 +26,7 @@ export async function getTareas(estado?: TareaEstado) {
             cotizacion:cotizaciones(id, numero),
             usuario_asignado:auth_users!tareas_asignado_a_fkey(email),
             tarea_padre:tareas!tareas_tarea_padre_id_fkey(id, titulo, progreso_porcentaje)
-        `) // Note: auth_users join might need adjustments depending on how users are exposed.
-        // Usually we user profiles table. let's assume profiles for now if auth_users is not directly accessible via standard join without extra setup.
-        // Actually, standard supabase setup often links to profiles. Let's try to link to 'profiles' if 'auth_users' fails, but schema says 'auth.users'.
-        // To be safe, let's fetch profiles for assigned user if possible, or just raw ID if not.
-        // For now, let's just get the ID and we can resolve names later or use a view.
-        // Schema says: asignado_a uuid references auth.users(id)
-        // If we want email/name we usually need a join with profiles.
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
 
@@ -34,16 +34,19 @@ export async function getTareas(estado?: TareaEstado) {
         query = query.eq('estado', estado)
     }
 
-    query = query.order('prioridad', { ascending: true }).order('fecha_vencimiento', { ascending: true })
+    query = query
+        .order('prioridad', { ascending: true })
+        .order('fecha_vencimiento', { ascending: true })
+        .range(from, to)
 
-    const { data, error } = await query
+    const { data, count, error } = await query
 
     if (error) {
         console.error('Error fetching tareas:', error)
-        return []
+        return { data: [], count: 0 }
     }
 
-    return data
+    return { data: data || [], count: count || 0 }
 }
 
 export async function createTarea(prevState: any, formData: FormData) {
