@@ -2,6 +2,11 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 // Versión leída de package.json en build-time. Se inyecta como
 // NEXT_PUBLIC_APP_VERSION para el footer (login) y el release de Sentry,
@@ -114,7 +119,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+export default withBundleAnalyzer(withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,
@@ -123,4 +128,4 @@ export default withSentryConfig(nextConfig, {
   // disableLogger fue deprecado; su reemplazo (webpack.treeshake.removeDebugLogging)
   // no funciona con Turbopack, así que se omite. Solo afecta tree-shaking de logs
   // internos de Sentry (~1-2 KB en el bundle).
-});
+}));
