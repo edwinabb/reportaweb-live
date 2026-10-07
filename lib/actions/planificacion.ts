@@ -23,7 +23,11 @@ export async function getTareas(startDate?: string, endDate?: string): Promise<T
     // Refrescar la MV antes de consultar para que siempre muestre datos actualizados
     try { await adminClient.rpc('refresh_mv_planificacion') } catch { }
 
-    // Query a la vista materializada (Index Scan ~0.15ms vs 35ms original)
+    // Query a la vista materializada (Index Scan ~0.15ms vs 35ms original).
+    // Cap explícito a 10k filas (Opción B del plan E5): la MV expande
+    // tarea×día; en GRUAS un mes puede superar el default de 1000 filas de
+    // PostgREST. El timeline UI necesita el rango completo, por eso se cappea
+    // en vez de paginar.
     let mvQuery = adminClient
         .from('mv_planificacion_diaria')
         .select('*')
@@ -33,7 +37,7 @@ export async function getTareas(startDate?: string, endDate?: string): Promise<T
         mvQuery = mvQuery.gte('fecha', startDate).lte('fecha', endDate)
     }
 
-    const { data: mvRows, error } = await mvQuery
+    const { data: mvRows, error } = await mvQuery.range(0, 9999)
 
     if (error) {
         console.error('[getTareas] mv error:', error, { startDate, endDate })
@@ -43,21 +47,41 @@ export async function getTareas(startDate?: string, endDate?: string): Promise<T
 
     // Mini-query para campos de Tarea que no están en la MV:
     // created_at (para ordenar), cotizacion, tipo_tarea, descripcion, etc.
+    // Si tareaIds > 1000, PostgREST no acepta un .in() tan grande en una sola
+    // llamada; se divide en chunks de 1000 y se concatenan los resultados.
     const tareaIds = [...new Set(mvRows.map((r: { tarea_id: string }) => r.tarea_id))]
-    const { data: tareasMeta } = await adminClient
-        .from('tareas')
-        .select(`
-            id, created_at, created_by, is_active,
-            descripcion, cliente_id, cotizacion_id, cotizacion_item_id,
-            tipo_tarea, servicio_ref, contacto_id,
-            cotizacion:cotizaciones!tareas_cotizacion_id_fkey(id, estado, numero, anio)
-        `)
-        .in('id', tareaIds)
-        .eq('tenant_id', tenantId)
+    const CHUNK = 1000
+    type TareaMetaRow = {
+        id: string
+        created_at: string | null
+        created_by: string | null
+        is_active: boolean
+        descripcion: string | null
+        cliente_id: string | null
+        cotizacion_id: string | null
+        cotizacion_item_id: string | null
+        tipo_tarea: string | null
+        servicio_ref: string | null
+        contacto_id: string | null
+        cotizacion: unknown
+    }
+    const tareasMeta: TareaMetaRow[] = []
+    for (let i = 0; i < tareaIds.length; i += CHUNK) {
+        const chunk = tareaIds.slice(i, i + CHUNK)
+        const { data } = await adminClient
+            .from('tareas')
+            .select(`
+                id, created_at, created_by, is_active,
+                descripcion, cliente_id, cotizacion_id, cotizacion_item_id,
+                tipo_tarea, servicio_ref, contacto_id,
+                cotizacion:cotizaciones!tareas_cotizacion_id_fkey(id, estado, numero, anio)
+            `)
+            .in('id', chunk)
+            .eq('tenant_id', tenantId)
+        if (data) tareasMeta.push(...(data as TareaMetaRow[]))
+    }
 
-    const metaMap = new Map<string, typeof tareasMeta extends (infer T)[] | null ? T : never>(
-        (tareasMeta ?? []).map((t) => [t.id, t])
-    )
+    const metaMap = new Map<string, TareaMetaRow>(tareasMeta.map((t) => [t.id, t]))
 
     // Reconstruir TareaWithRelations[] desde filas planas de la MV.
     // Una fila MV = (tarea_fecha_id, fecha) — groupeamos por tarea → intervalo.

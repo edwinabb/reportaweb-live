@@ -224,22 +224,26 @@ export async function getAllReportesMaquinaria({ page = 1, limit = 50 }: { page?
     return { data: data || [], count: count || 0 }
 }
 
-export async function getAllReportesGastos() {
+export async function getAllReportesGastos({ page = 1, limit = 50 }: { page?: number; limit?: number } = {}) {
     const { adminClient, tenantId } = await getSupabaseContext()
-    if (!adminClient || !tenantId) return []
+    if (!adminClient || !tenantId) return { data: [], count: 0 }
 
-    const { data } = await adminClient
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data, count } = await adminClient
         .from('reportes_combustible')
         .select(`
             id, fecha_reporte, galones, tipo_combustible, monto_total, pdf_url, created_at,
             tarea:tareas(codigo, titulo),
             maquinaria:maquinarias(nombre, codigo_interno)
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('fecha_reporte', { ascending: false })
+        .range(from, to)
 
-    return data || []
+    return { data: data || [], count: count || 0 }
 }
 
 // --- GETBYID + UPDATE ---
