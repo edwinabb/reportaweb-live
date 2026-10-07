@@ -1,10 +1,23 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { seedDemoData, type FleetType } from '@/lib/trial-seed'
 import { setupTenantConfig } from '@/lib/actions/onboarding'
 import { sendEmail } from '@/lib/email'
 import { renderTrialEmailDia1 } from '@/lib/trial-email-templates'
+
+// Invalida la cookie de cache de trial que el middleware usa (COOKIE_TRIAL,
+// 5 min TTL). Se llama tras cada mutación de trial_status/trial_expires_at
+// para que el siguiente request del usuario vea el estado real.
+async function invalidateTrialCookie(): Promise<void> {
+    try {
+        const store = await cookies()
+        store.delete('rw3_trial')
+    } catch {
+        // cookies() puede fallar fuera de contexto de request — ok
+    }
+}
 
 // captureWithContext does not exist in lib/sentry.ts — using console.error instead
 // (CLAUDE.md references it but it has not been implemented yet)
@@ -174,6 +187,8 @@ export async function extendTrial(tenantId: string, days = 7): Promise<void> {
     if (updateError) {
         throw new Error(`extendTrial: error actualizando — ${updateError.message}`)
     }
+
+    await invalidateTrialCookie()
 }
 
 // ─── convertTrial ─────────────────────────────────────────────────────────────
@@ -192,6 +207,8 @@ export async function convertTrial(tenantId: string): Promise<void> {
     if (error) {
         throw new Error(`convertTrial: error actualizando — ${error.message}`)
     }
+
+    await invalidateTrialCookie()
 }
 
 // ─── requestTrialExtension ───────────────────────────────────────────────────
