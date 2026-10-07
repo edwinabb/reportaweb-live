@@ -1,8 +1,17 @@
 import { test, expect } from '@playwright/test'
+import {
+    openListado,
+    toggleActivosPapelera,
+} from '../helpers/listado-v12'
 
 /**
  * Flow 23 — Pre-cutover: Terceros CRUD @pre-cutover
  * Fase 4: cliente (con contacto + sitio), proveedor, desactivar/restaurar.
+ *
+ * Refactor FASE C4-a: usa helpers de template v1.2 para el toggle Papelera
+ * (antes `getByRole('tab')`). Los filtros Cliente/Proveedor se dejan con el
+ * selector flexible original porque pueden ser chips de filtro propios del
+ * módulo Terceros (no parte del template de listados v1.2).
  */
 
 const TS = Date.now()
@@ -11,16 +20,13 @@ test.describe('Terceros — Listado @pre-cutover', () => {
     test.use({ storageState: '.auth/admin.json' })
 
     test('listado de terceros activos carga', async ({ page }) => {
-        await page.goto('/terceros')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
-        await expect(page.locator('body')).not.toContainText('Application error')
+        await openListado(page, '/terceros')
         const tabla = page.locator('table tbody tr, [role="row"]').first()
         await expect(tabla).toBeVisible({ timeout: 10_000 })
     })
 
     test('filtro por tipo Cliente funciona', async ({ page }) => {
-        await page.goto('/terceros')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+        await openListado(page, '/terceros')
 
         const clienteFilter = page.getByRole('button', { name: /Cliente/i })
             .or(page.getByRole('tab', { name: /Cliente/i }))
@@ -34,8 +40,7 @@ test.describe('Terceros — Listado @pre-cutover', () => {
     })
 
     test('filtro por tipo Proveedor funciona', async ({ page }) => {
-        await page.goto('/terceros')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
+        await openListado(page, '/terceros')
 
         const proveedorFilter = page.getByRole('button', { name: /Proveedor/i })
             .or(page.getByRole('tab', { name: /Proveedor/i }))
@@ -48,16 +53,9 @@ test.describe('Terceros — Listado @pre-cutover', () => {
     })
 
     test('pestaña Papelera de terceros accesible', async ({ page }) => {
-        await page.goto('/terceros')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
-
-        const papeleraTab = page.getByRole('tab', { name: /Papelera/i })
-            .or(page.getByRole('button', { name: /Papelera/i }))
-        if (await papeleraTab.isVisible({ timeout: 5_000 })) {
-            await papeleraTab.click()
-            await page.waitForTimeout(800)
-            await expect(page.locator('body')).not.toContainText('Application error')
-        }
+        await openListado(page, '/terceros')
+        await toggleActivosPapelera(page, 'papelera')
+        await expect(page.locator('body')).not.toContainText('Application error')
     })
 })
 
@@ -74,19 +72,16 @@ test.describe('Terceros — Crear Cliente @pre-cutover', () => {
         await page.goto('/terceros/new')
         await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
 
-        // Razón social
         const razonInput = page.locator('input[name="razon_social"], input[name="nombre"], input[placeholder*="razón" i], input[placeholder*="razon" i]').first()
         if (await razonInput.isVisible({ timeout: 8_000 })) {
             await razonInput.fill(`E2E_Cliente_${TS}`)
         }
 
-        // RUC
         const rucInput = page.locator('input[name="ruc"], input[name="documento"]').first()
         if (await rucInput.isVisible({ timeout: 3_000 })) {
             await rucInput.fill('20999888777')
         }
 
-        // Tipo: Cliente
         const tipoSelect = page.locator('select[name="tipo"], [role="combobox"]').filter({ hasText: /Tipo/i }).first()
         if (await tipoSelect.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await tipoSelect.click()
@@ -116,7 +111,6 @@ test.describe('Terceros — Crear Cliente @pre-cutover', () => {
             await rucInput.fill('20888777666')
         }
 
-        // Tipo: Proveedor
         const tipoSelect = page.locator('select[name="tipo"], [role="combobox"]').filter({ hasText: /Tipo/i }).first()
         if (await tipoSelect.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await tipoSelect.click()
@@ -137,20 +131,14 @@ test.describe('Terceros — Sub-módulos @pre-cutover', () => {
     test.use({ storageState: '.auth/admin.json' })
 
     test('página de contactos carga', async ({ page }) => {
-        await page.goto('/terceros/contactos')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
-        await expect(page.locator('body')).not.toContainText('Application error')
+        await openListado(page, '/terceros/contactos')
     })
 
     test('página de sitios carga', async ({ page }) => {
-        await page.goto('/terceros/sitios')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
-        await expect(page.locator('body')).not.toContainText('Application error')
+        await openListado(page, '/terceros/sitios')
     })
 
     test('página de personal de terceros carga', async ({ page }) => {
-        await page.goto('/terceros/personal')
-        await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {})
-        await expect(page.locator('body')).not.toContainText('Application error')
+        await openListado(page, '/terceros/personal')
     })
 })
