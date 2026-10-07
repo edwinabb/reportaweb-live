@@ -4,7 +4,6 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Save, Send, Upload, X, Camera, Loader2 } from 'lucide-react'
-import imageCompression from 'browser-image-compression'
 
 import type { InformeCompleto } from '@/lib/actions/formatos-informes'
 import { formatDateTimeInTZ } from '@/lib/utils/tz'
@@ -205,6 +204,7 @@ export function InformeFillForm({ informe, maquinarias, personal }: Props) {
     // Upload foto — comprime a 920px/60% antes de enviar al servidor
     const handleFoto = async (preguntaId: string, file: File) => {
         try {
+            const { default: imageCompression } = await import('browser-image-compression')
             const compressed = await imageCompression(file, {
                 maxWidthOrHeight: 920,
                 initialQuality: 0.6,

@@ -86,7 +86,7 @@ export function DocumentTypesTable({ data, onNew }: DocumentTypesTableProps) {
             'Estado': doc.is_active ? 'Activo' : 'Inactivo',
             'Días Alerta': doc.expiration_alert_days ?? '',
         }))
-        if (!exportToExcel('TIPOS DE DOCUMENTOS', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('TIPOS DE DOCUMENTOS', rows)
     }
 
     const getCategoryBadge = (cat: string) => {

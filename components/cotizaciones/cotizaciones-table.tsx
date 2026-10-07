@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText } from "lucide-react"
-import { toast } from "sonner"
 import { exportToExcel } from "@/lib/utils/export-excel"
 import type { ColumnFilterOption } from "@/components/ui/column-filter-header"
 
@@ -118,7 +117,7 @@ export function CotizacionesTable({ data, estadoCounts }: CotizacionesTableProps
                             'Moneda': c.moneda,
                         }
                     })
-                    if (!exportToExcel('COTIZACIONES', rows)) toast.error('No hay registros para exportar')
+                    exportToExcel('COTIZACIONES', rows)
                 }
 
                 return (

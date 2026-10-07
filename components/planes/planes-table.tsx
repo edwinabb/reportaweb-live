@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useMemo, useState } from 'react'
 import { FileText } from 'lucide-react'
-import { toast } from 'sonner'
 import { NuevoPlanDialog } from './nuevo-plan-dialog'
 import { getColumns } from './planes-columns'
 import { exportToExcel } from '@/lib/utils/export-excel'
@@ -78,7 +77,7 @@ export function PlanesTable({
                 'Fecha Límite': p.fecha_limite ? formatDateInTZ(p.fecha_limite + 'T12:00:00', 'America/Lima') : '-',
             }
         })
-        if (!exportToExcel('PLANES DE ACCION', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('PLANES DE ACCION', rows)
     }
 
     return (

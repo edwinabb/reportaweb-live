@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { FileText, ExternalLink } from 'lucide-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,7 +60,7 @@ export function EntregaListadoClient({ entregas }: { entregas: Entrega[] }) {
             'Ítems': getItemsCount(e),
             'Estado': e.estado || '',
         }))
-        if (!exportToExcel('ENTREGAS EPP', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('ENTREGAS EPP', rows)
     }
 
     return (

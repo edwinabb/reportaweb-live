@@ -46,7 +46,7 @@ export function CatalogoEppClient({ initialData }: { initialData: Row[] }) {
             'Nivel riesgo': r.nivel_riesgo || '—',
             'Activo': r.is_active ? 'Sí' : 'No',
         }))
-        if (!exportToExcel('CATALOGO EPP', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('CATALOGO EPP', rows)
     }
 
     const handleToggle = async (row: Row, next: boolean) => {

@@ -233,7 +233,7 @@ export function PersonalClientPage({ personal, isTrash = false }: PersonalClient
                                         'Estado': p.is_active ? 'Activo' : 'Inactivo',
                                     }
                                 })
-                                if (!exportToExcel('TERCEROS-PERSONAL', rows)) toast.error('No hay registros para exportar')
+                                exportToExcel('TERCEROS-PERSONAL', rows)
                             }}
                         >
                             <FileText className="h-4 w-4 text-green-600" />

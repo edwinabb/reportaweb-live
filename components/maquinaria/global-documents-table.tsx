@@ -161,7 +161,7 @@ export function GlobalMaquinariaDocumentsTable({
             'Estado': getStatusText(doc),
             'Archivo': doc.archivo_url || 'No adjunto',
         }))
-        if (!exportToExcel('DOCUMENTOS MAQUINARIA', rows)) toast.error('No hay registros para exportar')
+        exportToExcel('DOCUMENTOS MAQUINARIA', rows)
     }
 
     const handleDownloadZip = async () => {

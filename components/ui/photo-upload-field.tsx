@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import imageCompression from 'browser-image-compression'
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -25,6 +24,7 @@ export function PhotoUploadField({ label, value, onChange, uploadFn, disabled }:
 
         setUploading(true)
         try {
+            const { default: imageCompression } = await import('browser-image-compression')
             const compressed = await imageCompression(file, {
                 maxWidthOrHeight: 920,
                 initialQuality: 0.6,

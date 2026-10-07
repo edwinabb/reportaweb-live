@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Trash, FileText } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DataTable } from "@/components/ui/data-table"
@@ -99,7 +98,7 @@ export function MaquinariaTable({ data, isTrash = false }: MaquinariaTableProps)
                                         'Estado': m.is_active ? 'Activo' : 'Inactivo',
                                     }
                                 })
-                                if (!exportToExcel('MAQUINARIAS', rows)) toast.error('No hay registros para exportar')
+                                exportToExcel('MAQUINARIAS', rows)
                             }}
                         >
                             <FileText className="h-4 w-4 text-green-600" />

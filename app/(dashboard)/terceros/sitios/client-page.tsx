@@ -308,7 +308,7 @@ export function SitiosClientPage({ sitios, terceros, isTrash = false }: SitiosCl
                                         'Estado': s.is_active ? 'Activo' : 'Inactivo',
                                     }
                                 })
-                                if (!exportToExcel('TERCEROS-SITIOS', rows)) toast.error('No hay registros para exportar')
+                                exportToExcel('TERCEROS-SITIOS', rows)
                             }}
                         >
                             <FileText className="h-4 w-4 text-green-600" />
