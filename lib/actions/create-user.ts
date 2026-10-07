@@ -53,7 +53,7 @@ export async function createUser(prevState: CreateUserState, formData: FormData)
         nationality: formData.get('nationality'),
         birthDate: formData.get('birthDate'),
         phone: formData.get('phone'),
-        pin: formData.get('pin'),
+        pin: formData.get('pin') || undefined,
         jobTitleId: formData.get('jobTitleId'),
     })
 
