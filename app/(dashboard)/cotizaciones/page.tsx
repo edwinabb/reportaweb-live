@@ -4,16 +4,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CotizacionesTable } from '@/components/cotizaciones/cotizaciones-table'
 
 async function CotizacionesList({ onlyActive }: { onlyActive: boolean }) {
-    // Fetch all or filtered?
-    // getCotizaciones(term, onlyActive)
-    // If onlyActive is true, it returns active.
-    // If onlyActive is false, it returns ALL (based on previous analysis).
-    // So we need to filter manually if we want ONLY trash.
-    // NOTA: getCotizaciones no pagina (cap de 1000 filas de PostgREST), por lo
-    // que las KPI cards usan un conteo exacto aparte (getCotizacionesEstadoCounts)
-    // en vez de contar sobre este array, que puede venir truncado.
-    const [allData, estadoCounts] = await Promise.all([
-        getCotizaciones(undefined, false),
+    // getCotizaciones ahora pagina (cap default 50). Para el listado completo
+    // de activos/papelera se levanta el limit hasta 500 (ventana suficiente
+    // para CISE/GRUAS). KPI counts siguen via getCotizacionesEstadoCounts.
+    const [{ data: allData }, estadoCounts] = await Promise.all([
+        getCotizaciones(undefined, false, { page: 1, limit: 500 }),
         getCotizacionesEstadoCounts(),
     ])
 

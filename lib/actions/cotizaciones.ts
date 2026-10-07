@@ -15,10 +15,16 @@ import { parseNumeroCotizacion } from '@/lib/utils/numero-cotizacion'
 
 export async function getCotizaciones(
     estado?: CotizacionEstado,
-    onlyActive = true
+    onlyActive = true,
+    opts: { page?: number; limit?: number } = {}
 ) {
     const { adminClient, tenantId } = await getSupabaseContext()
-    if (!adminClient || !tenantId) return []
+    if (!adminClient || !tenantId) return { data: [], count: 0 }
+
+    const page = Math.max(1, opts.page ?? 1)
+    const limit = Math.max(1, Math.min(500, opts.limit ?? 50))
+    const from = (page - 1) * limit
+    const to = from + limit - 1
 
     let query = adminClient
         .from('cotizaciones')
@@ -36,7 +42,7 @@ export async function getCotizaciones(
                 proveedor_id,
                 proveedor:terceros!cotizaciones_ofertas_proveedores_proveedor_id_fkey(razon_social)
             )
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
 
     if (onlyActive) {
@@ -47,23 +53,21 @@ export async function getCotizaciones(
         query = query.eq('estado', estado)
     }
 
-    query = query.order('created_at', { ascending: false })
+    query = query.order('created_at', { ascending: false }).range(from, to)
 
-    const { data, error } = await query
+    const { data, count, error } = await query
 
     if (error) {
         console.error('Error fetching cotizaciones:', error)
-        return []
+        return { data: [], count: 0 }
     }
 
-    return data
+    return { data: data ?? [], count: count ?? 0 }
 }
 
-// Conteos exactos por estado usando `count: 'exact', head: true` — a diferencia
-// de `getCotizaciones` (sin `.range()`, truncado a 1000 filas por el cap
-// default de PostgREST), esta función NO trae filas, solo cuenta, por lo que
-// no sufre el truncamiento. Usado para las KPI cards del panel de Cotizaciones,
-// que antes contaban sobre el array truncado de `getCotizaciones`.
+// Conteos exactos por estado usando `count: 'exact', head: true` — complementa
+// `getCotizaciones` (que ahora paginada expone `count` total, pero no por estado).
+// Usado para las KPI cards del panel de Cotizaciones.
 export async function getCotizacionesEstadoCounts() {
     const { adminClient, tenantId } = await getSupabaseContext()
     if (!adminClient || !tenantId) return null
