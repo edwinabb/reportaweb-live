@@ -13,7 +13,7 @@
 | DT-VAL-001 | FK valorizaciones en `reportes_maquinaria` (X2): 758 valorizaciones ~2021 huérfanas; backfill opcional Supabase-side `WHERE v.id_maquinaria_horas = rm.bubble_id`. Bajo impacto, no bloquea cutover (ver guia_migracion §Diagnóstico X2) | BAJA | 🟡 Opcional |
 | DT-MIG-DELTA | Delta-sync final desde Bubble LIVE antes del cutover | ALTA | 🟢 **Cerrado 2026-09-08** — recorrido completo Fases 1-9 (ver `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`). Bubble sigue en uso por los clientes hasta el cutover real, así que puede volver a abrir gap; re-correr los scripts idempotentes en `scripts/` si pasa mucho tiempo antes del corte final |
 | DUDA-SEC-001 | Rotar SERVICE_ROLE_KEY de PROD (estuvo en git) | ALTA | 🟢 En progreso (anon→`sb_publishable` ✅ v3.11.5; falta `sb_secret_` en worker + deshabilitar legacy) |
-| DUDA-SEC-002 | Tokens Bubble filtrados a git + 4 docs (rotar + limpiar) | ALTA | 🟡 Pendiente |
+| DUDA-SEC-002 | Tokens Bubble filtrados a git + 4 docs (rotar + limpiar) | ALTA | 🟢 **Cerrado 2026-10-07** — docs limpiados (A2 commit `f987aa0`); token `2539…` ya no estaba en Bubble; token `5532c3bb48…` revocado tras generar nuevo + swap en `.env.local` + reemplazo en n8n. Token huérfano `ca0bd77f…` también revocado. |
 | DUDA-SEC-003 | Revocar en dashboard PATs Supabase ya removidos de settings | ALTA | 🟢 **Cerrado 2026-10-07** — usuario verificó en Supabase Dashboard que `sbp_2135…c4fa0` y `sbp_bd7c…b370d2` ya no existen (revocados o expirados antes); único PAT activo hoy = `sbp_28c7…` (CLI). |
 | DUDA-E2E-001 | Actualizar suite E2E a la UI del template v1.2 | ALTA | 🟡 Pendiente |
 | DUDA-CACHE-001 | Migrar cache HTML a stale-while-revalidate | MEDIA | 🟡 Pendiente |
@@ -73,9 +73,17 @@ secret key `sb_secret_…` para uso server-side y deshabilitar solo la legacy
 
 ## DUDA-SEC-002: Tokens de Bubble filtrados a git + docs
 
-**Status:** 🟡 PENDIENTE
+**Status:** 🟢 CERRADO (2026-10-07)
 **Prioridad:** ALTA
 **Esfuerzo:** 20 min (rotar en Bubble + swap `.env.local` + limpiar 4 docs)
+
+### Resolución (2026-10-07)
+
+Token `2539…dbd9` ya no existía en Bubble (ya revocado antes). Token `5532c3bb48…`
+revocado tras: generar nuevo (`reporta-supabase-2026-10-07`), deploy a live en Bubble,
+swap en `.env.local` + reemplazo en credenciales n8n, smoke test contra `/api/1.1/obj/user`
+(200 OK). Token huérfano adicional `ca0bd77f…` también revocado en la misma pasada.
+Docs trackeados limpiados antes por A2 (commit `f987aa0`).
 
 ### Contexto
 
