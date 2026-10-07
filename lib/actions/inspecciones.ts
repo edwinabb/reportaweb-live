@@ -9,10 +9,14 @@ export async function getInspecciones(
     maquinaria_id?: string,
     fecha_inicio?: string,
     fecha_fin?: string,
-    onlyActive = true
+    onlyActive = true,
+    { page = 1, limit = 50 }: { page?: number; limit?: number } = {},
 ) {
     const { adminClient, tenantId } = await getSupabaseContext()
-    if (!adminClient || !tenantId) return []
+    if (!adminClient || !tenantId) return { data: [] as InspeccionWithRelations[], count: 0 }
+
+    const from = (page - 1) * limit
+    const to = from + limit - 1
 
     let query = adminClient
         .from('inspecciones')
@@ -20,7 +24,7 @@ export async function getInspecciones(
             *,
             maquinaria:maquinarias(id, nombre, codigo_interno, marca, modelo),
             supervisor:profiles!inspecciones_supervisor_id_fkey(id, email, full_name, avatar_url)
-        `)
+        `, { count: 'exact' })
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
 
@@ -40,13 +44,15 @@ export async function getInspecciones(
         query = query.lte('fecha_inspeccion', fecha_fin)
     }
 
-    const { data, error } = await query
+    query = query.range(from, to)
+
+    const { data, count, error } = await query
 
     if (error) {
-        return []
+        return { data: [] as InspeccionWithRelations[], count: 0 }
     }
 
-    return data as InspeccionWithRelations[]
+    return { data: (data || []) as InspeccionWithRelations[], count: count || 0 }
 }
 
 export async function getInspeccionesForTarea(tareaId: string) {
