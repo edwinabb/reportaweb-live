@@ -129,3 +129,6 @@ scripts/
 papelera/
 
 /.worktrees/
+
+# lighthouse baseline reports
+/lh-reports/
