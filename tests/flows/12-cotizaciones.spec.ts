@@ -92,7 +92,7 @@ test.describe('Cotizaciones — Admin @critical', () => {
         // El campo "Cotización" (disabled, sin name — no se envía en el submit)
         // muestra el numero real una vez creada.
         const numeroField = page.locator('div', { has: page.locator('label', { hasText: /^Cotización$/ }) })
-            .locator('input')
+            .locator('input[type="text"]')
             .first()
         await expect(numeroField).toHaveValue(/^CT-\d{4}-\d{4}$/, { timeout: 10_000 })
     })
