@@ -2,7 +2,16 @@ import { test as setup, expect } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 
-const MAX_AUTH_AGE_HOURS = 0.75 // 45 min — Supabase JWT TTL = 60 min; suite runs ~26 min
+// Antes: 0.75 (45 min) para evitar re-logear en cada suite. Problema: cuando
+// `setup-*` re-logea para el mismo usuario, Supabase invalida el refresh token
+// previo. Si otro proceso (o un rerun manual) todavía estaba apuntando al
+// `.auth/*.json` anterior, cualquier request suya cae con
+// `AuthApiError: Invalid Refresh Token: Refresh Token Not Found` (DUDA-E2E-001).
+// Costo real de re-logear siempre: ~2s por rol → ~8s por suite completa.
+// Beneficio: cada corrida arranca con access/refresh token recién emitidos,
+// válidos por 60 min — holgado para una suite de ~26–40 min.
+// Diag: docs/testing/diagnostico-auth-e2e-2026-10-06.md
+const MAX_AUTH_AGE_HOURS = 0
 
 /**
  * Lógica compartida de login para los 3 setups de rol.
