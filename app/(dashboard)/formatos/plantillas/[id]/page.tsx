@@ -3,7 +3,7 @@ import { getPlantillaById } from "@/lib/actions/plantillas"
 import { notFound } from "next/navigation"
 
 interface Props {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 export default async function EditarPlantillaPage(props: Props) {
