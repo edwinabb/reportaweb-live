@@ -14,7 +14,7 @@
 | DT-MIG-DELTA | Delta-sync final desde Bubble LIVE antes del cutover | ALTA | 🟢 **Cerrado 2026-09-08** — recorrido completo Fases 1-9 (ver `docs/superpowers/plans/2026-09-08-recorrido-completo-fases-1-9.md`). Bubble sigue en uso por los clientes hasta el cutover real, así que puede volver a abrir gap; re-correr los scripts idempotentes en `scripts/` si pasa mucho tiempo antes del corte final |
 | DUDA-SEC-001 | Rotar SERVICE_ROLE_KEY de PROD (estuvo en git) | ALTA | 🟢 En progreso (anon→`sb_publishable` ✅ v3.11.5; falta `sb_secret_` en worker + deshabilitar legacy) |
 | DUDA-SEC-002 | Tokens Bubble filtrados a git + 4 docs (rotar + limpiar) | ALTA | 🟡 Pendiente |
-| DUDA-SEC-003 | Revocar en dashboard PATs Supabase ya removidos de settings | ALTA | 🟡 Pendiente |
+| DUDA-SEC-003 | Revocar en dashboard PATs Supabase ya removidos de settings | ALTA | 🟢 **Cerrado 2026-10-07** — usuario verificó en Supabase Dashboard que `sbp_2135…c4fa0` y `sbp_bd7c…b370d2` ya no existen (revocados o expirados antes); único PAT activo hoy = `sbp_28c7…` (CLI). |
 | DUDA-E2E-001 | Actualizar suite E2E a la UI del template v1.2 | ALTA | 🟡 Pendiente |
 | DUDA-CACHE-001 | Migrar cache HTML a stale-while-revalidate | MEDIA | 🟡 Pendiente |
 | DUDA-DEPS-001 | Migrar xlsx (vulns altas sin fix en npm) | MEDIA | 🟡 Pendiente |
@@ -109,9 +109,16 @@ token **inline en curls**, por eso terminó copiado en tantos lugares.
 
 ## DUDA-SEC-003: Revocar PATs Supabase expuestos (ya removidos de settings)
 
-**Status:** 🟡 PENDIENTE
+**Status:** 🟢 CERRADO (2026-10-07)
 **Prioridad:** ALTA
 **Esfuerzo:** 5 min (dashboard)
+
+### Resolución (2026-10-07)
+
+Usuario verificó en Supabase Dashboard (https://supabase.com/dashboard/account/tokens) que
+ni `sbp_2135…c4fa0` ni `sbp_bd7c…b370d2` aparecen en la lista de tokens activos. Fueron
+revocados o expiraron antes del 2026-10-07 sin que se registrara en este doc. Único PAT
+activo hoy = `sbp_28c7…` (CLI, legítimo). `git grep sbp_` en el árbol: 0 matches.
 
 ### Contexto
 
