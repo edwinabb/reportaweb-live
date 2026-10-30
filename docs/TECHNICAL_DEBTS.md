@@ -1,11 +1,13 @@
 # Technical Debts & DUDAs — Reporta Web 3
 
-**Última revisión:** 2026-09-13 (cierre de la auditoría UI 15/15, `docs/auditoria-ui/14-opciones-internas.md`)
+**Última revisión:** 2026-10-30 (bridge PDF Opción A + sistema de módulos por tenant)
 
 | ID | Tema | Prioridad | Estado |
 |----|------|-----------|--------|
 | DT-RES-001 | Residuales sin fuente real en Bubble del recorrido Fases 1-9: GRUAS `cotizaciones_configuracion.imagen_banco`/`imagen_firma` (confirmado 2026-09-13 que tampoco existen en Bubble, no es que se perdieron en la migración); 685 PDFs de `facturas_venta`/`facturas_compra`; 149 `reportes_maquinaria` con `maquinaria_id` no resoluble; `CT 233-2025` + 1 `reportes_maquinaria` con literal de texto corrupto en vez de URL en Bubble; 3.327+2.527 items de facturación + 6 pagos de venta huérfanos en Bubble (sin FK padre) | BAJA | 🟡 Documentado, no recuperable del origen |
 | DT-UI-V12 | Auditoría de estándar UI v1.2: piloto "Cargos" corrió el checklist v1 (encontró implementación huérfana/duplicada + 6 ambigüedades del checklist), luego se creó un checklist v2 con reglas evidenciadas (`docs/superpowers/plans/2026-09-09-escalar-auditoria-ui-modulos-restantes.md`) y se escaló a los 15 módulos del roadmap original | MEDIA | 🟢 **Cerrado 2026-09-13** — las 15 auditorías de módulo están hechas; el checklist v2 nunca se formalizó a v3, pero ya no hay módulos pendientes donde iterarlo |
+| DUDA-BRIDGE-001 | **Bridge PDF Bubble→v3:** 2 migraciones pendientes de aplicar en TEST+PROD (`20261029100000_remove_reporte_maquinaria_tipo`, `20261029110000_add_modulos_activos_companies`). API Connector "Generar PDF" en Bubble no inicializado (falla con 403 vía MCP — requiere hacerlo desde el editor web). 4 plantillas `.docx` pendientes (`valorizacion_venta`, `valorizacion_compra`, `reporte_horas_maquinaria`, `reporte_personal`) — sin origen Word identificado. Mapeo tipo→campo Bubble en DUDA-BRIDGE-001 §Detalle | ALTA | 🟡 Pendiente — bloquea PDFs de Bubble en producción |
+| DT-MODULOS-001 | **Módulos por tenant:** infraestructura completada (columna `modulos_activos`, `tieneModulo()`, sidebar, layout guard). Migración `20261029110000_add_modulos_activos_companies.sql` pendiente de aplicar (igual que DUDA-BRIDGE-001 arriba). Actualmente solo `formatos` es un módulo independizable — el patrón está listo para extender a otros (`epp`, `planificacion`, etc.) | ALTA | 🟡 Pendiente (migración) |
 | DT-TYPES-001 | Regenerar `types/supabase.ts` desde la BD (`npm run types:supabase`) — hoy quedó hand-edit tras el rename `estadosunat`/`condicionsunat` + drops en `terceros` | MEDIA | 🟡 Pendiente |
 | DT-BUILD-001 | Correr `npm run build` local ANTES de deployar a demo — el rename de columnas rompió el build por un tipo de dominio (`types/terceros.ts`) que el hand-edit de `types/supabase.ts` no cubría | BAJA | 🟡 Proceso |
 | DT-CAT-001 | `personal_cargos` sin editor central en `/settings` (solo alta inline en `personal-dialog`); inconsistente con el resto de catálogos (que tienen tab en settings) | BAJA | 🟡 Pendiente |
@@ -384,7 +386,7 @@ abierta, ver `docs/auditoria-ui/07-informes.md`.
 ### Pendientes
 
 1. **Deploy real de `reporta-admin` a Cloudflare Workers** (Task 10 Steps 4-5 del plan, `docs/superpowers/plans/2026-09-06-reporta-admin.md`): `npx wrangler login`, cargar los secrets `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` en el dashboard de Cloudflare, `npx wrangler deploy`, bindear el dominio `admin.reporta.la`.
-2. **Poblar `system_document_templates`**: la tabla está en 0 filas tanto en TEST como en PROD. Hasta que no se suba al menos una plantilla activa por tenant+tipo vía `reporta-admin`, el bridge de PDF de Bubble va a fallar con `BubbleTemplateNotFoundError` para TODO documento. Solo existe un archivo placeholder (`cotizacion-bubble.docx`, copiado de un template existente) — **no hay origen identificado para los otros 5 tipos** (`valorizacion_venta`, `valorizacion_compra`, `reporte_maquinaria`, `reporte_horas_maquinaria`, `reporte_personal`). Hay que conseguir esos `.docx` reales (probablemente exportados de docmaker, igual que se hizo para cotización en la Fase 0).
+2. **Poblar `system_document_templates`**: la tabla está en 0 filas tanto en TEST como en PROD. Hasta que no se suba al menos una plantilla activa por tenant+tipo, el bridge fallará con `BubbleTemplateNotFoundError` para TODO documento. Solo existe `cotizacion-bubble.docx` — **no hay origen identificado para los otros 4 tipos** (`valorizacion_venta`, `valorizacion_compra`, `reporte_horas_maquinaria`, `reporte_personal`). **Nota 2026-10-29:** `reporte_maquinaria` fue eliminado del bridge — lo genera v3 internamente, no necesita plantilla .docx. El detalle del backlog de plantillas está en DUDA-BRIDGE-001.
 3. **`wrangler.toml` de reporta-admin solo apunta a PROD** — no hay config para TEST/demo. El smoke test de Task 10 Step 5 (subir plantilla + probar contra `demo.reportar.app`, que lee TEST) no va a funcionar tal como está planteado sin agregar una config/worker para TEST, o decidir hacer el smoke test directo contra PROD.
 4. **TEST no tiene ningún perfil con rol `reporta_admin`** — si se decide correr `reporta-admin` localmente contra TEST (`.env.local`), nadie podría loguearse hasta crear ese perfil.
 
@@ -424,6 +426,57 @@ Resolver en este orden: (4) crear un perfil `reporta_admin` en TEST → (1) depl
 - `admin.reporta.la` accesible y logueable.
 - Las 6 combinaciones tipo × {CISE, GRUAS} tienen al menos una plantilla activa en PROD.
 - El smoke test de Fase 0 (`curl` al bridge de PDF) devuelve `status: "done"` con `pdf_url` válido para los 6 tipos, no solo cotización.
+
+---
+
+## DUDA-BRIDGE-001: Bridge PDF Bubble→v3 — pendientes de activación
+
+**Status:** 🟡 PENDIENTE  
+**Prioridad:** ALTA (bloquea PDFs de Bubble en todos los tipos excepto cotización)  
+**Esfuerzo:** ~1h usuario + conseguir archivos Word origen
+
+### Contexto
+
+El bridge PDF (`app/api/bubble/pdf/generate/route.ts`) recibe requests de Bubble, genera PDFs vía Docxtemplater+Gotenberg y notifica por callback. La Opción A (campo `entity_type` en el callback) ya está implementada y deployada — Bubble sabe en qué campo de qué tipo de dato guardar el `pdf_url`.
+
+### Pendientes de activación (en orden)
+
+**1. Aplicar 2 migraciones en TEST y PROD (SQL Editor de Supabase):**
+- `supabase/migrations/20261029100000_remove_reporte_maquinaria_tipo.sql` — elimina `reporte_maquinaria` del CHECK constraint de `system_document_templates`
+- `supabase/migrations/20261029110000_add_modulos_activos_companies.sql` — agrega `modulos_activos TEXT[]` + seed CISE/GRUAS con `['formatos']`
+
+**2. Inicializar call "Generar PDF" en Bubble:**
+- App `reporta`, branch `test` → Plugins → API Connector → "Reporta PDF Bridge" → "Generar PDF" → botón "Initialize call"
+- Body de prueba: `{"tenant_id":"1cb97ec7-326c-4376-93ee-ed317d3da51b","template_key":"cotizacion","doc_category":"comercial","entity_id":"test-init-001","data":{},"callback_url":"https://reporta.la/version-test/api/1.1/wf/pdf-listo"}`
+- Requiere secret `BUBBLE_PDF_BRIDGE_API_KEY` cargado en el worker `reportaweb-demo`
+
+**3. Conseguir y subir 4 plantillas `.docx`:**
+
+| tipo | Storage path (CISE) | Storage path (GRUAS) |
+|---|---|---|
+| `valorizacion_venta` | `docs/cise/valorizacion_venta-1.docx` | `docs/gruas/valorizacion_venta-1.docx` |
+| `valorizacion_compra` | `docs/cise/valorizacion_compra-1.docx` | `docs/gruas/valorizacion_compra-1.docx` |
+| `reporte_horas_maquinaria` | `docs/cise/reporte_horas_maquinaria-1.docx` | `docs/gruas/reporte_horas_maquinaria-1.docx` |
+| `reporte_personal` | `docs/cise/reporte_personal-1.docx` | `docs/gruas/reporte_personal-1.docx` |
+
+Bucket: `system-templates`. Origen probable: exportar el mismo docmaker que generó `cotizacion-bubble.docx`. Tras subir, insertar en `system_document_templates`: `{tenant_id, tipo, version:1, is_active:true, storage_path}`.
+
+### Detalle: mapeo tipo→campo Bubble (Opción A)
+
+| template_key | Bubble Data Type | Campo | Bubble type key | Field key |
+|---|---|---|---|---|
+| `cotizacion` | `cotizaciones` | `pdf` | `custom.solicitud3` | `pdf_file` |
+| `valorizacion_venta` | `Facturas_venta` | `pdf_valorización` | `custom.alquiler_factura1` | `pdf_valorizaci_n_file` |
+| `valorizacion_compra` | `Facturas_compra` | `pdf_valorización` | `custom.alquiler_factura` | `pdf_valorizaci_n_file` |
+| `reporte_horas_maquinaria` | `Maquinaria_reporte_horas_new` | `pdf` | `custom.maquinaria_horas` | `pdf_file` |
+| `reporte_personal` | `usuario-reporte-horas-new` | `archivo_pdf` | `custom.usuario_turnos_total` | `archivo_pdf_file` |
+
+### Criterios de éxito
+
+- Las 2 migraciones aplicadas en TEST y PROD.
+- Call "Generar PDF" inicializada en Bubble (sin 403, status 200 con `status: "queued"` o `"done"`).
+- Smoke test del bridge: `curl -X POST https://dev.reportar.app/api/bubble/pdf/generate -H "Authorization: Bearer 02bc4b9…" -d '{"tenant_id":"1cb97ec7…","template_key":"cotizacion","doc_category":"comercial","data":{},"entity_id":"smoke-001","callback_url":"…"}'` devuelve `status:"done"` + `pdf_url`.
+- Los 5 tipos × {CISE, GRUAS} tienen plantilla activa en `system_document_templates` de PROD.
 
 ---
 

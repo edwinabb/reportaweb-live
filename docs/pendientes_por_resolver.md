@@ -82,6 +82,20 @@ ejecutado, esperando aprobación. **P-005-B (requiere Bubble):** migrar
 pagos de venta de GRUAS + migrar `bancos` + verificar cobertura de
 `facturas_compra_pagos` + resolver asimetría de `valorizaciones`.
 
+## P-008 · Bridge PDF + Módulos — pendientes de activación 2026-10-30
+
+| Sub-tarea | Detalle | Bloqueante |
+|---|---|---|
+| **P-008-A** Aplicar 2 migraciones | `20261029100000_remove_reporte_maquinaria_tipo.sql` + `20261029110000_add_modulos_activos_companies.sql` en TEST y PROD (Supabase SQL Editor) | El MCP no tiene permisos de escritura |
+| **P-008-B** Inicializar call Bubble | App `reporta`, branch `test` → API Connector "Reporta PDF Bridge" → "Generar PDF" → "Initialize call". El 403 de Cloudflare bot protection impide hacerlo vía MCP — requiere el editor web | Cloudflare bot protection bloquea MCP |
+| **P-008-C** 4 plantillas `.docx` | `valorizacion_venta`, `valorizacion_compra`, `reporte_horas_maquinaria`, `reporte_personal` — conseguir los Word origen (docmaker), subir a `system-templates` bucket → `docs/{cise\|gruas}/{tipo}-1.docx`, insertar en `system_document_templates` | Archivos Word origen no identificados |
+
+Ver detalle completo (mapeo tipo→campo Bubble, smoke test, criterios de éxito) en `docs/TECHNICAL_DEBTS.md` § DUDA-BRIDGE-001.
+
+**Estado:** 🔴 Los 3 sub-items pendientes del usuario.
+
+---
+
 ## Cómo revisar
 
 Para cada pendiente, verificar directamente en el panel de Bubble:

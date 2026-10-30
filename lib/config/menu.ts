@@ -21,6 +21,7 @@ export type MenuItem = {
     children?: { name: string; href: string }[]
     sectionLabel?: string  // muestra etiqueta de sección con línea ANTES de este item
     recurso?: string       // ruta_base en sistema_recursos; undefined = siempre visible
+    modulo?: string        // clave en companies.modulos_activos; undefined = siempre visible
 }
 
 export const menuItems: MenuItem[] = [
@@ -142,6 +143,7 @@ export const menuItems: MenuItem[] = [
         icon: ClipboardList,
         href: "/formatos",
         recurso: '/formatos',
+        modulo: 'formatos',
     },
 
     // ── SOPORTE ───────────────────────────────────────────────

@@ -17,7 +17,7 @@ const ALLOWED_TENANT_IDS = new Set([
 // nombre de archivo validado por regex genérico). Lista fija = más estricta.
 const TIPOS_VALIDOS = new Set([
     'cotizacion', 'valorizacion_venta', 'valorizacion_compra',
-    'reporte_maquinaria', 'reporte_horas_maquinaria', 'reporte_personal',
+    'reporte_horas_maquinaria', 'reporte_personal',
 ])
 
 interface BubblePdfRequestBody {

@@ -20,6 +20,7 @@ type Company = {
     name: string
     logo_url: string | null
     timezone: string
+    modulos_activos: string[] | null
 }
 
 type UserContextType = {
@@ -31,6 +32,8 @@ type UserContextType = {
     timezone: string
     /** True si el pathname debería estar visible para el cargo actual. */
     puedeVer: (ruta: string) => boolean
+    /** True si el módulo está habilitado para el tenant actual. NULL en companies = todos activos. */
+    tieneModulo: (modulo: string) => boolean
     refreshProfile: () => Promise<void>
 }
 
@@ -92,7 +95,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 if (activeTenantId) {
                     const { data: companyData } = await supabase
                         .from('companies')
-                        .select('id, name, logo_url, timezone')
+                        .select('id, name, logo_url, timezone, modulos_activos')
                         .eq('id', activeTenantId)
                         .single()
 
@@ -100,6 +103,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                         setCompany({
                             ...companyData,
                             timezone: companyData.timezone ?? 'America/Lima',
+                            modulos_activos: companyData.modulos_activos ?? null,
                         })
                     }
                 }
@@ -150,9 +154,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         )
     }, [rutasBloqueadas])
 
+    /** Retorna true si el módulo está habilitado para el tenant actual.
+     *  NULL en companies.modulos_activos = todos los módulos visibles (backwards compat). */
+    const tieneModulo = useCallback((modulo: string): boolean => {
+        if (!company?.modulos_activos) return true
+        return company.modulos_activos.includes(modulo)
+    }, [company?.modulos_activos])
+
     return (
         <UserContext.Provider value={{
-            user, profile, company, isLoading, puedeVer, refreshProfile: fetchUserData,
+            user, profile, company, isLoading, puedeVer, tieneModulo, refreshProfile: fetchUserData,
             timezone: company?.timezone ?? 'America/Lima',
         }}>
             {children}

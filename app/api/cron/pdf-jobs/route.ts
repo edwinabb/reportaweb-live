@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
                         status: 'done', pdf_url: pdfUrl, last_error: null, updated_at: new Date().toISOString(),
                     }).eq('id', job.id)
                     if (job.callback_url) {
-                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'done', pdf_url: pdfUrl })
+                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'done', pdf_url: pdfUrl, entity_type: job.template_key })
                     }
                     results.push({ id: job.id, status: 'done' })
                 } else if (templateNotFound) {
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
                         status: 'failed', last_error: `Plantilla no encontrada: ${job.template_key}`, updated_at: new Date().toISOString(),
                     }).eq('id', job.id)
                     if (job.callback_url) {
-                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed' })
+                        await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed', entity_type: job.template_key })
                     }
                     await alertBubbleDocxFailure(job)
                     results.push({ id: job.id, status: 'failed', error: 'template not found' })
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
                             status: 'failed', last_error: 'Reintentos agotados', updated_at: new Date().toISOString(),
                         }).eq('id', job.id)
                         if (job.callback_url) {
-                            await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed' })
+                            await notifyBubbleCallback(job.callback_url, { entity_id: job.entity_id, status: 'failed', entity_type: job.template_key })
                         }
                         await alertBubbleDocxFailure(job)
                         results.push({ id: job.id, status: 'failed' })

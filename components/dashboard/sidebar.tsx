@@ -19,7 +19,7 @@ import packageJson from "@/package.json"
 
 export function DashboardSidebar() {
     const pathname = usePathname()
-    const { user, profile, company, puedeVer } = useUser()
+    const { user, profile, company, puedeVer, tieneModulo } = useUser()
     const [openItem, setOpenItem] = useState<string | undefined>(undefined)
     const [prevActiveChildHref, setPrevActiveChildHref] = useState<string | undefined>(undefined)
     const [isCollapsed, setIsCollapsed] = useState(false)
@@ -57,9 +57,10 @@ export function DashboardSidebar() {
 
     const isSystemAdmin = profile?.role === 'reporta_admin'
 
-    // Filtra ítems según permisos del cargo; sin recurso = siempre visible
+    // Filtra ítems según permisos del cargo y módulos activos del tenant
     const visibleMenuItems = menuItems.filter(item =>
-        !item.recurso || puedeVer(item.recurso)
+        (!item.recurso || puedeVer(item.recurso)) &&
+        (!item.modulo || tieneModulo(item.modulo))
     )
 
     const isTestServer = process.env.NEXT_PUBLIC_ENV !== 'production'

@@ -2,6 +2,7 @@ interface BubbleCallbackPayload {
     entity_id: string
     status: 'done' | 'failed'
     pdf_url?: string
+    entity_type?: string
 }
 
 /**
